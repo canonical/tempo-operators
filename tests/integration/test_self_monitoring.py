@@ -44,7 +44,7 @@ async def test_build_and_deploy(ops_test: OpsTest):
             scale: 1
             trust: true
           read:
-            charm: mimir-worker-k8s
+            charm: tempo-worker-k8s
             channel: edge
             scale: 1
             constraints: arch=amd64
@@ -58,7 +58,7 @@ async def test_build_and_deploy(ops_test: OpsTest):
               store-gateway: true
             trust: true
           write:
-            charm: mimir-worker-k8s
+            charm: tempo-worker-k8s
             channel: edge
             scale: 1
             constraints: arch=amd64
@@ -70,10 +70,10 @@ async def test_build_and_deploy(ops_test: OpsTest):
         relations:
         - - prom:metrics-endpoint
           - coord:self-metrics-endpoint
-        - - coord:mimir-cluster
-          - read:mimir-cluster
-        - - coord:mimir-cluster
-          - write:mimir-cluster
+        - - coord:tempo-cluster
+          - read:tempo-cluster
+        - - coord:tempo-cluster
+          - write:tempo-cluster
         """
     )
 

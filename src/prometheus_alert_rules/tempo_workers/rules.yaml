@@ -1,8 +1,8 @@
 # Obtained from:
-# https://github.com/grafana/mimir/blob/main/operations/mimir-mixin-compiled/rules.yaml
+# https://github.com/grafana/tempo/blob/main/operations/tempo-mixin-compiled/rules.yaml
 
 groups:
-- name: mimir_api_1
+- name: tempo_api_1
   rules:
   - expr: histogram_quantile(0.99, sum(rate(cortex_request_duration_seconds_bucket[1m]))
       by (le, cluster, job))
@@ -19,7 +19,7 @@ groups:
     record: cluster_job:cortex_request_duration_seconds_sum:sum_rate
   - expr: sum(rate(cortex_request_duration_seconds_count[1m])) by (cluster, job)
     record: cluster_job:cortex_request_duration_seconds_count:sum_rate
-- name: mimir_api_2
+- name: tempo_api_2
   rules:
   - expr: histogram_quantile(0.99, sum(rate(cortex_request_duration_seconds_bucket[1m]))
       by (le, cluster, job, route))
@@ -37,7 +37,7 @@ groups:
     record: cluster_job_route:cortex_request_duration_seconds_sum:sum_rate
   - expr: sum(rate(cortex_request_duration_seconds_count[1m])) by (cluster, job, route)
     record: cluster_job_route:cortex_request_duration_seconds_count:sum_rate
-- name: mimir_api_3
+- name: tempo_api_3
   rules:
   - expr: histogram_quantile(0.99, sum(rate(cortex_request_duration_seconds_bucket[1m]))
       by (le, cluster, namespace, job, route))
@@ -58,7 +58,7 @@ groups:
   - expr: sum(rate(cortex_request_duration_seconds_count[1m])) by (cluster, namespace,
       job, route)
     record: cluster_namespace_job_route:cortex_request_duration_seconds_count:sum_rate
-- name: mimir_querier_api
+- name: tempo_querier_api
   rules:
   - expr: histogram_quantile(0.99, sum(rate(cortex_querier_request_duration_seconds_bucket[1m]))
       by (le, cluster, job))
@@ -117,7 +117,7 @@ groups:
   - expr: sum(rate(cortex_querier_request_duration_seconds_count[1m])) by (cluster,
       namespace, job, route)
     record: cluster_namespace_job_route:cortex_querier_request_duration_seconds_count:sum_rate
-- name: mimir_cache
+- name: tempo_cache
   rules:
   - expr: histogram_quantile(0.99, sum(rate(cortex_memcache_request_duration_seconds_bucket[1m]))
       by (le, cluster, job, method))
@@ -174,7 +174,7 @@ groups:
   - expr: sum(rate(cortex_cache_request_duration_seconds_count[1m])) by (cluster,
       job, method)
     record: cluster_job_method:cortex_cache_request_duration_seconds_count:sum_rate
-- name: mimir_storage
+- name: tempo_storage
   rules:
   - expr: histogram_quantile(0.99, sum(rate(cortex_kv_request_duration_seconds_bucket[1m]))
       by (le, cluster, job))
@@ -192,7 +192,7 @@ groups:
     record: cluster_job:cortex_kv_request_duration_seconds_sum:sum_rate
   - expr: sum(rate(cortex_kv_request_duration_seconds_count[1m])) by (cluster, job)
     record: cluster_job:cortex_kv_request_duration_seconds_count:sum_rate
-- name: mimir_queries
+- name: tempo_queries
   rules:
   - expr: histogram_quantile(0.99, sum(rate(cortex_query_frontend_retries_bucket[1m]))
       by (le, cluster, job))
@@ -228,7 +228,7 @@ groups:
   - expr: sum(rate(cortex_query_frontend_queue_duration_seconds_count[1m])) by (cluster,
       job)
     record: cluster_job:cortex_query_frontend_queue_duration_seconds_count:sum_rate
-- name: mimir_ingester_queries
+- name: tempo_ingester_queries
   rules:
   - expr: histogram_quantile(0.99, sum(rate(cortex_ingester_queried_series_bucket[1m]))
       by (le, cluster, job))
@@ -276,32 +276,32 @@ groups:
     record: cluster_job:cortex_ingester_queried_exemplars_sum:sum_rate
   - expr: sum(rate(cortex_ingester_queried_exemplars_count[1m])) by (cluster, job)
     record: cluster_job:cortex_ingester_queried_exemplars_count:sum_rate
-- name: mimir_received_samples
+- name: tempo_received_samples
   rules:
   - expr: |
       sum by (cluster, namespace, job) (rate(cortex_distributor_received_samples_total[5m]))
     record: cluster_namespace_job:cortex_distributor_received_samples:rate5m
-- name: mimir_exemplars_in
+- name: tempo_exemplars_in
   rules:
   - expr: |
       sum by (cluster, namespace, job) (rate(cortex_distributor_exemplars_in_total[5m]))
     record: cluster_namespace_job:cortex_distributor_exemplars_in:rate5m
-- name: mimir_received_exemplars
+- name: tempo_received_exemplars
   rules:
   - expr: |
       sum by (cluster, namespace, job) (rate(cortex_distributor_received_exemplars_total[5m]))
     record: cluster_namespace_job:cortex_distributor_received_exemplars:rate5m
-- name: mimir_exemplars_ingested
+- name: tempo_exemplars_ingested
   rules:
   - expr: |
       sum by (cluster, namespace, job) (rate(cortex_ingester_ingested_exemplars_total[5m]))
     record: cluster_namespace_job:cortex_ingester_ingested_exemplars:rate5m
-- name: mimir_exemplars_appended
+- name: tempo_exemplars_appended
   rules:
   - expr: |
       sum by (cluster, namespace, job) (rate(cortex_ingester_tsdb_exemplar_exemplars_appended_total[5m]))
     record: cluster_namespace_job:cortex_ingester_tsdb_exemplar_exemplars_appended:rate5m
-- name: mimir_scaling_rules
+- name: tempo_scaling_rules
   rules:
   - expr: |
       # Convenience rule to get the number of replicas for both a deployment and a statefulset.
@@ -535,7 +535,7 @@ groups:
     labels:
       reason: memory_usage
     record: cluster_namespace_deployment_reason:required_replicas:count
-- name: mimir_alertmanager_rules
+- name: tempo_alertmanager_rules
   rules:
   - expr: |
       sum by (cluster, job, pod) (cortex_alertmanager_alerts)
@@ -567,7 +567,7 @@ groups:
   - expr: |
       sum by (cluster, job) (rate(cortex_alertmanager_partial_state_merges_failed_total[5m]))
     record: cluster_job:cortex_alertmanager_partial_state_merges_failed_total:rate5m
-- name: mimir_ingester_rules
+- name: tempo_ingester_rules
   rules:
   - expr: |
       sum by(cluster, namespace, pod) (rate(cortex_ingester_ingested_samples_total[1m]))

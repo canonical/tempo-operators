@@ -2,9 +2,9 @@
 # Copyright 2024 Canonical
 # See LICENSE file for licensing details.
 
-"""This module contains an endpoint wrapper class for the provider side of the ``mimir-cluster`` relation.
+"""This module contains an endpoint wrapper class for the provider side of the ``tempo-cluster`` relation.
 
-As this relation is cluster-internal and not intended for third-party charms to interact with `mimir-coordinator-k8s`, its only user will be the mimir-coordinator-k8s charm. As such, it does not live in a charm lib as most other relation endpoint wrappers do.
+As this relation is cluster-internal and not intended for third-party charms to interact with `tempo-coordinator-k8s`, its only user will be the tempo-coordinator-k8s charm. As such, it does not live in a charm lib as most other relation endpoint wrappers do.
 """
 
 
@@ -19,18 +19,18 @@ import pydantic
 from ops import Object
 from pydantic import BaseModel, ConfigDict
 
-log = logging.getLogger("mimir_cluster")
+log = logging.getLogger("tempo_cluster")
 
-DEFAULT_ENDPOINT_NAME = "mimir-cluster"
+DEFAULT_ENDPOINT_NAME = "tempo-cluster"
 BUILTIN_JUJU_KEYS = {"ingress-address", "private-address", "egress-subnets"}
-MIMIR_CONFIG_FILE = "/etc/mimir/mimir-config.yaml"
-MIMIR_CERT_FILE = "/etc/mimir/server.cert"
-MIMIR_KEY_FILE = "/etc/mimir/private.key"
-MIMIR_CLIENT_CA_FILE = "/etc/mimir/ca.cert"
+TEMPO_CONFIG_FILE = "/etc/tempo/tempo-config.yaml"
+TEMPO_CERT_FILE = "/etc/tempo/server.cert"
+TEMPO_KEY_FILE = "/etc/tempo/private.key"
+TEMPO_CLIENT_CA_FILE = "/etc/tempo/ca.cert"
 
 
-class MimirRole(str, Enum):
-    """Mimir component role names."""
+class TempoRole(str, Enum):
+    """Tempo component role names."""
 
     overrides_exporter = "overrides-exporter"
     query_scheduler = "query-scheduler"
@@ -52,21 +52,21 @@ class MimirRole(str, Enum):
 
 
 META_ROLES = {
-    MimirRole.read: (MimirRole.query_frontend, MimirRole.querier),
-    MimirRole.write: (MimirRole.distributor, MimirRole.ingester),
-    MimirRole.backend: (
-        MimirRole.store_gateway,
-        MimirRole.compactor,
-        MimirRole.ruler,
-        MimirRole.alertmanager,
-        MimirRole.query_scheduler,
-        MimirRole.overrides_exporter,
+    TempoRole.read: (TempoRole.query_frontend, TempoRole.querier),
+    TempoRole.write: (TempoRole.distributor, TempoRole.ingester),
+    TempoRole.backend: (
+        TempoRole.store_gateway,
+        TempoRole.compactor,
+        TempoRole.ruler,
+        TempoRole.alertmanager,
+        TempoRole.query_scheduler,
+        TempoRole.overrides_exporter,
     ),
-    MimirRole.all: list(MimirRole),
+    TempoRole.all: list(TempoRole),
 }
 
 
-def expand_roles(roles: Iterable[MimirRole]) -> Set[MimirRole]:
+def expand_roles(roles: Iterable[TempoRole]) -> Set[TempoRole]:
     """Expand any meta roles to their 'atomic' equivalents."""
     expanded_roles = set()
     for role in roles:
@@ -77,8 +77,8 @@ def expand_roles(roles: Iterable[MimirRole]) -> Set[MimirRole]:
     return expanded_roles
 
 
-class MimirClusterProvider(Object):
-    """``mimir-cluster`` provider endpoint wrapper."""
+class TempoClusterProvider(Object):
+    """``tempo-cluster`` provider endpoint wrapper."""
 
     def __init__(
         self,
@@ -92,25 +92,25 @@ class MimirClusterProvider(Object):
 
     def publish_data(
         self,
-        mimir_config: Dict[str, Any],
+        tempo_config: Dict[str, Any],
         loki_endpoints: Optional[Dict[str, str]] = None,
     ) -> None:
-        """Publish the mimir config and loki endpoints to all related mimir worker clusters."""
+        """Publish the tempo config and loki endpoints to all related tempo worker clusters."""
         for relation in self._relations:
             if relation:
-                local_app_databag = MimirClusterProviderAppData(
-                    mimir_config=mimir_config, loki_endpoints=loki_endpoints
+                local_app_databag = TempoClusterProviderAppData(
+                    tempo_config=tempo_config, loki_endpoints=loki_endpoints
                 )
                 local_app_databag.dump(relation.data[self.model.app])
 
-    def gather_roles(self) -> Dict[MimirRole, int]:
+    def gather_roles(self) -> Dict[TempoRole, int]:
         """Go through the worker's app databags and sum the available application roles."""
         data = {}
         for relation in self._relations:
             if relation.app:
                 remote_app_databag = relation.data[relation.app]
                 try:
-                    worker_roles: List[MimirRole] = MimirClusterRequirerAppData.load(
+                    worker_roles: List[TempoRole] = TempoClusterRequirerAppData.load(
                         remote_app_databag
                     ).roles
                 except DataValidationError as e:
@@ -135,7 +135,7 @@ class MimirClusterProvider(Object):
                 continue
 
             try:
-                worker_app_data = MimirClusterRequirerAppData.load(relation.data[relation.app])
+                worker_app_data = TempoClusterRequirerAppData.load(relation.data[relation.app])
                 worker_roles = set(worker_app_data.roles)
             except DataValidationError as e:
                 log.info(f"invalid databag contents: {e}")
@@ -143,7 +143,7 @@ class MimirClusterProvider(Object):
 
             for worker_unit in relation.units:
                 try:
-                    worker_data = MimirClusterRequirerUnitData.load(relation.data[worker_unit])
+                    worker_data = TempoClusterRequirerUnitData.load(relation.data[worker_unit])
                     unit_address = worker_data.address
                     for role in worker_roles:
                         data[role].add(unit_address)
@@ -177,7 +177,7 @@ class MimirClusterProvider(Object):
 
             for worker_unit in relation.units:
                 try:
-                    worker_data = MimirClusterRequirerUnitData.load(relation.data[worker_unit])
+                    worker_data = TempoClusterRequirerUnitData.load(relation.data[worker_unit])
                     unit_address = worker_data.address
                 except DataValidationError as e:
                     log.info(f"invalid databag contents: {e}")
@@ -255,36 +255,33 @@ class JujuTopology(pydantic.BaseModel):
     # ...
 
 
-class MimirClusterProviderAppData(DatabagModel):
-    """MimirClusterProviderAppData."""
+class TempoClusterProviderAppData(DatabagModel):
+    """TempoClusterProviderAppData."""
 
-    mimir_config: Dict[str, Any]
+    tempo_config: Dict[str, Any]
     loki_endpoints: Optional[Dict[str, str]] = None
-    # todo: validate with
-    #  https://grafana.com/docs/mimir/latest/configure/about-configurations/#:~:text=Validate%20a%20configuration,or%20in%20a%20CI%20environment.
-    #  caveat: only the requirer node can do it
 
 
-class MimirClusterRequirerAppData(DatabagModel):
-    """MimirClusterRequirerAppData."""
+class TempoClusterRequirerAppData(DatabagModel):
+    """TempoClusterRequirerAppData."""
 
-    roles: List[MimirRole]
+    roles: List[TempoRole]
 
 
-class MimirClusterRequirerUnitData(DatabagModel):
-    """MimirClusterRequirerUnitData."""
+class TempoClusterRequirerUnitData(DatabagModel):
+    """TempoClusterRequirerUnitData."""
 
     juju_topology: JujuTopology
     address: str
 
 
-class MimirClusterError(Exception):
+class TempoClusterError(Exception):
     """Base class for exceptions raised by this module."""
 
 
-class DataValidationError(MimirClusterError):
+class DataValidationError(TempoClusterError):
     """Raised when relation databag validation fails."""
 
 
-class DatabagAccessPermissionError(MimirClusterError):
+class DatabagAccessPermissionError(TempoClusterError):
     """Raised when a follower attempts to write leader settings."""

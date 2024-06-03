@@ -1,13 +1,13 @@
-name: mimir-coordinator-k8s
+name: tempo-coordinator-k8s
 assumes:
   - k8s-api
 
-docs: https://discourse.charmhub.io/t/mimir-coordinator-index/10531
+docs: # TODO fill with docs
 
-summary: Mimir coordinator
+summary: Tempo coordinator
 
 description: |
-    Mimir coordinator.
+    Tempo coordinator.
 
 containers:
   nginx:
@@ -34,14 +34,14 @@ requires:
     interface: s3
     limit: 1
     description: |
-      The coordinator obtains and shares storage details with workers, enabling Mimir's access to an S3 bucket for data storage.
+      The coordinator obtains and shares storage details with workers, enabling Tempo's access to an S3 bucket for data storage.
 
   logging-consumer:
     interface: loki_push_api
     description: |
       Forward workers' built-in logging rules to the external Loki
       (the coordinator, not the worker, owns all rule files).
-      Obtain rules and Loki's API endpoint to later send them to the mimir ruler over another
+      Obtain rules and Loki's API endpoint to later send them to the tempo ruler over another
       relation.
 
   ingress:
@@ -54,7 +54,7 @@ requires:
     interface: tls-certificates
     limit: 1
     description: |
-      Certificate and key files for securing Mimir communications with TLS.
+      Certificate and key files for securing Tempo communications with TLS.
 
   tracing:
     interface: tracing
@@ -63,10 +63,10 @@ requires:
       Enables sending traces to the tracing backend.
 
 provides:
-  mimir-cluster:
-    interface: mimir_cluster
+  tempo-cluster:
+    interface: tempo_cluster
     description: |
-      The coordinator sends the Mimir configuration to the workers, obtaining
+      The coordinator sends the Tempo configuration to the workers, obtaining
       the roles they are configured to take on and their addressing information.
 
   receive-remote-write:

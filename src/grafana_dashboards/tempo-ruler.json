@@ -31,10 +31,10 @@
       "includeVars": true,
       "keepTime": true,
       "tags": [
-        "mimir"
+        "tempo"
       ],
       "targetBlank": false,
-      "title": "Mimir dashboards",
+      "title": "Tempo dashboards",
       "type": "dashboards"
     }
   ],
@@ -2356,7 +2356,7 @@
   "schemaVersion": 37,
   "style": "dark",
   "tags": [
-    "mimir"
+    "tempo"
   ],
   "templating": {
     "list": [
@@ -2548,7 +2548,7 @@
     ]
   },
   "timezone": "utc",
-  "title": "Mimir / Ruler",
+  "title": "Tempo / Ruler",
   "uid": "631e15d5d85afb2ca8e35d62984eeaa0",
   "version": 1,
   "weekStart": ""

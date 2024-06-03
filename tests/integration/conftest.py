@@ -51,7 +51,7 @@ def timed_memoizer(func):
 
 @pytest.fixture(scope="module")
 @timed_memoizer
-async def mimir_charm(ops_test):
-    """Mimir charm used for integration testing."""
+async def tempo_charm(ops_test):
+    """Tempo charm used for integration testing."""
     charm = await ops_test.build_charm(".")
     return charm

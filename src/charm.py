@@ -35,9 +35,9 @@ from charms.tempo_k8s.v1.tracing import TracingEndpointRequirer
 from charms.traefik_k8s.v2.ingress import IngressPerAppReadyEvent, IngressPerAppRequirer
 from cosl import JujuTopology
 from cosl.rules import AlertRules
-from mimir_cluster import MimirClusterProvider
-from mimir_config import BUCKET_NAME, S3_RELATION_NAME, _S3ConfigData
-from mimir_coordinator import MimirCoordinator
+from tempo_cluster import TempoClusterProvider
+from tempo_config import BUCKET_NAME, S3_RELATION_NAME, _S3ConfigData
+from tempo_coordinator import TempoCoordinator
 from nginx import CA_CERT_PATH, CERT_PATH, KEY_PATH, Nginx
 from nginx_prometheus_exporter import NGINX_PROMETHEUS_EXPORTER_PORT, NginxPrometheusExporter
 from ops.charm import CollectStatusEvent
@@ -48,7 +48,7 @@ from pydantic import ValidationError
 logger = logging.getLogger(__name__)
 
 NGINX_ORIGINAL_ALERT_RULES_PATH = "./src/prometheus_alert_rules/nginx"
-WORKER_ORIGINAL_ALERT_RULES_PATH = "./src/prometheus_alert_rules/mimir_workers"
+WORKER_ORIGINAL_ALERT_RULES_PATH = "./src/prometheus_alert_rules/tempo_workers"
 CONSOLIDATED_ALERT_RULES_PATH = "./src/prometheus_alert_rules/consolidated_rules"
 
 
@@ -57,12 +57,12 @@ CONSOLIDATED_ALERT_RULES_PATH = "./src/prometheus_alert_rules/consolidated_rules
     server_cert="server_cert_path",
     extra_types=[
         S3Requirer,
-        MimirClusterProvider,
-        MimirCoordinator,
+        TempoClusterProvider,
+        TempoCoordinator,
         Nginx,
     ],
 )
-class MimirCoordinatorK8SOperatorCharm(ops.CharmBase):
+class TempoCoordinatorK8SOperatorCharm(ops.CharmBase):
     """Charm the service."""
 
     def __init__(self, *args: Any):
@@ -77,12 +77,12 @@ class MimirCoordinatorK8SOperatorCharm(ops.CharmBase):
         )
         self.server_cert = CertHandler(
             charm=self,
-            key="mimir-server-cert",
+            key="tempo-server-cert",
             sans=[self.hostname],
         )
         self.s3_requirer = S3Requirer(self, S3_RELATION_NAME, BUCKET_NAME)
-        self.cluster_provider = MimirClusterProvider(self)
-        self.coordinator = MimirCoordinator(
+        self.cluster_provider = TempoClusterProvider(self)
+        self.coordinator = TempoCoordinator(
             cluster_provider=self.cluster_provider,
             tls_requirer=self.server_cert,
         )
@@ -94,7 +94,7 @@ class MimirCoordinatorK8SOperatorCharm(ops.CharmBase):
         self.nginx_prometheus_exporter = NginxPrometheusExporter(self)
         self.remote_write_provider = PrometheusRemoteWriteProvider(
             charm=self,
-            server_url_func=lambda: MimirCoordinatorK8SOperatorCharm.external_url.fget(self),  # type: ignore
+            server_url_func=lambda: TempoCoordinatorK8SOperatorCharm.external_url.fget(self),  # type: ignore
             endpoint_path="/api/v1/push",
         )
         self.tracing = TracingEndpointRequirer(self)
@@ -118,10 +118,10 @@ class MimirCoordinatorK8SOperatorCharm(ops.CharmBase):
             alert_rules_path=CONSOLIDATED_ALERT_RULES_PATH,
             jobs=self._scrape_jobs,
             refresh_event=[
-                self.on.mimir_cluster_relation_joined,
-                self.on.mimir_cluster_relation_changed,
-                self.on.mimir_cluster_relation_departed,
-                self.on.mimir_cluster_relation_broken,
+                self.on.tempo_cluster_relation_joined,
+                self.on.tempo_cluster_relation_changed,
+                self.on.tempo_cluster_relation_departed,
+                self.on.tempo_cluster_relation_broken,
             ],
         )
         self.ingress = IngressPerAppRequirer(charm=self, strip_prefix=True)
@@ -137,18 +137,18 @@ class MimirCoordinatorK8SOperatorCharm(ops.CharmBase):
             self._on_nginx_prometheus_exporter_pebble_ready,
         )
         self.framework.observe(self.server_cert.on.cert_changed, self._on_server_cert_changed)
-        # Mimir Cluster
+        # Tempo Cluster
         self.framework.observe(
-            self.on.mimir_cluster_relation_joined, self._on_mimir_cluster_joined
+            self.on.tempo_cluster_relation_joined, self._on_tempo_cluster_joined
         )
         self.framework.observe(
-            self.on.mimir_cluster_relation_changed, self._on_mimir_cluster_changed
+            self.on.tempo_cluster_relation_changed, self._on_tempo_cluster_changed
         )
         self.framework.observe(
-            self.on.mimir_cluster_relation_departed, self._on_mimir_cluster_changed
+            self.on.tempo_cluster_relation_departed, self._on_tempo_cluster_changed
         )
         self.framework.observe(
-            self.on.mimir_cluster_relation_broken, self._on_mimir_cluster_changed
+            self.on.tempo_cluster_relation_broken, self._on_tempo_cluster_changed
         )
         # S3 Requirer
         self.framework.observe(self.s3_requirer.on.credentials_changed, self._on_s3_changed)
@@ -171,30 +171,30 @@ class MimirCoordinatorK8SOperatorCharm(ops.CharmBase):
         """Handle changed configuration."""
         self.nginx.configure_pebble_layer(tls=self._is_tls_ready)
         self._render_workers_alert_rules()
-        self._update_mimir_cluster()
+        self._update_tempo_cluster()
 
     def _on_server_cert_changed(self, _):
         self._update_cert()
         self.nginx.configure_pebble_layer(tls=self._is_tls_ready)
-        self._update_mimir_cluster()
+        self._update_tempo_cluster()
 
-    def _on_mimir_cluster_joined(self, _):
+    def _on_tempo_cluster_joined(self, _):
         self.nginx.configure_pebble_layer(tls=self._is_tls_ready)
         self._render_workers_alert_rules()
-        self._update_mimir_cluster()
+        self._update_tempo_cluster()
 
-    def _on_mimir_cluster_changed(self, _):
+    def _on_tempo_cluster_changed(self, _):
         self.nginx.configure_pebble_layer(tls=self._is_tls_ready)
         self._render_workers_alert_rules()
-        self._update_mimir_cluster()
+        self._update_tempo_cluster()
 
-    def _on_mimir_cluster_departed(self, _):
+    def _on_tempo_cluster_departed(self, _):
         self.nginx.configure_pebble_layer(tls=self._is_tls_ready)
         self._render_workers_alert_rules()
-        self._update_mimir_cluster()
+        self._update_tempo_cluster()
 
     def _on_s3_changed(self, _):
-        self._update_mimir_cluster()
+        self._update_tempo_cluster()
 
     def _on_collect_status(self, event: CollectStatusEvent):
         """Handle start event."""
@@ -202,7 +202,7 @@ class MimirCoordinatorK8SOperatorCharm(ops.CharmBase):
             missing_roles = [role.value for role in self.coordinator.missing_roles()]
             event.add_status(
                 ops.BlockedStatus(
-                    f"Incoherent deployment: you are lacking some required Mimir roles "
+                    f"Incoherent deployment: you are lacking some required Tempo roles "
                     f"({missing_roles})"
                 )
             )
@@ -210,7 +210,7 @@ class MimirCoordinatorK8SOperatorCharm(ops.CharmBase):
         if not s3_config_data and self.has_multiple_workers():
             event.add_status(
                 ops.BlockedStatus(
-                    "When multiple units of Mimir are deployed, you must add a valid S3 relation. S3 relation missing/invalid."
+                    "When multiple units of Tempo are deployed, you must add a valid S3 relation. S3 relation missing/invalid."
                 )
             )
 
@@ -221,7 +221,7 @@ class MimirCoordinatorK8SOperatorCharm(ops.CharmBase):
             event.add_status(ops.ActiveStatus())
 
     def _on_loki_relation_changed(self, _):
-        self._update_mimir_cluster()
+        self._update_tempo_cluster()
 
     def _on_nginx_pebble_ready(self, _) -> None:
         self.nginx.configure_pebble_layer(tls=self._is_tls_ready)
@@ -271,9 +271,9 @@ class MimirCoordinatorK8SOperatorCharm(ops.CharmBase):
         )
 
     @property
-    def mimir_worker_relations(self) -> List[ops.Relation]:
+    def tempo_worker_relations(self) -> List[ops.Relation]:
         """Returns the list of worker relations."""
-        return self.model.relations.get("mimir_worker", [])
+        return self.model.relations.get("tempo_worker", [])
 
     @property
     def _workers_scrape_jobs(self) -> List[Dict[str, Any]]:
@@ -291,7 +291,7 @@ class MimirCoordinatorK8SOperatorCharm(ops.CharmBase):
                 # replaced by the coordinator topology
                 # https://github.com/canonical/prometheus-k8s-operator/issues/571
                 "relabel_configs": [
-                    {"target_label": "juju_charm", "replacement": "mimir-worker-k8s"},
+                    {"target_label": "juju_charm", "replacement": "tempo-worker-k8s"},
                     {"target_label": "juju_unit", "replacement": worker["unit"]},
                     {"target_label": "juju_application", "replacement": worker["app"]},
                     {"target_label": "juju_model", "replacement": self.model.name},
@@ -384,7 +384,7 @@ class MimirCoordinatorK8SOperatorCharm(ops.CharmBase):
                 "model_uuid": self.model.uuid,
                 "application": worker["app"],
                 "unit": worker["unit"],
-                "charm_name": "mimir-worker-k8s",
+                "charm_name": "tempo-worker-k8s",
             }
             topology = JujuTopology.from_dict(topology_dict)
             alert_rules = AlertRules(query_type="promql", topology=topology)
@@ -405,7 +405,7 @@ class MimirCoordinatorK8SOperatorCharm(ops.CharmBase):
         for filename in glob.glob(os.path.join(NGINX_ORIGINAL_ALERT_RULES_PATH, "*.*")):
             shutil.copy(filename, f"{CONSOLIDATED_ALERT_RULES_PATH}/")
 
-    def _update_mimir_cluster(self):  # common exit hook
+    def _update_tempo_cluster(self):  # common exit hook
         """Build the config and publish everything to the application databag."""
         if not self.coordinator.is_coherent():
             return
@@ -416,7 +416,7 @@ class MimirCoordinatorK8SOperatorCharm(ops.CharmBase):
         # On every function call, we always publish everything to the databag; however, if there
         # are no changes, Juju will safely ignore the updates
         self.cluster_provider.publish_data(
-            mimir_config=self.coordinator.build_config(
+            tempo_config=self.coordinator.build_config(
                 s3_config_data=s3_config_data, tls_enabled=tls
             ),
             loki_endpoints=self.loki_endpoints_by_unit,
@@ -426,23 +426,23 @@ class MimirCoordinatorK8SOperatorCharm(ops.CharmBase):
             self.publish_grant_secrets()
 
     def has_multiple_workers(self) -> bool:
-        """Return True if there are multiple workers forming the Mimir cluster."""
-        mimir_cluster_relations = self.model.relations.get("mimir-cluster", [])
+        """Return True if there are multiple workers forming the Tempo cluster."""
+        tempo_cluster_relations = self.model.relations.get("tempo-cluster", [])
         remote_units_count = sum(
             len(relation.units)
-            for relation in mimir_cluster_relations
+            for relation in tempo_cluster_relations
             if relation.app != self.model.app
         )
         return remote_units_count > 1
 
     def publish_grant_secrets(self) -> None:
-        """Publish and Grant secrets to the mimir-cluster relation."""
+        """Publish and Grant secrets to the tempo-cluster relation."""
         secrets = {
             "private_key_secret_id": self.server_cert.private_key_secret_id,
             "ca_server_cert_secret_id": self.server_cert.ca_server_cert_secret_id,
         }
 
-        relations = self.model.relations["mimir-cluster"]
+        relations = self.model.relations["tempo-cluster"]
         for relation in relations:
             relation.data[self.model.app]["secrets"] = json.dumps(secrets)
             logger.debug("Secrets published")
@@ -508,4 +508,4 @@ class MimirCoordinatorK8SOperatorCharm(ops.CharmBase):
 
 
 if __name__ == "__main__":  # pragma: nocover
-    ops.main.main(MimirCoordinatorK8SOperatorCharm)
+    ops.main.main(TempoCoordinatorK8SOperatorCharm)

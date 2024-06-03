@@ -6,7 +6,7 @@ import logging
 from typing import Any, Dict, List, Optional, Set
 
 import crossplane
-from mimir_cluster import MimirClusterProvider
+from tempo_cluster import TempoClusterProvider
 from ops import CharmBase
 from ops.pebble import Layer
 
@@ -187,7 +187,7 @@ class Nginx:
 
     config_path = NGINX_CONFIG
 
-    def __init__(self, charm: CharmBase, cluster_provider: MimirClusterProvider, server_name: str):
+    def __init__(self, charm: CharmBase, cluster_provider: TempoClusterProvider, server_name: str):
         self._charm = charm
         self.cluster_provider = cluster_provider
         self.server_name = server_name
@@ -240,7 +240,7 @@ class Nginx:
                         ],
                     },
                     *self._log_verbose(verbose=False),
-                    # mimir-related
+                    # tempo-related
                     {"directive": "sendfile", "args": ["on"]},
                     {"directive": "tcp_nopush", "args": ["on"]},
                     *self._resolver(custom_resolver=None),
@@ -335,7 +335,7 @@ class Nginx:
     def _basic_auth(self, enabled: bool) -> List[Optional[Dict[str, Any]]]:
         if enabled:
             return [
-                {"directive": "auth_basic", "args": ['"Mimir"']},
+                {"directive": "auth_basic", "args": ['"Tempo"']},
                 {
                     "directive": "auth_basic_user_file",
                     "args": ["/etc/nginx/secrets/.htpasswd"],

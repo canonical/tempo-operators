@@ -2,15 +2,15 @@ import unittest
 from unittest.mock import MagicMock
 
 from deepdiff import DeepDiff
-from mimir_config import _S3ConfigData
-from mimir_coordinator import MimirCoordinator
+from tempo_config import _S3ConfigData
+from tempo_coordinator import TempoCoordinator
 
 
-class TestMimirConfig(unittest.TestCase):
+class TestTempoConfig(unittest.TestCase):
     def setUp(self):
         self.cluster_provider = MagicMock()
         self.tls_requirer = MagicMock()
-        self.coordinator = MimirCoordinator(
+        self.coordinator = TempoCoordinator(
             cluster_provider=self.cluster_provider,
             tls_requirer=self.tls_requirer,
         )
@@ -61,16 +61,16 @@ class TestMimirConfig(unittest.TestCase):
             "region": "your_region",
         }
         s3_config_data = _S3ConfigData(**raw_s3_config_data)
-        mimir_config = self.coordinator.build_config(s3_config_data)
+        tempo_config = self.coordinator.build_config(s3_config_data)
         self.assertEqual(
-            mimir_config["common"]["storage"],
+            tempo_config["common"]["storage"],
             self.coordinator._build_s3_storage_config(s3_config_data),
         )
 
     def test_build_config_without_s3_data(self):
         s3_config_data = None
-        mimir_config = self.coordinator.build_config(s3_config_data)
-        self.assertNotIn("storage", mimir_config["common"])
+        tempo_config = self.coordinator.build_config(s3_config_data)
+        self.assertNotIn("storage", tempo_config["common"])
 
     def test_build_s3_storage_config(self):
         raw_s3_config_data = {
@@ -136,15 +136,15 @@ class TestMimirConfig(unittest.TestCase):
         tls_config = self.coordinator._build_tls_config()
         expected_config = {
             "http_tls_config": {
-                "cert_file": "/etc/mimir/server.cert",
-                "key_file": "/etc/mimir/private.key",
-                "client_ca_file": "/etc/mimir/ca.cert",
+                "cert_file": "/etc/tempo/server.cert",
+                "key_file": "/etc/tempo/private.key",
+                "client_ca_file": "/etc/tempo/ca.cert",
                 "client_auth_type": "RequestClientCert",
             },
             "grpc_tls_config": {
-                "cert_file": "/etc/mimir/server.cert",
-                "key_file": "/etc/mimir/private.key",
-                "client_ca_file": "/etc/mimir/ca.cert",
+                "cert_file": "/etc/tempo/server.cert",
+                "key_file": "/etc/tempo/private.key",
+                "client_ca_file": "/etc/tempo/ca.cert",
                 "client_auth_type": "RequestClientCert",
             },
         }

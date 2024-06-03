@@ -31,10 +31,10 @@
       "includeVars": true,
       "keepTime": true,
       "tags": [
-        "mimir"
+        "tempo"
       ],
       "targetBlank": false,
-      "title": "Mimir dashboards",
+      "title": "Tempo dashboards",
       "type": "dashboards"
     }
   ],
@@ -1205,7 +1205,7 @@
             "uid": "${prometheusds}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(cortex_frontend_sharded_queries_per_query_sum{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[$__rate_interval])) * 1 / sum(rate(cortex_frontend_sharded_queries_per_query_count{cluster=~\"$cluster\", job=~\"($namespace)/((query-frontend.*|cortex|mimir|mimir-read.*))\"}[$__rate_interval]))",
+          "expr": "sum(rate(cortex_frontend_sharded_queries_per_query_sum{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[$__rate_interval])) * 1 / sum(rate(cortex_frontend_sharded_queries_per_query_count{cluster=~\"$cluster\", job=~\"($namespace)/((query-frontend.*|cortex|tempo|tempo-read.*))\"}[$__rate_interval]))",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "Average",
@@ -3787,7 +3787,7 @@
   "schemaVersion": 37,
   "style": "dark",
   "tags": [
-    "mimir"
+    "tempo"
   ],
   "templating": {
     "list": [
@@ -3979,7 +3979,7 @@
     ]
   },
   "timezone": "utc",
-  "title": "Mimir / Queries",
+  "title": "Tempo / Queries",
   "uid": "b3abe8d5c040395cc36615cb4334c92d",
   "version": 1,
   "weekStart": ""

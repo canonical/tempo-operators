@@ -1,7 +1,7 @@
 # Copyright 2023 Canonical
 # See LICENSE file for licensing details.
 
-"""Helper module for interacting with the Mimir configuration."""
+"""Helper module for interacting with the Tempo configuration."""
 
 import logging
 import re
@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field, model_validator, validator
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 S3_RELATION_NAME = "s3"
-BUCKET_NAME = "mimir"
+BUCKET_NAME = "tempo"
 
 logger = logging.getLogger(__name__)
 
@@ -146,12 +146,12 @@ class CommonConfig:
             asdict(self).get("s3", "") and not self.backend != "s3"
         ):
             raise InvalidConfigurationError(
-                "Mimir `backend` type must include a configuration block which matches that type"
+                "Tempo `backend` type must include a configuration block which matches that type"
             )
 
 
-class MimirBaseConfig(BaseModel):
-    """Base class for mimir config schema."""
+class TempoBaseConfig(BaseModel):
+    """Base class for tempo config schema."""
 
     target: str
     memberlist: Memberlist
