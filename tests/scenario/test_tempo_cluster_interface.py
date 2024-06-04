@@ -2,11 +2,11 @@ from itertools import chain
 
 import ops
 import pytest
-from mimir_cluster import (
-    MimirClusterProvider,
-    MimirClusterRequirerAppData,
-    MimirClusterRequirerUnitData,
-    MimirRole,
+from tempo_cluster import (
+    TempoClusterProvider,
+    TempoClusterRequirerAppData,
+    TempoClusterRequirerUnitData,
+    TempoRole,
 )
 from ops import Framework
 from scenario import Context, Relation, State
@@ -15,44 +15,44 @@ from scenario import Context, Relation, State
 class MyCharm(ops.CharmBase):
     META = {
         "name": "lukasz",
-        "requires": {"mimir-cluster-require": {"interface": "mimir_cluster"}},
-        "provides": {"mimir-cluster-provide": {"interface": "mimir_cluster"}},
+        "requires": {"tempo-cluster-require": {"interface": "tempo_cluster"}},
+        "provides": {"tempo-cluster-provide": {"interface": "tempo_cluster"}},
     }
 
     def __init__(self, framework: Framework):
         super().__init__(framework)
-        self.provider = MimirClusterProvider(self, endpoint="mimir-cluster-provide")
+        self.provider = TempoClusterProvider(self, endpoint="tempo-cluster-provide")
 
 
 @pytest.mark.parametrize(
     "workers_roles, expected",
     (
         (
-            (({MimirRole.overrides_exporter}, 1), ({MimirRole.overrides_exporter}, 1)),
-            ({MimirRole.overrides_exporter: 2}),
+            (({TempoRole.overrides_exporter}, 1), ({TempoRole.overrides_exporter}, 1)),
+            ({TempoRole.overrides_exporter: 2}),
         ),
         (
-            (({MimirRole.query_frontend}, 1), ({MimirRole.overrides_exporter}, 1)),
-            ({MimirRole.overrides_exporter: 1, MimirRole.query_frontend: 1}),
+            (({TempoRole.query_frontend}, 1), ({TempoRole.overrides_exporter}, 1)),
+            ({TempoRole.overrides_exporter: 1, TempoRole.query_frontend: 1}),
         ),
-        ((({MimirRole.querier}, 2), ({MimirRole.querier}, 1)), ({MimirRole.querier: 3})),
+        ((({TempoRole.querier}, 2), ({TempoRole.querier}, 1)), ({TempoRole.querier: 3})),
         (
             (
-                ({MimirRole.alertmanager}, 2),
-                ({MimirRole.alertmanager}, 2),
-                ({MimirRole.alertmanager, MimirRole.querier}, 1),
+                ({TempoRole.alertmanager}, 2),
+                ({TempoRole.alertmanager}, 2),
+                ({TempoRole.alertmanager, TempoRole.querier}, 1),
             ),
-            ({MimirRole.alertmanager: 5, MimirRole.querier: 1}),
+            ({TempoRole.alertmanager: 5, TempoRole.querier: 1}),
         ),
     ),
 )
 def test_role_collection(workers_roles, expected):
     relations = []
     for worker_roles, scale in workers_roles:
-        data = MimirClusterRequirerAppData(roles=worker_roles).dump()
+        data = TempoClusterRequirerAppData(roles=worker_roles).dump()
         relations.append(
             Relation(
-                "mimir-cluster-provide",
+                "tempo-cluster-provide",
                 remote_app_data=data,
                 remote_units_data={i: {} for i in range(scale)},
             )
@@ -82,15 +82,15 @@ def test_role_collection(workers_roles, expected):
 def test_address_collection(workers_addresses):
     relations = []
     topo = {"unit": "foo/0", "model": "bar"}
-    remote_app_data = MimirClusterRequirerAppData(roles=[MimirRole.alertmanager]).dump()
+    remote_app_data = TempoClusterRequirerAppData(roles=[TempoRole.alertmanager]).dump()
     for worker_addresses in workers_addresses:
         units_data = {
-            i: MimirClusterRequirerUnitData(address=address, juju_topology=topo).dump()
+            i: TempoClusterRequirerUnitData(address=address, juju_topology=topo).dump()
             for i, address in enumerate(worker_addresses)
         }
         relations.append(
             Relation(
-                "mimir-cluster-provide",
+                "tempo-cluster-provide",
                 remote_units_data=units_data,
                 remote_app_data=remote_app_data,
             )

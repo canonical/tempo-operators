@@ -31,10 +31,10 @@
       "includeVars": true,
       "keepTime": true,
       "tags": [
-        "mimir"
+        "tempo"
       ],
       "targetBlank": false,
-      "title": "Mimir dashboards",
+      "title": "Tempo dashboards",
       "type": "dashboards"
     }
   ],
@@ -63,106 +63,98 @@
           "refId": "A"
         }
       ],
+      "title": "Startup config file",
       "type": "row"
     },
     {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
       "datasource": {
         "type": "prometheus",
         "uid": "${prometheusds}"
       },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "auto",
-            "displayMode": "auto",
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
+      "fill": 10,
+      "fillGradient": 0,
       "gridPos": {
         "h": 7,
         "w": 24,
         "x": 0,
         "y": 1
       },
+      "hiddenSeries": false,
       "id": 1,
-      "options": {
-        "footer": {
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
       },
+      "lines": true,
+      "linewidth": 0,
+      "links": [],
+      "nullPointMode": "null as zero",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
       "pluginVersion": "9.2.1",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": true,
+      "steppedLine": false,
       "targets": [
         {
           "datasource": {
-            "uid": "${prometheusds}"
+            "uid": "$prometheusds"
           },
           "editorMode": "code",
-          "expr": "max by(limit_name) (cortex_limits_defaults{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"})",
-          "instant": true,
-          "legendFormat": "",
-          "refId": "A"
+          "expr": "count by(sha256) (cortex_config_hash{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"})",
+          "format": "time_series",
+          "intervalFactor": 2,
+          "legendFormat": "sha256:{{sha256}}",
+          "range": true,
+          "refId": "A",
+          "step": 10
         }
       ],
-      "title": "Defaults",
-      "transformations": [
+      "thresholds": [],
+      "timeRegions": [],
+      "title": "Startup config file hashes",
+      "tooltip": {
+        "shared": false,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "mode": "time",
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
         {
-          "id": "labelsToFields",
-          "options": {}
+          "format": "instances",
+          "logBase": 1,
+          "min": 0,
+          "show": true
         },
         {
-          "id": "merge",
-          "options": {}
-        },
-        {
-          "id": "merge",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true
-            },
-            "indexByName": {
-              "Value": 1,
-              "limit_name": 0
-            }
-          }
-        },
-        {
-          "id": "sortBy",
-          "options": {
-            "fields": {},
-            "sort": [
-              {
-                "field": "limit_name"
-              }
-            ]
-          }
+          "format": "short",
+          "logBase": 1,
+          "show": false
         }
       ],
-      "type": "table"
+      "yaxis": {
+        "align": false
+      }
     },
     {
       "collapsed": false,
@@ -187,129 +179,108 @@
           "refId": "A"
         }
       ],
+      "title": "Runtime config file",
       "type": "row"
     },
     {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
       "datasource": {
         "type": "prometheus",
         "uid": "${prometheusds}"
       },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "auto",
-            "displayMode": "auto",
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
+      "fill": 10,
+      "fillGradient": 0,
       "gridPos": {
         "h": 7,
         "w": 24,
         "x": 0,
         "y": 9
       },
+      "hiddenSeries": false,
       "id": 2,
-      "options": {
-        "footer": {
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
       },
+      "lines": true,
+      "linewidth": 0,
+      "links": [],
+      "nullPointMode": "null as zero",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
       "pluginVersion": "9.2.1",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": true,
+      "steppedLine": false,
       "targets": [
         {
           "datasource": {
-            "uid": "${prometheusds}"
+            "uid": "$prometheusds"
           },
           "editorMode": "code",
-          "expr": "max by(user, limit_name) (cortex_limits_overrides{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\",user=~\"${tenant_id}\"})",
-          "instant": true,
-          "legendFormat": "",
-          "refId": "A"
+          "expr": "count by(sha256) (cortex_runtime_config_hash{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"})",
+          "format": "time_series",
+          "intervalFactor": 2,
+          "legendFormat": "sha256:{{sha256}}",
+          "range": true,
+          "refId": "A",
+          "step": 10
         }
       ],
-      "title": "Per-tenant overrides",
-      "transformations": [
+      "thresholds": [],
+      "timeRegions": [],
+      "title": "Runtime config file hashes",
+      "tooltip": {
+        "shared": false,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "mode": "time",
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
         {
-          "id": "labelsToFields",
-          "options": {
-            "mode": "columns",
-            "valueLabel": "limit_name"
-          }
+          "format": "instances",
+          "logBase": 1,
+          "min": 0,
+          "show": true
         },
         {
-          "id": "merge",
-          "options": {}
-        },
-        {
-          "id": "merge",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true
-            },
-            "indexByName": {
-              "user": 0
-            }
-          }
+          "format": "short",
+          "logBase": 1,
+          "show": false
         }
       ],
-      "type": "table"
+      "yaxis": {
+        "align": false
+      }
     }
   ],
-  "refresh": "",
+  "refresh": "10s",
   "schemaVersion": 37,
   "style": "dark",
   "tags": [
-    "mimir"
+    "tempo"
   ],
   "templating": {
     "list": [
-      {
-        "current": {
-          "selected": true,
-          "text": [
-            "juju_mimir-self_ad905178-0b39-4676-891e-f2d33079ce73_prometheus_0"
-          ],
-          "value": [
-            "juju_mimir-self_ad905178-0b39-4676-891e-f2d33079ce73_prometheus_0"
-          ]
-        },
-        "hide": 0,
-        "includeAll": true,
-        "label": "Prometheus",
-        "multi": true,
-        "name": "prometheusds",
-        "options": [],
-        "query": "prometheus",
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "type": "datasource"
-      },
       {
         "allValue": ".*",
         "current": {
@@ -433,22 +404,25 @@
       {
         "current": {
           "selected": true,
-          "text": ".*",
-          "value": ".*"
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "hide": 0,
-        "label": "Tenant ID",
-        "name": "tenant_id",
-        "options": [
-          {
-            "selected": true,
-            "text": ".*",
-            "value": ".*"
-          }
-        ],
-        "query": ".*",
+        "includeAll": true,
+        "label": "Prometheus datasource",
+        "multi": true,
+        "name": "prometheusds",
+        "options": [],
+        "query": "prometheus",
+        "queryValue": "",
+        "refresh": 1,
+        "regex": "",
         "skipUrlSync": false,
-        "type": "textbox"
+        "type": "datasource"
       }
     ]
   },
@@ -482,8 +456,8 @@
     ]
   },
   "timezone": "utc",
-  "title": "Mimir / Overrides",
-  "uid": "1e2c358600ac53f09faea133f811b5bb",
+  "title": "Tempo / Config",
+  "uid": "5d9d0b4724c0f80d68467088ec61e003",
   "version": 1,
   "weekStart": ""
 }

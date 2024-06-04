@@ -2,52 +2,52 @@
 # Copyright 2023 Canonical
 # See LICENSE file for licensing details.
 
-"""Mimir coordinator."""
+"""Tempo coordinator."""
 
 import logging
 from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional, Set
 
-from mimir_cluster import (
-    MIMIR_CERT_FILE,
-    MIMIR_CLIENT_CA_FILE,
-    MIMIR_KEY_FILE,
-    MimirClusterProvider,
-    MimirRole,
+from tempo_cluster import (
+    TEMPO_CERT_FILE,
+    TEMPO_CLIENT_CA_FILE,
+    TEMPO_KEY_FILE,
+    TempoClusterProvider,
+    TempoRole,
 )
-from mimir_config import _S3ConfigData
+from tempo_config import _S3ConfigData
 
 logger = logging.getLogger(__name__)
 
 MINIMAL_DEPLOYMENT = {
     # from official docs:
-    MimirRole.compactor: 1,
-    MimirRole.distributor: 1,
-    MimirRole.ingester: 1,
-    MimirRole.querier: 1,
-    MimirRole.query_frontend: 1,
-    MimirRole.query_scheduler: 1,
-    MimirRole.store_gateway: 1,
+    TempoRole.compactor: 1,
+    TempoRole.distributor: 1,
+    TempoRole.ingester: 1,
+    TempoRole.querier: 1,
+    TempoRole.query_frontend: 1,
+    TempoRole.query_scheduler: 1,
+    TempoRole.store_gateway: 1,
     # we add:
-    MimirRole.ruler: 1,
-    MimirRole.alertmanager: 1,
+    TempoRole.ruler: 1,
+    TempoRole.alertmanager: 1,
 }
 """The minimal set of roles that need to be allocated for the
-deployment to be considered consistent (otherwise we set blocked). On top of what mimir itself lists as required,
+deployment to be considered consistent (otherwise we set blocked). On top of what tempo itself lists as required,
 we add alertmanager."""
 
 RECOMMENDED_DEPLOYMENT = Counter(
     {
-        MimirRole.ingester: 3,
-        MimirRole.querier: 2,
-        MimirRole.query_scheduler: 2,
-        MimirRole.alertmanager: 1,
-        MimirRole.query_frontend: 1,
-        MimirRole.ruler: 1,
-        MimirRole.store_gateway: 1,
-        MimirRole.compactor: 1,
-        MimirRole.distributor: 1,
+        TempoRole.ingester: 3,
+        TempoRole.querier: 2,
+        TempoRole.query_scheduler: 2,
+        TempoRole.alertmanager: 1,
+        TempoRole.query_frontend: 1,
+        TempoRole.ruler: 1,
+        TempoRole.store_gateway: 1,
+        TempoRole.compactor: 1,
+        TempoRole.distributor: 1,
     }
 )
 """The set of roles that need to be allocated for the
@@ -60,12 +60,12 @@ REPLICATION_MIN_WORKERS = 3
 DEFAULT_REPLICATION = 3
 
 
-class MimirCoordinator:
-    """Mimir coordinator."""
+class TempoCoordinator:
+    """Tempo coordinator."""
 
     def __init__(
         self,
-        cluster_provider: MimirClusterProvider,
+        cluster_provider: TempoClusterProvider,
         # TODO: use and import tls requirer obj
         tls_requirer: Any = None,
         # TODO: use and import s3 requirer obj
@@ -81,13 +81,13 @@ class MimirCoordinator:
         self._recovery_data_dir = recovery_data_dir
 
     def is_coherent(self) -> bool:
-        """Return True if the roles list makes up a coherent mimir deployment."""
-        roles: Iterable[MimirRole] = self._cluster_provider.gather_roles().keys()
+        """Return True if the roles list makes up a coherent tempo deployment."""
+        roles: Iterable[TempoRole] = self._cluster_provider.gather_roles().keys()
         return set(roles).issuperset(MINIMAL_DEPLOYMENT)
 
-    def missing_roles(self) -> Set[MimirRole]:
+    def missing_roles(self) -> Set[TempoRole]:
         """If the coordinator is incoherent, return the roles that are missing for it to become so."""
-        roles: Iterable[MimirRole] = self._cluster_provider.gather_roles().keys()
+        roles: Iterable[TempoRole] = self._cluster_provider.gather_roles().keys()
         return set(MINIMAL_DEPLOYMENT).difference(roles)
 
     def is_recommended(self) -> bool:
@@ -95,7 +95,7 @@ class MimirCoordinator:
 
         I.E. If all required roles are assigned, and each role has the recommended amount of units.
         """
-        roles: Dict[MimirRole, int] = self._cluster_provider.gather_roles()
+        roles: Dict[TempoRole, int] = self._cluster_provider.gather_roles()
         # python>=3.11 would support roles >= RECOMMENDED_DEPLOYMENT
         for role, min_n in RECOMMENDED_DEPLOYMENT.items():
             if roles.get(role, 0) < min_n:
@@ -105,11 +105,11 @@ class MimirCoordinator:
     def build_config(
         self, s3_config_data: Optional[_S3ConfigData], tls_enabled: bool = False
     ) -> Dict[str, Any]:
-        """Generate shared config file for mimir.
+        """Generate shared config file for tempo.
 
-        Reference: https://grafana.com/docs/mimir/latest/configure/
+        Reference: https://grafana.com/docs/tempo/latest/configure/
         """
-        mimir_config: Dict[str, Any] = {
+        tempo_config: Dict[str, Any] = {
             "common": {},
             "alertmanager": self._build_alertmanager_config(),
             "alertmanager_storage": self._build_alertmanager_storage_config(),
@@ -123,22 +123,22 @@ class MimirCoordinator:
         }
 
         if s3_config_data:
-            mimir_config["common"]["storage"] = self._build_s3_storage_config(s3_config_data)
-            self._update_s3_storage_config(mimir_config["blocks_storage"], "blocks")
-            self._update_s3_storage_config(mimir_config["ruler_storage"], "rules")
-            self._update_s3_storage_config(mimir_config["alertmanager_storage"], "alerts")
+            tempo_config["common"]["storage"] = self._build_s3_storage_config(s3_config_data)
+            self._update_s3_storage_config(tempo_config["blocks_storage"], "blocks")
+            self._update_s3_storage_config(tempo_config["ruler_storage"], "rules")
+            self._update_s3_storage_config(tempo_config["alertmanager_storage"], "alerts")
 
         # todo: TLS config for memberlist
         if tls_enabled:
-            mimir_config["server"] = self._build_tls_config()
+            tempo_config["server"] = self._build_tls_config()
 
-        return mimir_config
+        return tempo_config
 
     def _build_tls_config(self) -> Dict[str, Any]:
         tls_config = {
-            "cert_file": MIMIR_CERT_FILE,
-            "key_file": MIMIR_KEY_FILE,
-            "client_ca_file": MIMIR_CLIENT_CA_FILE,
+            "cert_file": TEMPO_CERT_FILE,
+            "key_file": TEMPO_KEY_FILE,
+            "client_ca_file": TEMPO_CLIENT_CA_FILE,
             "client_auth_type": "RequestClientCert",
         }
         return {
@@ -147,14 +147,14 @@ class MimirCoordinator:
         }
 
     # data_dir:
-    # The Mimir Alertmanager stores the alerts state on local disk at the location configured using -alertmanager.storage.path.
+    # The Tempo Alertmanager stores the alerts state on local disk at the location configured using -alertmanager.storage.path.
     # Should be persisted if not replicated
 
     # sharding_ring.replication_factor: int
     # (advanced) The replication factor to use when sharding the alertmanager.
     def _build_alertmanager_config(self) -> Dict[str, Any]:
         alertmanager_scale = len(
-            self._cluster_provider.gather_addresses_by_role().get(MimirRole.alertmanager, [])
+            self._cluster_provider.gather_addresses_by_role().get(TempoRole.alertmanager, [])
         )
         return {
             "data_dir": str(self._root_data_dir / "data-alertmanager"),
@@ -166,7 +166,7 @@ class MimirCoordinator:
         }
 
     # filesystem: dir
-    # The Mimir Alertmanager also periodically stores the alert state in the storage backend configured with -alertmanager-storage.backend (For Recovery)
+    # The Tempo Alertmanager also periodically stores the alert state in the storage backend configured with -alertmanager-storage.backend (For Recovery)
     def _build_alertmanager_storage_config(self) -> Dict[str, Any]:
         return {
             "filesystem": {
@@ -188,7 +188,7 @@ class MimirCoordinator:
     # microservices mode.
     def _build_ingester_config(self) -> Dict[str, Any]:
         ingester_scale = len(
-            self._cluster_provider.gather_addresses_by_role().get(MimirRole.ingester, [])
+            self._cluster_provider.gather_addresses_by_role().get(TempoRole.ingester, [])
         )
         return {
             "ring": {
@@ -212,7 +212,7 @@ class MimirCoordinator:
     # microservices mode.
     def _build_store_gateway_config(self) -> Dict[str, Any]:
         store_gateway_scale = len(
-            self._cluster_provider.gather_addresses_by_role().get(MimirRole.store_gateway, [])
+            self._cluster_provider.gather_addresses_by_role().get(TempoRole.store_gateway, [])
         )
         return {
             "sharding_ring": {
@@ -237,7 +237,7 @@ class MimirCoordinator:
     # required to be persisted between restarts, but it's highly recommended
 
     # filesystem: dir
-    # Mimir upload blocks (of metrics) to the object storage at period interval.
+    # Tempo upload blocks (of metrics) to the object storage at period interval.
 
     # tsdb: dir
     # Directory to store TSDBs (including WAL) in the ingesters.

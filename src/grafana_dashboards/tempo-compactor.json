@@ -31,10 +31,10 @@
       "includeVars": true,
       "keepTime": true,
       "tags": [
-        "mimir"
+        "tempo"
       ],
       "targetBlank": false,
-      "title": "Mimir dashboards",
+      "title": "Tempo dashboards",
       "type": "dashboards"
     }
   ],
@@ -2846,7 +2846,7 @@
   "schemaVersion": 37,
   "style": "dark",
   "tags": [
-    "mimir"
+    "tempo"
   ],
   "templating": {
     "list": [
@@ -2974,10 +2974,10 @@
         "current": {
           "selected": true,
           "text": [
-            "juju_mimir-self_ad905178-0b39-4676-891e-f2d33079ce73_prometheus_0"
+            "juju_tempo-self_ad905178-0b39-4676-891e-f2d33079ce73_prometheus_0"
           ],
           "value": [
-            "juju_mimir-self_ad905178-0b39-4676-891e-f2d33079ce73_prometheus_0"
+            "juju_tempo-self_ad905178-0b39-4676-891e-f2d33079ce73_prometheus_0"
           ]
         },
         "hide": 0,
@@ -3024,7 +3024,7 @@
     ]
   },
   "timezone": "utc",
-  "title": "Mimir / Compactor",
+  "title": "Tempo / Compactor",
   "uid": "1b3443aea86db629e6efdb7d05c53823",
   "version": 1,
   "weekStart": ""

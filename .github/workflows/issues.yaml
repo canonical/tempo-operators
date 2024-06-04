@@ -8,4 +8,4 @@ jobs:
     uses: canonical/observability/.github/workflows/issues.yaml@main
     secrets: inherit
     with:
-      component: mimir-coordinator
+      component: tempo-coordinator
