@@ -66,17 +66,13 @@ class TempoCoordinator:
         # python>=3.11 would support roles >= RECOMMENDED_DEPLOYMENT
 
     def get_deployment_inconsistencies(
-        self, clustered: bool, scaled: bool, has_workers: bool, is_worker_node: bool, has_s3: bool
+        self, has_s3: bool
     ) -> List[str]:
         """Determine whether the deployment as a whole is consistent.
 
         Return a list of failed consistency checks.
         """
         return self._get_deployment_inconsistencies(
-            clustered=clustered,
-            scaled=scaled,
-            has_workers=has_workers,
-            is_worker_node=is_worker_node,
             has_s3=has_s3,
             coherent=self.is_coherent,
             missing_roles=self.missing_roles,
@@ -84,10 +80,6 @@ class TempoCoordinator:
 
     @staticmethod
     def _get_deployment_inconsistencies(
-        clustered: bool,
-        scaled: bool,
-        has_workers: bool,
-        is_worker_node: bool,
         has_s3: bool,
         coherent: bool,
         missing_roles: Set[TempoRole] = None,
@@ -96,17 +88,9 @@ class TempoCoordinator:
 
         Return a list of failed consistency checks.
         """
-
         failures = []
-        # is_monolith = not (scaled or clustered or has_workers) and is_worker_node
-
-        if not is_worker_node and not has_workers:
-            failures.append("Tempo must either be a worker node or have some workers.")
         if not has_s3:
-            if scaled:
-                failures.append("Tempo is scaled but has no s3 integration.")
-            if clustered:
-                failures.append("Tempo is clustered but has no s3 integration.")
+            failures.append("Tempo has no s3 integration.")
         elif not coherent:
             failures.append(f"Incoherent coordinator: missing roles: {missing_roles}.")
         return failures

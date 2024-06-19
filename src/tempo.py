@@ -6,28 +6,21 @@
 import logging
 import re
 import socket
-from pathlib import Path
 from subprocess import CalledProcessError, getoutput
 from typing import Dict, List, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 
-import ops
-import tenacity
-import yaml
 from charms.tempo_k8s.v2.tracing import (
     ReceiverProtocol,
     receiver_protocol_to_transport_protocol,
 )
 from charms.traefik_route_k8s.v0.traefik_route import TraefikRouteRequirer
-from ops import ModelError
-from ops.pebble import Layer
 
 logger = logging.getLogger(__name__)
 
 
 class Tempo:
     """Class representing the Tempo client workload configuration."""
-
     config_path = "/etc/tempo/tempo.yaml"
 
     # cert path on charm container
@@ -72,19 +65,17 @@ class Tempo:
     all_ports = {**server_ports, **receiver_ports}
 
     def __init__(
-        self,
-        container: ops.Container,
-        external_host: Optional[str] = None,
-        enable_receivers: Optional[Sequence[ReceiverProtocol]] = None,
-        run_worker_node: bool = True,
+            self,
+            external_host: Optional[str] = None,
+            enable_receivers: Optional[Sequence[ReceiverProtocol]] = None,
+            use_tls: bool = False
     ):
         # ports source: https://github.com/grafana/tempo/blob/main/example/docker-compose/local/docker-compose.yaml
 
         # fqdn, if an ingress is not available, else the ingress address.
         self._external_hostname = external_host or socket.getfqdn()
-        self.container = container
-        self.run_worker_node = run_worker_node
         self.enabled_receivers = enable_receivers or []
+        self.use_tls = use_tls
 
     @property
     def tempo_http_server_port(self) -> int:
@@ -139,157 +130,6 @@ class Tempo:
 
         return f"{url}:{receiver_port}"
 
-    def plan(self):
-        """Update pebble plan and start the tempo-ready service."""
-        if not self.run_worker_node:
-            logger.info("will not plan tempo container: this node is a coordinator")
-            return
-
-        self.container.add_layer("tempo", self.pebble_layer, combine=True)
-        self.container.add_layer("tempo-ready", self.tempo_ready_layer, combine=True)
-        try:
-            self.container.replan()
-            # is not autostart-enabled, we just run it once on pebble-ready.
-            self.container.start("tempo-ready")
-        except ops.pebble.ChangeError:
-            # replan failed likely because address was still in use. try to (re)start tempo with backoff as a fallback
-            restart_result = self.restart()
-            if not restart_result:
-                logger.exception(
-                    "Starting tempo failed with a ChangeError and restart attempts didn't resolve the issue"
-                )
-
-    def update_config(
-        self,
-        requested_receivers: Sequence[ReceiverProtocol],
-        s3_config: Optional[dict] = None,
-        peers: Optional[List[str]] = None,
-    ) -> bool:
-        """Generate a config and push it to the container it if necessary."""
-        container = self.container
-        if not container.can_connect():
-            logger.debug("Container can't connect: config update skipped.")
-            return False
-
-        new_config = self.generate_config(requested_receivers, s3_config, peers)
-
-        if self.get_current_config() != new_config:
-            logger.debug("Pushing new config to container...")
-            container.push(
-                self.config_path,
-                yaml.safe_dump(new_config),
-                make_dirs=True,
-            )
-            return True
-        return False
-
-    @property
-    def is_tempo_service_defined(self) -> bool:
-        """Check that the tempo service is present in the plan."""
-        try:
-            self.container.get_service("tempo")
-            return True
-        except (ModelError, ops.pebble.ConnectionError):
-            return False
-
-    def restart(self) -> bool:
-        """Try to restart the tempo service."""
-        # restarting tempo can cause errors such as:
-        #  Could not bind to :3200 - Address in use
-        # probably because of some lag with releasing the port. We restart tempo 'too quickly'
-        # and it fails to start. As a workaround, see the @retry logic below.
-        if not self.run_worker_node:
-            return False
-
-        if not self.is_tempo_service_defined:
-            self.plan()
-
-        return self._restart()
-
-    @tenacity.retry(
-        # if restart FAILS (this function returns False)
-        retry=tenacity.retry_if_result(lambda r: r is False),
-        # we wait 3, 9, 27... up to 40 seconds between tries
-        wait=tenacity.wait_exponential(multiplier=3, min=1, max=40),
-        # we give up after 20 attempts
-        stop=tenacity.stop_after_attempt(20),
-        # if there's any exceptions throughout, raise them
-        reraise=True,
-    )
-    def _restart(self) -> bool:
-        if not self.container.can_connect():
-            return False
-
-        try:
-            is_started = self.is_running
-        except ModelError:
-            is_started = False
-
-        # verify if tempo is already inactive, then try to start a new instance
-        if is_started:
-            try:
-                self.container.restart("tempo")
-            except ops.pebble.ChangeError:
-                # if tempo fails to start, we'll try again after some backoff
-                return False
-        else:
-            try:
-                self.container.start("tempo")
-            except ops.pebble.ChangeError:
-                # if tempo fails to start, we'll try again after retry backoff
-                return False
-
-        # set the notice to start checking for tempo server readiness so we don't have to
-        # wait for an update-status
-        self.container.start("tempo-ready")
-        return True
-
-    def shutdown(self):
-        """Gracefully shutdown the tempo process."""
-        for service in ["tempo", "tempo-ready"]:
-            if self.container.get_service(service).is_running():
-                self.container.stop(service)
-                logger.info(f"stopped {service}")
-
-    @property
-    def is_running(self) -> bool:
-        return self.container.get_service("tempo").is_running()
-
-    def get_current_config(self) -> Optional[dict]:
-        """Fetch the current configuration from the container."""
-        if not self.container.can_connect():
-            return None
-        try:
-            return yaml.safe_load(self.container.pull(self.config_path))
-        except ops.pebble.PathError:
-            return None
-
-    def configure_tls(self, *, cert: str, key: str, ca: str):
-        """Push cert, key and CA to the tempo container."""
-        # we save the cacert in the charm container too (for notices)
-        Path(self.server_cert_path).write_text(ca)
-
-        self.container.push(self.tls_cert_path, cert, make_dirs=True)
-        self.container.push(self.tls_key_path, key, make_dirs=True)
-        self.container.push(self.tls_ca_path, ca, make_dirs=True)
-        self.container.exec(["update-ca-certificates"])
-
-    def clear_tls_config(self):
-        """Remove cert, key and CA files from the tempo container."""
-        self.container.remove_path(self.tls_cert_path, recursive=True)
-        self.container.remove_path(self.tls_key_path, recursive=True)
-        self.container.remove_path(self.tls_ca_path, recursive=True)
-
-    @property
-    def tls_ready(self) -> bool:
-        """Whether cert, key, and ca paths are found on disk and Tempo is ready to use tls."""
-        if not self.container.can_connect():
-            return False
-        return all(
-            self.container.exists(tls_path)
-            for tls_path in (self.tls_cert_path, self.tls_key_path, self.tls_ca_path)
-        )
-
     def _build_server_config(self):
         server_config = {
             "http_listen_port": self.tempo_http_server_port,
@@ -297,7 +137,7 @@ class Tempo:
             # otherwise it will default to 9595 and make promtail bork
             "grpc_listen_port": self.tempo_grpc_server_port,
         }
-        if self.tls_ready:
+        if self.use_tls:
             for cfg in ("http_tls_config", "grpc_tls_config"):
                 server_config[cfg] = {  # type: ignore
                     "cert_file": str(self.tls_cert_path),
@@ -310,10 +150,10 @@ class Tempo:
         return server_config
 
     def generate_config(
-        self,
-        receivers: Sequence[ReceiverProtocol],
-        s3_config: Optional[dict] = None,
-        peers: Optional[List[str]] = None,
+            self,
+            receivers: Sequence[ReceiverProtocol],
+            s3_config: Optional[dict] = None,
+            peers: Optional[List[str]] = None,
     ) -> dict:
         """Generate the Tempo configuration.
 
@@ -360,7 +200,7 @@ class Tempo:
             "storage": self._build_storage_config(s3_config),
         }
 
-        if self.tls_ready:
+        if self.use_tls:
             # cfr:
             # https://grafana.com/docs/tempo/latest/configuration/network/tls/#client-configuration
             tls_config = {
@@ -374,7 +214,9 @@ class Tempo:
             config["ingester_client"] = {"grpc_client_config": tls_config}
             config["metrics_generator_client"] = {"grpc_client_config": tls_config}
 
-            config["querier"]["frontend_worker"].update({"grpc_client_config": tls_config})
+            config["querier"]["frontend_worker"].update(
+                {"grpc_client_config": tls_config}
+            )
 
             # this is not an error.
             config["memberlist"].update(tls_config)
@@ -422,52 +264,9 @@ class Tempo:
             )
         return {"trace": storage_config}
 
-    def can_scale(self) -> bool:
-        """Return whether this tempo instance can scale, i.e., whether s3 is configured."""
-        config = self.get_current_config()
-        if not config:
-            return False
-        return config["storage"]["trace"]["backend"] == "s3"
-
-    @property
-    def pebble_layer(self) -> Layer:
-        """Generate the pebble layer for the Tempo container."""
-        target = "scalable-single-binary" if self.can_scale() else "all"
-        return Layer(
-            {
-                "services": {
-                    "tempo": {
-                        "override": "replace",
-                        "summary": "Main Tempo layer",
-                        "command": f'/bin/sh -c "/tempo -config.file={self.config_path} -target {target} | tee {self.log_path}"',
-                        "startup": "enabled",
-                    }
-                },
-            }
-        )
-
-    @property
-    def tempo_ready_layer(self) -> Layer:
-        """Generate the pebble layer to fire the tempo-ready custom notice."""
-        s = "s" if self.tls_ready else ""
-        return Layer(
-            {
-                "services": {
-                    "tempo-ready": {
-                        "override": "replace",
-                        "summary": "Notify charm when tempo is ready",
-                        "command": f"""watch -n 5 '[ $(wget -q -O- --no-check-certificate http{s}://localhost:{self.tempo_http_server_port}/ready) = "ready" ] &&
-                                   ( /charm/bin/pebble notify {self.tempo_ready_notice_key} ) ||
-                                   ( echo "tempo not ready" )'""",
-                        "startup": "disabled",
-                    }
-                },
-            }
-        )
-
     def is_ready(self):
         """Whether the tempo built-in readiness check reports 'ready'."""
-        if self.tls_ready:
+        if self.use_tls:
             tls, s = f" --cacert {self.server_cert_path}", "s"
         else:
             tls = s = ""
@@ -490,7 +289,7 @@ class Tempo:
         if not receivers_set:
             logger.warning("No receivers set. Tempo will be up but not functional.")
 
-        if self.tls_ready:
+        if self.use_tls:
             receiver_config = {
                 "tls": {
                     "ca_file": str(self.tls_ca_path),
@@ -530,8 +329,3 @@ class Tempo:
             config["jaeger"] = {"protocols": jaeger_config}
 
         return config
-
-    def receive_tempo_ready_notice(self):
-        """Handle the tempo-ready-pebble-notice event by turning off the notice itself."""
-        if self.container.get_services("tempo-ready"):
-            self.container.stop("tempo-ready")
