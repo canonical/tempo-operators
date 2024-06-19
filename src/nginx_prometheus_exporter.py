@@ -4,9 +4,10 @@
 
 import logging
 
-from nginx import NGINX_PORT
 from ops import CharmBase
 from ops.pebble import Layer
+
+from nginx import NGINX_PORT
 
 logger = logging.getLogger(__name__)
 

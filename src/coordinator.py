@@ -37,17 +37,9 @@ recommendations/guidelines."""
 class TempoCoordinator:
     """Tempo coordinator."""
 
-    def __init__(self, cluster_provider: TempoClusterProvider, is_worker: bool = False):
-        self._is_worker = is_worker
-
-        if is_worker:
-            # roles fulfilled by the local node, if the coordinator is also running a worker.
-            local_roles = collections.Counter(r for r in TempoRole if r is not TempoRole.all)
-        else:
-            local_roles = None
-
+    def __init__(self, cluster_provider: TempoClusterProvider):
         self._cluster_provider = cluster_provider
-        self._roles: Dict[TempoRole, int] = self._cluster_provider.gather_roles(base=local_roles)
+        self._roles: Dict[TempoRole, int] = self._cluster_provider.gather_roles()
 
         # Whether the roles list makes up a coherent mimir deployment.
         self.is_coherent = set(self._roles.keys()).issuperset(MINIMAL_DEPLOYMENT)
@@ -65,9 +57,7 @@ class TempoCoordinator:
         # I.E. If all required roles are assigned, and each role has the recommended amount of units.
         # python>=3.11 would support roles >= RECOMMENDED_DEPLOYMENT
 
-    def get_deployment_inconsistencies(
-        self, has_s3: bool
-    ) -> List[str]:
+    def get_deployment_inconsistencies(self, has_s3: bool) -> List[str]:
         """Determine whether the deployment as a whole is consistent.
 
         Return a list of failed consistency checks.
@@ -91,6 +81,6 @@ class TempoCoordinator:
         failures = []
         if not has_s3:
             failures.append("Tempo has no s3 integration.")
-        elif not coherent:
+        if not coherent:
             failures.append(f"Incoherent coordinator: missing roles: {missing_roles}.")
         return failures

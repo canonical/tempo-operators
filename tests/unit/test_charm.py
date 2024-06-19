@@ -9,15 +9,15 @@ from unittest.mock import patch
 from ops.model import ActiveStatus
 from ops.testing import Harness
 
-from charm import TempoCharm
+from charm import TempoCoordinatorCharm
 
 CONTAINER_NAME = "tempo"
 
 
-class TestTempoCharm(unittest.TestCase):
+class TestTempoCoordinatorCharm(unittest.TestCase):
     @patch("charm.KubernetesServicePatch", lambda x, y: None)
     def setUp(self):
-        self.harness = Harness(TempoCharm)
+        self.harness = Harness(TempoCoordinatorCharm)
         self.harness.set_model_name("testmodel")
         self.addCleanup(self.harness.cleanup)
         self.harness.set_leader(True)

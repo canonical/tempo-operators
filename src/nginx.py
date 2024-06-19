@@ -6,9 +6,10 @@ import logging
 from typing import Any, Dict, List, Optional, Set
 
 import crossplane
-from tempo_cluster import TempoClusterProvider
 from ops import CharmBase
 from ops.pebble import Layer
+
+from tempo_cluster import TempoClusterProvider
 
 logger = logging.getLogger(__name__)
 

@@ -1,12 +1,8 @@
-from pathlib import Path
-
 import scenario
-import yaml
 
-from tempo import Tempo
+from tempo_cluster import TempoClusterProviderAppData
 
 
-def get_tempo_config(container: scenario.Container, context: scenario.Context):
-    fs = container.get_filesystem(context)
-    cfg_path = Path(str(fs) + Tempo.config_path)
-    return yaml.safe_load(cfg_path.read_text())
+def get_tempo_config(state: scenario.State):
+    cluster_relation = state.get_relations("tempo-cluster")[0]  # there's only one
+    return TempoClusterProviderAppData.load(cluster_relation.local_app_data).tempo_config

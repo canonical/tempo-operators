@@ -8,7 +8,7 @@ from interface_tester import InterfaceTester
 from ops.pebble import Layer
 from scenario.state import Container, State
 
-from charm import TempoCharm
+from charm import TempoCoordinatorCharm
 
 
 # Interface tests are centrally hosted at https://github.com/canonical/charm-relation-interfaces.
@@ -22,7 +22,7 @@ def interface_tester(interface_tester: InterfaceTester):
     with patch("charm.KubernetesServicePatch"):
         with charm_tracing_disabled():
             interface_tester.configure(
-                charm_type=TempoCharm,
+                charm_type=TempoCoordinatorCharm,
                 state_template=State(
                     leader=True,
                     containers=[

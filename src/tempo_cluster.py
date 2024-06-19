@@ -310,9 +310,9 @@ class TempoClusterProvider(Object):
 
         return data
 
-    def gather_roles(self, base: collections.Counter = None) -> Dict[TempoRole, int]:
+    def gather_roles(self) -> Dict[TempoRole, int]:
         """Go through the worker's app databags and sum the available application roles."""
-        data = base or collections.Counter()
+        data = collections.Counter()
         for relation in self._relations:
             if relation.app:
                 remote_app_databag = relation.data[relation.app]

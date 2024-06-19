@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class Tempo:
     """Class representing the Tempo client workload configuration."""
+
     config_path = "/etc/tempo/tempo.yaml"
 
     # cert path on charm container
@@ -65,10 +66,10 @@ class Tempo:
     all_ports = {**server_ports, **receiver_ports}
 
     def __init__(
-            self,
-            external_host: Optional[str] = None,
-            enable_receivers: Optional[Sequence[ReceiverProtocol]] = None,
-            use_tls: bool = False
+        self,
+        external_host: Optional[str] = None,
+        enable_receivers: Optional[Sequence[ReceiverProtocol]] = None,
+        use_tls: bool = False,
     ):
         # ports source: https://github.com/grafana/tempo/blob/main/example/docker-compose/local/docker-compose.yaml
 
@@ -106,7 +107,7 @@ class Tempo:
     @property
     def url(self) -> str:
         """Base url at which the tempo server is locally reachable over http."""
-        scheme = "https" if self.tls_ready else "http"
+        scheme = "https" if self.use_tls else "http"
         return f"{scheme}://{self._external_hostname}"
 
     def get_receiver_url(self, protocol: ReceiverProtocol, ingress: TraefikRouteRequirer):
@@ -150,10 +151,10 @@ class Tempo:
         return server_config
 
     def generate_config(
-            self,
-            receivers: Sequence[ReceiverProtocol],
-            s3_config: Optional[dict] = None,
-            peers: Optional[List[str]] = None,
+        self,
+        receivers: Sequence[ReceiverProtocol],
+        s3_config: dict,
+        peers: Optional[List[str]] = None,
     ) -> dict:
         """Generate the Tempo configuration.
 
@@ -214,9 +215,7 @@ class Tempo:
             config["ingester_client"] = {"grpc_client_config": tls_config}
             config["metrics_generator_client"] = {"grpc_client_config": tls_config}
 
-            config["querier"]["frontend_worker"].update(
-                {"grpc_client_config": tls_config}
-            )
+            config["querier"]["frontend_worker"].update({"grpc_client_config": tls_config})
 
             # this is not an error.
             config["memberlist"].update(tls_config)
@@ -234,34 +233,20 @@ class Tempo:
                 "max_workers": 400,
                 "queue_depth": 20000,
             },
+            "backend": "s3",
+            "s3": {
+                "bucket": s3_config["bucket"],
+                "access_key": s3_config["access-key"],
+                # remove scheme to avoid "Endpoint url cannot have fully qualified paths." on Tempo startup
+                "endpoint": re.sub(
+                    rf"^{urlparse(s3_config['endpoint']).scheme}://",
+                    "",
+                    s3_config["endpoint"],
+                ),
+                "secret_key": s3_config["secret-key"],
+                "insecure": (False if s3_config["endpoint"].startswith("https://") else True),
+            },
         }
-        if s3_config:
-            storage_config.update(
-                {
-                    "backend": "s3",
-                    "s3": {
-                        "bucket": s3_config["bucket"],
-                        "access_key": s3_config["access-key"],
-                        # remove scheme to avoid "Endpoint url cannot have fully qualified paths." on Tempo startup
-                        "endpoint": re.sub(
-                            rf"^{urlparse(s3_config['endpoint']).scheme}://",
-                            "",
-                            s3_config["endpoint"],
-                        ),
-                        "secret_key": s3_config["secret-key"],
-                        "insecure": (
-                            False if s3_config["endpoint"].startswith("https://") else True
-                        ),
-                    },
-                }
-            )
-        else:
-            storage_config.update(
-                {
-                    "backend": "local",
-                    "local": {"path": "/traces"},
-                }
-            )
         return {"trace": storage_config}
 
     def is_ready(self):

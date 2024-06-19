@@ -1,17 +1,9 @@
-import pytest
 from charms.tempo_k8s.v1.charm_tracing import charm_tracing_disabled
 from charms.tempo_k8s.v2.tracing import ProtocolType, TracingProviderAppData
-from scenario import Container, Context, Relation, State
+from scenario import Relation, State
 
 
-@pytest.fixture
-def context(tempo_charm):
-    return Context(
-        charm_type=tempo_charm,
-    )
-
-
-def test_receivers_removed_on_relation_broken(context):
+def test_receivers_removed_on_relation_broken(context, s3, all_worker):
     tracing_grpc = Relation(
         "tracing",
         remote_app_data={"receivers": '["otlp_grpc"]'},
@@ -31,8 +23,7 @@ def test_receivers_removed_on_relation_broken(context):
 
     state = State(
         leader=True,
-        relations=[tracing_grpc, tracing_http],
-        containers=[Container("tempo", can_connect=False)],
+        relations=[tracing_grpc, tracing_http, s3, all_worker],
     )
 
     with charm_tracing_disabled():

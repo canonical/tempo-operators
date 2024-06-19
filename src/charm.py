@@ -5,30 +5,16 @@
 """Charmed Operator for Tempo; a lightweight object storage based tracing backend."""
 import json
 import logging
-import re
 import socket
 from pathlib import Path
-from typing import Dict, List
-from typing import Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import ops
-from ops.charm import (
-    CharmBase,
-    CollectStatusEvent,
-    PebbleNoticeEvent,
-    RelationEvent,
-    WorkloadEvent,
-)
-from ops.main import main
-from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
-from ops.model import Relation
-
 from charms.data_platform_libs.v0.s3 import S3Requirer
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
-from charms.loki_k8s.v0.loki_push_api import LogProxyConsumer
 from charms.observability_libs.v0.kubernetes_service_patch import KubernetesServicePatch
-from charms.observability_libs.v1.cert_handler import CertHandler, VAULT_SECRET_LABEL
+from charms.observability_libs.v1.cert_handler import VAULT_SECRET_LABEL, CertHandler
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.tempo_k8s.v1.charm_tracing import trace_charm
 from charms.tempo_k8s.v2.tracing import (
@@ -37,6 +23,10 @@ from charms.tempo_k8s.v2.tracing import (
     TracingEndpointProvider,
 )
 from charms.traefik_route_k8s.v0.traefik_route import TraefikRouteRequirer
+from ops.charm import CharmBase, CollectStatusEvent, RelationEvent
+from ops.main import main
+from ops.model import ActiveStatus, BlockedStatus, Relation, WaitingStatus
+
 from coordinator import TempoCoordinator
 from tempo import Tempo
 from tempo_cluster import TempoClusterProvider
@@ -44,12 +34,16 @@ from tempo_cluster import TempoClusterProvider
 logger = logging.getLogger(__name__)
 
 
+class S3NotFoundError(Exception):
+    """Raised when the s3 integration is not present or not ready."""
+
+
 @trace_charm(
     tracing_endpoint="tempo_otlp_http_endpoint",
     server_cert="server_cert",
     extra_types=(Tempo, TracingEndpointProvider),
 )
-class TempoCharm(CharmBase):
+class TempoCoordinatorCharm(CharmBase):
     """Charmed Operator for Tempo; a distributed tracing backend."""
 
     def __init__(self, *args):
@@ -58,18 +52,19 @@ class TempoCharm(CharmBase):
         self.tempo_cluster = TempoClusterProvider(self)
         self.coordinator = TempoCoordinator(self.tempo_cluster)
 
+        # keep this above Tempo instantiation, as we need it in self.tls_enabled
+        self.cert_handler = CertHandler(
+            self,
+            key="tempo-server-cert",
+            sans=[self.hostname],
+        )
+
         self.tempo = tempo = Tempo(
             external_host=self.hostname,
             # we need otlp_http receiver for charm_tracing
             # TODO add any extra receivers enabled manually via config
             enable_receivers=["otlp_http"],
             use_tls=self.tls_available,
-        )
-
-        self.cert_handler = CertHandler(
-            self,
-            key="tempo-server-cert",
-            sans=[self.hostname],
         )
 
         self.s3_requirer = S3Requirer(self, Tempo.s3_relation_name, Tempo.s3_bucket_name)
@@ -95,19 +90,18 @@ class TempoCharm(CharmBase):
             relation_name="metrics-endpoint",
             jobs=[{"static_configs": [{"targets": [f"*:{tempo.tempo_http_server_port}"]}]}],
         )
-        # Enable log forwarding for Loki and other charms that implement loki_push_api
-        self._logging = LogProxyConsumer(
-            self, relation_name="logging", log_files=[self.tempo.log_path], container_name="tempo"
-        )
         self._grafana_dashboards = GrafanaDashboardProvider(
             self, relation_name="grafana-dashboard"
         )
 
         self.tracing = TracingEndpointProvider(self, external_url=self._external_url)
         self._inconsistencies = self.coordinator.get_deployment_inconsistencies(
-            has_s3=self.is_s3_ready
+            has_s3=self.s3_ready
         )
         self._is_consistent = not self._inconsistencies
+
+        # We always listen to collect-status
+        self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
 
         if not self._is_consistent:
             logger.error(
@@ -116,13 +110,11 @@ class TempoCharm(CharmBase):
                 "This charm will be unresponsive and refuse to handle any event until "
                 "the situation is resolved by the cloud admin, to avoid data loss."
             )
-            self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
             return  # refuse to handle any other event as we can't possibly know what to do.
 
         # lifecycle
         self.framework.observe(self.on.leader_elected, self._on_leader_elected)
         self.framework.observe(self.on.update_status, self._on_update_status)
-        self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.list_receivers_action, self._on_list_receivers_action)
 
@@ -164,15 +156,6 @@ class TempoCharm(CharmBase):
         return self.tempo_cluster.has_workers
 
     @property
-    def is_s3_ready(self) -> bool:
-        # we have an s3 config
-
-        # we cannot check for self.tempo.can_scale() here, because if we are handling a s3-changed
-        # event, it may be that we have a s3 config which is not yet on disk (it will be put there by
-        # our on_s3_changed event handler momentarily).
-        return bool(self._s3_config)
-
-    @property
     def hostname(self) -> str:
         """Unit's hostname."""
         return socket.getfqdn()
@@ -207,26 +190,61 @@ class TempoCharm(CharmBase):
     def tls_available(self) -> bool:
         """Return True if tls is enabled and the necessary certs are found."""
         return (
-                self.cert_handler.enabled
-                and (self.cert_handler.server_cert is not None)
-                and (self.cert_handler.private_key is not None)
-                and (self.cert_handler.ca_cert is not None)
+            self.cert_handler.enabled
+            and (self.cert_handler.server_cert is not None)
+            and (self.cert_handler.private_key is not None)
+            and (self.cert_handler.ca_cert is not None)
         )
 
     @property
-    def _s3_config(self) -> Optional[dict]:
-        if not self.s3_requirer.relations:
-            return None
+    def _s3_config(self) -> dict:
         s3_config = self.s3_requirer.get_s3_connection_info()
         if (
-                s3_config
-                and "bucket" in s3_config
-                and "endpoint" in s3_config
-                and "access-key" in s3_config
-                and "secret-key" in s3_config
+            s3_config
+            and "bucket" in s3_config
+            and "endpoint" in s3_config
+            and "access-key" in s3_config
+            and "secret-key" in s3_config
         ):
             return s3_config
-        return None
+        raise S3NotFoundError("s3 integration inactive")
+
+    @property
+    def s3_ready(self) -> bool:
+        """Check whether s3 is configured."""
+        try:
+            return bool(self._s3_config)
+        except S3NotFoundError:
+            return False
+
+    @property
+    def peer_addresses(self) -> List[str]:
+        peers = self._peers
+        relation = self.model.get_relation("tempo-peers")
+        # get unit addresses for all the other units from a databag
+        if peers and relation:
+            addresses = [relation.data[unit].get("local-ip") for unit in peers]
+            addresses = list(filter(None, addresses))
+        else:
+            addresses = []
+
+        # add own address
+        if self._local_ip:
+            addresses.append(self._local_ip)
+
+        return addresses
+
+    @property
+    def _local_ip(self) -> Optional[str]:
+        try:
+            return str(self.model.get_binding("tempo-peers").network.bind_address)
+        except (ops.ModelError, KeyError) as e:
+            logger.debug("failed to obtain local ip from tempo-peers binding", exc_info=True)
+            logger.error(
+                f"unable to get local IP at this time: failed with {type(e)}; "
+                f"see debug log for more info"
+            )
+            return None
 
     ##################
     # EVENT HANDLERS #
@@ -289,33 +307,6 @@ class TempoCharm(CharmBase):
     def _on_tempo_peers_relation_changed(self, _):
         self._update_tempo_cluster()
 
-    @property
-    def peer_addresses(self) -> List[str]:
-        peers = self._peers
-        relation = self.model.get_relation("tempo-peers")
-        # get unit addresses for all the other units from a databag
-        if peers and relation:
-            addresses = [relation.data[unit].get("local-ip") for unit in peers]
-            addresses = list(filter(None, addresses))
-        else:
-            addresses = []
-
-        # add own address
-        if self._local_ip:
-            addresses.append(self._local_ip)
-
-        return addresses
-
-    @property
-    def _local_ip(self) -> Optional[str]:
-        try:
-            return str(self.model.get_binding('tempo-peers').network.bind_address)
-        except (ops.ModelError, KeyError) as e:
-            logger.debug("failed to obtain local ip from tempo-peers binding", exc_info=True)
-            logger.error(f"unable to get local IP at this time: failed with {type(e)}; "
-                         f"see debug log for more info")
-            return None
-
     def _on_config_changed(self, _):
         # check if certificate files haven't disappeared and recreate them if needed
         self._update_tempo_cluster()
@@ -343,24 +334,14 @@ class TempoCharm(CharmBase):
     def _on_collect_unit_status(self, e: CollectStatusEvent):
         # todo add [nginx.workload] statuses
 
-        if not self.tempo.is_ready():
+        if not self.tempo.is_ready:
             e.add_status(WaitingStatus("[workload.tempo] Tempo API not ready just yet..."))
-
-        # todo: how to surface this inconsistent state?
-        # if not self.tempo.can_scale() and self.is_s3_ready):
-        #     e.add_status(BlockedStatus("[s3] s3 ready but tempo not configured."))
 
         # TODO: should we set these statuses on the leader only, or on all units?
         if issues := self._inconsistencies:
             for issue in issues:
-                e.add_status(
-                    BlockedStatus("[consistency.issues]" + issue)
-                )
-            e.add_status(
-                BlockedStatus(
-                    "[consistency] Unit *disabled*."
-                )
-            )
+                e.add_status(BlockedStatus("[consistency.issues]" + issue))
+            e.add_status(BlockedStatus("[consistency] Unit *disabled*."))
         else:
             if self.is_clustered:
                 # no issues: tempo is consistent
@@ -450,9 +431,6 @@ class TempoCharm(CharmBase):
         # self is not included in relation.units
         return relation.units
 
-    def _is_s3_ready(self) -> bool:
-        return bool(self._s3_config)
-
     @property
     def loki_endpoints_by_unit(self) -> Dict[str, str]:
         """Loki endpoints from relation data in the format needed for Pebble log forwarding.
@@ -480,16 +458,17 @@ class TempoCharm(CharmBase):
 
     def _update_tempo_cluster(self):
         """Build the config and publish everything to the application databag."""
-        if not self.coordinator.is_coherent:
+        if not self._is_consistent:
+            logger.error("skipped tempo cluster update: inconsistent state")
             return
 
         kwargs = {}
 
         if self.tls_available:
             # we share the certs in plaintext as they're not sensitive information
-            kwargs['ca_cert'] = self.cert_handler.ca_cert
-            kwargs['server_cert'] = self.cert_handler.server_cert
-            kwargs['privkey_secret_id'] = self.tempo_cluster.publish_privkey(VAULT_SECRET_LABEL)
+            kwargs["ca_cert"] = self.cert_handler.ca_cert
+            kwargs["server_cert"] = self.cert_handler.server_cert
+            kwargs["privkey_secret_id"] = self.tempo_cluster.publish_privkey(VAULT_SECRET_LABEL)
 
         # On every function call, we always publish everything to the databag; however, if there
         # are no changes, Juju will notice there's no delta and do nothing
@@ -497,7 +476,7 @@ class TempoCharm(CharmBase):
             tempo_config=self.tempo.generate_config(self._requested_receivers(), self._s3_config),
             loki_endpoints=self.loki_endpoints_by_unit,
             # TODO tempo receiver for charm tracing
-            **kwargs
+            **kwargs,
         )
 
     @property
@@ -543,4 +522,4 @@ class TempoCharm(CharmBase):
 
 
 if __name__ == "__main__":  # pragma: nocover
-    main(TempoCharm)
+    main(TempoCoordinatorCharm)

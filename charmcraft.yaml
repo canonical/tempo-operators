@@ -1,6 +1,6 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
-name: tempo-k8s
+name: tempo-coordinator-k8s
 type: charm
 
 assumes:
@@ -17,20 +17,14 @@ summary: |
   Tempo is a distributed tracing backend by Grafana.
 
 links:
-  documentation: https://discourse.charmhub.io/t/tempo-k8s-docs-index/14005
+  # FIXME: create docs tree root
+  documentation: https://discourse.charmhub.io/t/tempo-coordinator-k8s-docs-index
   website:
-    - https://charmhub.io/tempo-k8s
+    - https://charmhub.io/tempo-coordinator-k8s
   source:
-    - https://github.com/canonical/tempo-k8s-operator
+    - https://github.com/canonical/tempo-coordinator-k8s-operator
   issues:
-    - https://github.com/canonical/tempo-k8s-operator/issues
-
-containers:
-  tempo:
-    resource: tempo-image
-    mounts:
-      - storage: data
-        location: /tmp/tempo
+    - https://github.com/canonical/tempo-coordinator-k8s-operator/issues
 
 provides:
   tempo-cluster:

@@ -83,7 +83,7 @@ def tempo_coordinator():
         patches=[
             patch("charm.KubernetesServicePatch"),
             patch("lightkube.core.client.GenericSyncClient"),
-            patch("charm.TempoCharm._update_server_cert"),
+            patch("charm.TempoCoordinatorCharm._update_server_cert"),
             patch("tempo.Tempo.is_ready", new=lambda _: True),
         ],
         name="tempo",
@@ -103,9 +103,7 @@ def tempo_worker():
 
 @pytest.fixture
 def tempo_coordinator_state():
-    return State(
-        containers=[Container(name="tempo", can_connect=True)],
-    )
+    return State()
 
 
 @pytest.fixture
