@@ -1,29 +1,136 @@
-# This file configures Charmcraft.
-# See https://juju.is/docs/sdk/charmcraft-config for guidance.
-
+# Copyright 2022 Canonical Ltd.
+# See LICENSE file for licensing details.
+name: tempo-k8s
 type: charm
+
+assumes:
+  - k8s-api
+
+  # Juju 3.4.0 needed for pebble notify
+  - juju >= 3.4.0
+
+description: |
+  Tempo is a distributed tracing backend by Grafana, supporting Jaeger,
+  Zipkin, and OpenTelemetry protocols.
+
+summary: |
+  Tempo is a distributed tracing backend by Grafana.
+
+links:
+  documentation: https://discourse.charmhub.io/t/tempo-k8s-docs-index/14005
+  website:
+    - https://charmhub.io/tempo-k8s
+  source:
+    - https://github.com/canonical/tempo-k8s-operator
+  issues:
+    - https://github.com/canonical/tempo-k8s-operator/issues
+
+containers:
+  tempo:
+    resource: tempo-image
+    mounts:
+      - storage: data
+        location: /tmp/tempo
+
+resources:
+  tempo-image:
+    type: oci-image
+    description: OCI image for Tempo
+    # Included for simplicity in integration tests
+    # see https://hub.docker.com/r/grafana/tempo/tags
+    upstream-source: grafana/tempo:2.4.0
+
+provides:
+  tempo-cluster:
+    interface: tempo_cluster
+    description: |
+      Connect any number of tempo-worker-k8s charms to cluster the Tempo components off to different nodes.
+  grafana-dashboard:
+    interface: grafana_dashboard
+    description: |
+      Forwards the built-in grafana dashboard(s) for monitoring Tempo.
+  grafana-source:
+    interface: grafana_datasource
+    description: |
+      Configures Grafana to be able to use this Tempo instance as a datasource.
+  metrics-endpoint:
+    interface: prometheus_scrape
+    description: |
+      Exposes the Prometheus metrics endpoint providing telemetry about the
+      Tempo instance.
+  tracing:
+    interface: tracing
+    description: |
+      Integration to offer other charms the possibility to send traces to Tempo.
+
+
+requires:
+  s3:
+    interface: s3
+    limit: 1
+    description: |
+      Obtains access to the s3 bucket for data storage.
+  logging:
+    interface: loki_push_api
+    description: |
+      Integration with Loki to push Tempo logs to the observability stack.
+  ingress:
+    interface: traefik_route
+    description: |
+      Ingress integration for Tempo server and Tempo receiver endpoints,
+      so that cross-model workloads can send their traces to Tempo through the ingress.
+      Uses `traefik_route` to open ports on Traefik host for tracing ingesters.
+  certificates:
+    interface: tls-certificates
+    limit: 1
+    description: |
+      Certificate and key files for securing Tempo internal and external 
+      communications with TLS.
+
+storage:
+  data:
+    type: filesystem
+    location: /tempo-data
+
+actions:
+  list-receivers:
+    description: |
+      Returns a list of all enabled receiver endpoints.
+
+peers:
+  tempo-peers:
+    interface: tempo_peers
+    description: |
+      peer relation for internal coordination
+
+config:
+  options:
+    coordinator_runs_workload_when_clustered:
+      type: boolean
+      default: true
+      description: |
+        Whether this charm should also run a worker node when related
+        to any number of specialized worker applications.
+        
+        Set it to ``false`` if you want this charm to stop running `Tempo` 
+        as soon as you integrate it with a tempo-worker-k8s-charm instance. 
+        In this case, tempo-k8s will only act as coordinator 
+        (and reverse proxy) for the tempo cluster.
+
+
 bases:
   - build-on:
-    - name: ubuntu
-      channel: "22.04"
+      - name: "ubuntu"
+        channel: "22.04"
     run-on:
-    - name: ubuntu
-      channel: "22.04"
+      - name: "ubuntu"
+        channel: "22.04"
 
 parts:
   charm:
     charm-binary-python-packages:
-      - pydantic>2.0
+      - "pydantic>=2"
+      - "cryptography"
+      - "jsonschema"
+      - "opentelemetry-exporter-otlp-proto-http==1.21.0"
 
-      # For v2.tls_certificates
-      - cryptography
-      - jsonschema
-
-  cos-tool:
-    plugin: dump
-    source: .
-    build-packages:
-      - curl
-    override-pull: |
-      curl -L -O https://github.com/canonical/cos-tool/releases/latest/download/cos-tool-${CRAFT_TARGET_ARCH}
-      chmod +x cos-tool-*

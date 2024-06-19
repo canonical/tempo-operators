@@ -1,8 +1,19 @@
+# pin importlib-metadata version else charmcraft pack will fail to resolve the dependencies for the pydeps-installed otlp library
+importlib-metadata~=6.0.0
 ops
-cosl
-pydantic
-# crossplane is a package from nginxinc to interact with the Nginx config
-crossplane
+jsonschema==4.17.0
+lightkube==0.11.0
+lightkube-models==1.24.1.4
+tenacity==8.2.3
 
+# PYDEPS
 # lib/charms/tempo_k8s/v1/charm_tracing.py
-opentelemetry-exporter-otlp-proto-http
+opentelemetry-exporter-otlp-proto-http==1.21.0
+
+# lib/charms/tls_certificates_interface/v2/tls_certificates.py
+jsonschema
+cryptography
+# lib/charms/tempo_k8s/v1/tracing.py
+pydantic>=2
+# lib/charms/prometheus_k8s/v0/prometheus_scrape.py
+cosl

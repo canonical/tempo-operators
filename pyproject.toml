@@ -1,3 +1,24 @@
+# Copyright 2022 Canonical Ltd.
+# See LICENSE file for licensing details.
+[project]
+name = "tempo-k8s"
+version = "0.1"  # this is in fact irrelevant
+
+[project.optional-dependencies]
+lib_pydeps = [
+]
+
+[tool.pyright]
+extraPaths = ["lib"]
+pythonVersion = "3.8"
+pythonPlatform = "All"
+
+[build]
+build-base = "/tmp/build"
+
+[egg_info]
+egg-base = "/tmp"
+
 # Testing tools configuration
 [tool.coverage.run]
 branch = true
@@ -8,14 +29,18 @@ show_missing = true
 [tool.pytest.ini_options]
 minversion = "6.0"
 log_cli_level = "INFO"
+markers = ["setup", "teardown"]
 
 # Formatting tools configuration
+[tool.isort]
+profile = "black"
+
 [tool.black]
 line-length = 99
 target-version = ["py38"]
 
 # Linting tools configuration
-[tool.ruff]
+[lint]
 line-length = 99
 select = ["E", "W", "F", "C", "N", "D", "I001"]
 extend-ignore = [
@@ -32,19 +57,11 @@ extend-ignore = [
     "D413",
 ]
 ignore = ["E501", "D107"]
-extend-exclude = ["__pycache__", "*.egg_info"]
+extend-exclude = ["__pycache__", "*.egg_info", "*integration/tester*"]
 per-file-ignores = {"tests/*" = ["D100","D101","D102","D103","D104"]}
 
-[tool.ruff.mccabe]
-max-complexity = 15
+[lint.mccabe]
+max-complexity = 10
 
-[tool.ruff.pep8-naming]
-# Allow Pydantic's `@validator` decorator to trigger class method treatment.
-classmethod-decorators = ["classmethod", "pydantic.validator"]
-
-[tool.pyright]
-include = ["src"]
-extraPaths = ["lib"]
-pythonVersion = "3.8"
-pythonPlatform = "Linux"
-reportUnknownParameterType = true
+[tool.codespell]
+skip = "build,lib,venv,icon.svg,.tox,.git,.mypy_cache,.ruff_cache,.vscode,.coverage"

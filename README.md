@@ -1,13 +1,28 @@
-# Tempo Coordinator charm for Kubernetes
+# Tempo Operator
 
-[![CharmHub Badge](https://charmhub.io/tempo-coordinator-k8s/badge.svg)](https://charmhub.io/tempo-coordinator-k8s)
-[![Release](https://github.com/canonical/tempo-coordinator-k8s-operator/actions/workflows/release.yaml/badge.svg)](https://github.com/canonical/tempo-coordinator-k8s-operator/actions/workflows/release.yaml)
+[![CharmHub Badge](https://charmhub.io/tempo-k8s/badge.svg)](https://charmhub.io/tempo-k8s)
+[![Release](https://github.com/canonical/tempo-k8s-operator/actions/workflows/release.yaml/badge.svg)](https://github.com/canonical/tempo-k8s-operator/actions/workflows/release.yaml)
 [![Discourse Status](https://img.shields.io/discourse/status?server=https%3A%2F%2Fdiscourse.charmhub.io&style=flat&label=CharmHub%20Discourse)](https://discourse.charmhub.io)
 
-## Description
+This repository contains the source code for a Charmed Operator that drives [Tempo] on Kubernetes.
 
-This charm serves as a coordinator for a Tempo HA deployment, together with the [tempo-worker-k8s](https://github.com/canonical/tempo-worker-k8s-operator) charm.  
+## Usage
+
+Assuming you have access to a bootstrapped Juju controller on Kubernetes, you can:
+
+```bash
+$ juju deploy tempo-k8s # --trust (use when cluster has RBAC enabled)
+```
+
+## OCI Images
+
+This charm, by default, deploys `grafana/tempo:2.4.0`.
 
 ## Contributing
 
-See the [Juju SDK documentation](https://juju.is/docs/sdk) for more information about developing and improving charms.
+Please see the [Juju SDK docs](https://juju.is/docs/sdk) for guidelines
+on enhancements to this charm following best practice guidelines, and the
+[contributing] doc for developer guidance.
+
+[Tempo]: https://grafana.com/traces/
+[contributing]: https://github.com/PietroPasotti/tempo-k8s-operator/blob/main/CONTRIBUTING.md
