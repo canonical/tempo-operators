@@ -28,6 +28,8 @@ from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, Relation, WaitingStatus
 
 from coordinator import TempoCoordinator
+from nginx import CA_CERT_PATH, CERT_PATH, KEY_PATH, Nginx
+from nginx_prometheus_exporter import NGINX_PROMETHEUS_EXPORTER_PORT, NginxPrometheusExporter
 from tempo import Tempo
 from tempo_cluster import TempoClusterProvider
 
@@ -48,6 +50,7 @@ class TempoCoordinatorCharm(CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
+
         self.ingress = TraefikRouteRequirer(self, self.model.get_relation("ingress"), "ingress")  # type: ignore
         self.tempo_cluster = TempoClusterProvider(self)
         self.coordinator = TempoCoordinator(self.tempo_cluster)
@@ -65,6 +68,13 @@ class TempoCoordinatorCharm(CharmBase):
         )
 
         self.s3_requirer = S3Requirer(self, Tempo.s3_relation_name, Tempo.s3_bucket_name)
+
+        self.nginx = Nginx(
+            self,
+            cluster_provider=self.tempo_cluster,
+            server_name=self.hostname,
+        )
+        self.nginx_prometheus_exporter = NginxPrometheusExporter(self)
 
         # configure this tempo as a datasource in grafana
         self.grafana_source_provider = GrafanaSourceProvider(
@@ -114,6 +124,13 @@ class TempoCoordinatorCharm(CharmBase):
         self.framework.observe(self.on.update_status, self._on_update_status)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.list_receivers_action, self._on_list_receivers_action)
+
+        # nginx
+        self.framework.observe(self.on.nginx_pebble_ready, self._on_nginx_pebble_ready)
+        self.framework.observe(
+            self.on.nginx_prometheus_exporter_pebble_ready,
+            self._on_nginx_prometheus_exporter_pebble_ready,
+        )
 
         # ingress
         ingress = self.on["ingress"]
@@ -367,6 +384,12 @@ class TempoCoordinatorCharm(CharmBase):
                     e.add_status(ActiveStatus())
             else:
                 e.add_status(ActiveStatus())
+
+    def _on_nginx_pebble_ready(self, _) -> None:
+        self.nginx.configure_pebble_layer(tls=self.tls_available)
+
+    def _on_nginx_prometheus_exporter_pebble_ready(self, _) -> None:
+        self.nginx_prometheus_exporter.configure_pebble_layer()
 
     ###################
     # UTILITY METHODS #

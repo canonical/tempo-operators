@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 NGINX_DIR = "/etc/nginx"
 NGINX_CONFIG = f"{NGINX_DIR}/nginx.conf"
-NGINX_PORT = "8080"
 KEY_PATH = f"{NGINX_DIR}/certs/server.key"
 CERT_PATH = f"{NGINX_DIR}/certs/server.cert"
 CA_CERT_PATH = f"{NGINX_DIR}/certs/ca.cert"
@@ -32,9 +31,10 @@ LOCATIONS_DISTRIBUTOR: List[Dict[str, Any]] = [
             },
         ],
     },
+    # OTLP/HTTP ingestion
     {
         "directive": "location",
-        "args": ["/api/v1/push"],
+        "args": ["/v1/traces"],
         "block": [
             {
                 "directive": "proxy_pass",
@@ -42,87 +42,14 @@ LOCATIONS_DISTRIBUTOR: List[Dict[str, Any]] = [
             },
         ],
     },
+    # Zipkin ingestion
     {
         "directive": "location",
-        "args": ["/otlp/v1/metrics"],
+        "args": ["/api/v2/spans"],
         "block": [
             {
                 "directive": "proxy_pass",
                 "args": ["http://distributor"],
-            },
-        ],
-    },
-]
-LOCATIONS_ALERTMANAGER: List[Dict] = [
-    {
-        "directive": "location",
-        "args": ["/alertmanager"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://alertmanager"],
-            },
-        ],
-    },
-    {
-        "directive": "location",
-        "args": ["/multitenant_alertmanager/status"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://alertmanager"],
-            },
-        ],
-    },
-    {
-        "directive": "location",
-        "args": ["/api/v1/alerts"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://alertmanager"],
-            },
-        ],
-    },
-]
-LOCATIONS_RULER: List[Dict] = [
-    {
-        "directive": "location",
-        "args": ["/prometheus/config/v1/rules"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://ruler"],
-            },
-        ],
-    },
-    {
-        "directive": "location",
-        "args": ["/prometheus/api/v1/rules"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://ruler"],
-            },
-        ],
-    },
-    {
-        "directive": "location",
-        "args": ["/prometheus/api/v1/alerts"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://ruler"],
-            },
-        ],
-    },
-    {
-        "directive": "location",
-        "args": ["=", "/ruler/ring"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://ruler"],
             },
         ],
     },
@@ -138,10 +65,9 @@ LOCATIONS_QUERY_FRONTEND: List[Dict] = [
             },
         ],
     },
-    # Buildinfo endpoint can go to any component
     {
         "directive": "location",
-        "args": ["=", "/api/v1/status/buildinfo"],
+        "args": ["/api/echo"],
         "block": [
             {
                 "directive": "proxy_pass",
@@ -149,16 +75,54 @@ LOCATIONS_QUERY_FRONTEND: List[Dict] = [
             },
         ],
     },
-]
-LOCATIONS_COMPACTOR: List[Dict] = [
-    # Compactor endpoint for uploading blocks
     {
         "directive": "location",
-        "args": ["=", "/api/v1/upload/block/"],
+        "args": ["/api/traces"],
         "block": [
             {
                 "directive": "proxy_pass",
-                "args": ["http://compactor"],
+                "args": ["http://query-frontend"],
+            },
+        ],
+    },
+    {
+        "directive": "location",
+        "args": ["/api/search"],
+        "block": [
+            {
+                "directive": "proxy_pass",
+                "args": ["http://query-frontend"],
+            },
+        ],
+    },
+    {
+        "directive": "location",
+        "args": ["/api/v2/search"],
+        "block": [
+            {
+                "directive": "proxy_pass",
+                "args": ["http://query-frontend"],
+            },
+        ],
+    },
+    {
+        "directive": "location",
+        "args": ["/api/overrides"],
+        "block": [
+            {
+                "directive": "proxy_pass",
+                "args": ["http://query-frontend"],
+            },
+        ],
+    },
+    # Buildinfo endpoint can go to any component
+    {
+        "directive": "location",
+        "args": ["=", "/api/status/buildinfo"],
+        "block": [
+            {
+                "directive": "proxy_pass",
+                "args": ["http://query-frontend"],
             },
         ],
     },
@@ -318,14 +282,9 @@ class Nginx:
 
         if "distributor" in roles:
             nginx_locations.extend(LOCATIONS_DISTRIBUTOR)
-        if "alertmanager" in roles:
-            nginx_locations.extend(LOCATIONS_ALERTMANAGER)
-        if "ruler" in roles:
-            nginx_locations.extend(LOCATIONS_RULER)
+        # TODO do we need ingester, querier, compactor here? they aren't an entrypoint from outside
         if "query-frontend" in roles:
             nginx_locations.extend(LOCATIONS_QUERY_FRONTEND)
-        if "compactor" in roles:
-            nginx_locations.extend(LOCATIONS_COMPACTOR)
         return nginx_locations
 
     def _resolver(self, custom_resolver: Optional[List[Any]] = None) -> List[Dict[str, Any]]:
@@ -352,8 +311,18 @@ class Nginx:
                 "directive": "server",
                 "args": [],
                 "block": [
-                    {"directive": "listen", "args": ["443", "ssl"]},
-                    {"directive": "listen", "args": ["[::]:443", "ssl"]},
+                    {"directive": "listen", "args": ["3200", "ssl"]},
+                    {"directive": "listen", "args": ["[::]:3200", "ssl"]},
+                    {"directive": "listen", "args": ["4317", "ssl"]},
+                    {"directive": "listen", "args": ["[::]:4317", "ssl"]},
+                    {"directive": "listen", "args": ["4318", "ssl"]},
+                    {"directive": "listen", "args": ["[::]:4318", "ssl"]},
+                    {"directive": "listen", "args": ["9411", "ssl"]},
+                    {"directive": "listen", "args": ["[::]:9411", "ssl"]},
+                    {"directive": "listen", "args": ["9096", "ssl"]},
+                    {"directive": "listen", "args": ["[::]:9096", "ssl"]},
+                    {"directive": "listen", "args": ["14268", "ssl"]},
+                    {"directive": "listen", "args": ["[::]:14268", "ssl"]},
                     *self._basic_auth(auth_enabled),
                     {
                         "directive": "proxy_set_header",
@@ -373,8 +342,16 @@ class Nginx:
             "directive": "server",
             "args": [],
             "block": [
-                {"directive": "listen", "args": [NGINX_PORT]},
-                {"directive": "listen", "args": [f"[::]:{NGINX_PORT}"]},
+                {"directive": "listen", "args": ["3200"]},
+                {"directive": "listen", "args": ["[::]:3200"]},
+                {"directive": "listen", "args": ["4317"]},
+                {"directive": "listen", "args": ["[::]:4318"]},
+                {"directive": "listen", "args": ["9411"]},
+                {"directive": "listen", "args": ["[::]:9411"]},
+                {"directive": "listen", "args": ["9096"]},
+                {"directive": "listen", "args": ["[::]:9096"]},
+                {"directive": "listen", "args": ["14268"]},
+                {"directive": "listen", "args": ["[::]:14268"]},
                 *self._basic_auth(auth_enabled),
                 {
                     "directive": "proxy_set_header",
