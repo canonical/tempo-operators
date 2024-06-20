@@ -134,10 +134,10 @@ class TempoCoordinatorCharm(CharmBase):
         self.framework.observe(self.tracing.on.request, self._on_tracing_request)
         self.framework.observe(self.tracing.on.broken, self._on_tracing_broken)
         self.framework.observe(
-            self.on.tempo_peers_relation_created, self._on_tempo_peers_relation_created
+            self.on.peers_relation_created, self._on_peers_relation_created
         )
         self.framework.observe(
-            self.on.tempo_peers_relation_changed, self._on_tempo_peers_relation_changed
+            self.on.peers_relation_changed, self._on_peers_relation_changed
         )
 
         # tls
@@ -220,7 +220,7 @@ class TempoCoordinatorCharm(CharmBase):
     @property
     def peer_addresses(self) -> List[str]:
         peers = self._peers
-        relation = self.model.get_relation("tempo-peers")
+        relation = self.model.get_relation("peers")
         # get unit addresses for all the other units from a databag
         if peers and relation:
             addresses = [relation.data[unit].get("local-ip") for unit in peers]
@@ -237,9 +237,9 @@ class TempoCoordinatorCharm(CharmBase):
     @property
     def _local_ip(self) -> Optional[str]:
         try:
-            return str(self.model.get_binding("tempo-peers").network.bind_address)
+            return str(self.model.get_binding("peers").network.bind_address)
         except (ops.ModelError, KeyError) as e:
-            logger.debug("failed to obtain local ip from tempo-peers binding", exc_info=True)
+            logger.debug("failed to obtain local ip from peers binding", exc_info=True)
             logger.error(
                 f"unable to get local IP at this time: failed with {type(e)}; "
                 f"see debug log for more info"
@@ -300,11 +300,11 @@ class TempoCoordinatorCharm(CharmBase):
     def _on_s3_changed(self):
         self._update_tempo_cluster()
 
-    def _on_tempo_peers_relation_created(self, event: ops.RelationCreatedEvent):
+    def _on_peers_relation_created(self, event: ops.RelationCreatedEvent):
         if self._local_ip:
             event.relation.data[self.unit]["local-ip"] = self._local_ip
 
-    def _on_tempo_peers_relation_changed(self, _):
+    def _on_peers_relation_changed(self, _):
         self._update_tempo_cluster()
 
     def _on_config_changed(self, _):
@@ -424,7 +424,7 @@ class TempoCoordinatorCharm(CharmBase):
 
     @property
     def _peers(self) -> Optional[Set[ops.model.Unit]]:
-        relation = self.model.get_relation("tempo-peers")
+        relation = self.model.get_relation("peers")
         if not relation:
             return None
 

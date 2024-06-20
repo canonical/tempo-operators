@@ -15,7 +15,7 @@ def test_scaled_status_no_s3(context, all_worker):
     state_out = context.run(
         "start",
         State(
-            relations=[PeerRelation("tempo-peers", peers_data={1: {}, 2: {}})],
+            relations=[PeerRelation("peers", peers_data={1: {}, 2: {}})],
             unit_status=ops.ActiveStatus(),
         ),
     )
@@ -26,7 +26,7 @@ def test_scaled_status_no_workers(context, all_worker):
     state_out = context.run(
         "start",
         State(
-            relations=[PeerRelation("tempo-peers", peers_data={1: {}, 2: {}})],
+            relations=[PeerRelation("peers", peers_data={1: {}, 2: {}})],
             unit_status=ops.ActiveStatus(),
         ),
     )
@@ -37,11 +37,11 @@ def test_scaled_status_with_s3_and_workers(context, s3, all_worker):
     state_out = context.run(
         "start",
         State(
-            relations=[PeerRelation("tempo-peers", peers_data={1: {}, 2: {}}), s3, all_worker],
+            relations=[PeerRelation("peers", peers_data={1: {}, 2: {}}), s3, all_worker],
             unit_status=ops.ActiveStatus(),
         ),
     )
-    assert state_out.unit_status.name == "waiting"  # tempo not ready yet
+    assert state_out.unit_status.name == "active"
 
 
 @patch.object(Tempo, "is_ready", new=True)
@@ -49,7 +49,7 @@ def test_happy_status(context, s3, all_worker):
     state_out = context.run(
         "start",
         State(
-            relations=[PeerRelation("tempo-peers", peers_data={1: {}, 2: {}}), s3, all_worker],
+            relations=[PeerRelation("peers", peers_data={1: {}, 2: {}}), s3, all_worker],
             unit_status=ops.ActiveStatus(),
         ),
     )

@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -7,12 +8,22 @@ import scenario
 from catan import App, Catan
 from scenario import Container, State
 
+from tempo_cluster import TempoRole, TempoClusterRequirerAppData
+
 os.environ["CHARM_TRACING_ENABLED"] = "0"
+
+# everyone has their own
+REPOS_ROOT = Path("~").expanduser() / "canonical"
+FACADE_CHARM_ROOT = REPOS_ROOT / "charm-relation-interfaces" / "facade_charm"
 
 
 def get_facade(name="facade"):
+    meta = Path(FACADE_CHARM_ROOT) / 'charmcraft.yaml'
+    if not meta.exists():
+        raise RuntimeError(f"{meta} not found: run facade_charm.update_endpoints before running this test")
+
     facade = App.from_path(
-        "/home/pietro/canonical/charm-relation-interfaces/facade_charm",
+        FACADE_CHARM_ROOT,
         name=name,
     )
     return facade
@@ -79,12 +90,12 @@ def prep_traefik_facade(catan: Catan):
 @pytest.fixture
 def tempo_coordinator():
     tempo = App.from_path(
-        "/home/pietro/canonical/tempo-k8s",
+        REPOS_ROOT / "tempo-coordinator-k8s-operator",
         patches=[
             patch("charm.KubernetesServicePatch"),
             patch("lightkube.core.client.GenericSyncClient"),
             patch("charm.TempoCoordinatorCharm._update_server_cert"),
-            patch("tempo.Tempo.is_ready", new=lambda _: True),
+            # patch("tempo.Tempo.is_ready", new=lambda _: True),
         ],
         name="tempo",
     )
@@ -94,16 +105,49 @@ def tempo_coordinator():
 @pytest.fixture
 def tempo_worker():
     tempo = App.from_path(
-        "/home/pietro/canonical/tempo-worker-k8s-operator",
-        patches=[patch("charm.KubernetesServicePatch")],
-        name="tempo",
+        REPOS_ROOT / "tempo-worker-k8s-operator",
+        name="worker",
     )
     yield tempo
 
 
+@pytest.fixture(scope="function")
+def s3_config():
+    return {
+        "access-key": "key",
+        "bucket": "tempo",
+        "endpoint": "http://1.2.3.4:9000",
+        "secret-key": "soverysecret",
+    }
+
+
+@pytest.fixture(scope="function")
+def s3(s3_config):
+    return scenario.Relation(
+        "s3",
+        remote_app_data=s3_config,
+        local_unit_data={"bucket": "tempo"},
+    )
+
+
+@pytest.fixture(scope="function")
+def all_worker():
+    return scenario.Relation(
+        "tempo-cluster",
+        remote_app_data=TempoClusterRequirerAppData(role=TempoRole.all).dump(),
+    )
+
+
+@pytest.fixture(scope="function")
+def tempo_peers():
+    return scenario.PeerRelation("peers")
+
+
 @pytest.fixture
-def tempo_coordinator_state():
-    return State()
+def tempo_coordinator_state(tempo_peers):
+    return State(
+        relations=[tempo_peers]
+    )
 
 
 @pytest.fixture
@@ -113,48 +157,34 @@ def tempo_worker_state():
     )
 
 
-def assert_active(state: State, message=None):
-    assert state.unit_status.name == "active"
-    if message:
-        assert state.unit_status.message == message
+@pytest.fixture
+def update_s3_facade_action():
+    return scenario.Action(
+        "update",
+        params={
+            "endpoint": "provide-s3",
+            "app_data": json.dumps({
+                "access-key": "key",
+                "bucket": "tempo",
+                "endpoint": "http://1.2.3.4:9000",
+                "secret-key": "soverysecret",
+            })
+        }
+    )
 
 
-def assert_blocked(state: State, message=None):
-    assert state.unit_status.name == "blocked"
-    if message:
-        assert state.unit_status.message == message
-
-
-def test_monolithic_deployment(tempo_coordinator, tempo_coordinator_state):
+def test_monolithic_deployment(tempo_coordinator, tempo_coordinator_state, tempo_worker,
+                               tempo_worker_state, s3_facade, update_s3_facade_action):
     c = Catan()
-    c.deploy(tempo_coordinator, [0], state_template=tempo_coordinator_state)
 
-    ms_out = c.settle()
+    c.deploy(s3_facade)
+    c.deploy(tempo_coordinator, state_template=tempo_coordinator_state)
+    c.deploy(tempo_worker, state_template=tempo_worker_state)
 
-    state_out = ms_out.get_unit_state(tempo_coordinator, 0)
-    assert_active(state_out, "")
-
-
-@pytest.mark.xfail  # catan doesn't support peer relations yet
-def test_scaling_without_s3_blocks(tempo_coordinator, tempo_coordinator_state, s3_facade):
-    c = Catan()
-    c.deploy(tempo_coordinator, [0, 1], state_template=tempo_coordinator_state)
-
-    ms_out = c.settle()
-
-    assert_blocked(ms_out.get_unit_state(tempo_coordinator, 0))
-    assert_blocked(ms_out.get_unit_state(tempo_coordinator, 1))
-
-
-def test_scaling_with_s3_active(tempo_coordinator, tempo_coordinator_state, s3_facade):
-    c = Catan()
-    c.deploy(tempo_coordinator, [0], state_template=tempo_coordinator_state)
-    c.deploy(s3_facade, [0])
-    prep_s3_facade(c)
+    c.integrate(tempo_coordinator, "tempo-cluster", tempo_worker, "tempo-cluster")
     c.integrate(tempo_coordinator, "s3", s3_facade, "provide-s3")
-    c.add_unit(tempo_coordinator, 1, tempo_coordinator_state)
+    c.run_action(update_s3_facade_action, s3_facade)
 
-    ms_out = c.settle()
+    c.settle()
 
-    assert_active(ms_out.get_unit_state(tempo_coordinator, 0))
-    assert_active(ms_out.get_unit_state(tempo_coordinator, 1))
+    c.check_status(tempo_coordinator, name='active')
