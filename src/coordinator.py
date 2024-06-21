@@ -1,7 +1,6 @@
-import collections
 import logging
 from collections import Counter
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Optional
 
 from tempo_cluster import TempoClusterProvider, TempoRole
 
@@ -72,7 +71,7 @@ class TempoCoordinator:
     def _get_deployment_inconsistencies(
         has_s3: bool,
         coherent: bool,
-        missing_roles: Set[TempoRole] = None,
+        missing_roles: Optional[Set[TempoRole]] = None,
     ) -> List[str]:
         """Determine whether the deployment as a whole is consistent.
 

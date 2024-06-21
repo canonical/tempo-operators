@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest as pytest
+
 from coordinator import (
     MINIMAL_DEPLOYMENT,
     RECOMMENDED_DEPLOYMENT,

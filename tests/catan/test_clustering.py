@@ -8,7 +8,7 @@ import scenario
 from catan import App, Catan
 from scenario import Container, State
 
-from tempo_cluster import TempoRole, TempoClusterRequirerAppData
+from tempo_cluster import TempoClusterRequirerAppData, TempoRole
 
 os.environ["CHARM_TRACING_ENABLED"] = "0"
 
@@ -18,9 +18,11 @@ FACADE_CHARM_ROOT = REPOS_ROOT / "charm-relation-interfaces" / "facade_charm"
 
 
 def get_facade(name="facade"):
-    meta = Path(FACADE_CHARM_ROOT) / 'charmcraft.yaml'
+    meta = Path(FACADE_CHARM_ROOT) / "charmcraft.yaml"
     if not meta.exists():
-        raise RuntimeError(f"{meta} not found: run facade_charm.update_endpoints before running this test")
+        raise RuntimeError(
+            f"{meta} not found: run facade_charm.update_endpoints before running this test"
+        )
 
     facade = App.from_path(
         FACADE_CHARM_ROOT,
@@ -145,9 +147,7 @@ def tempo_peers():
 
 @pytest.fixture
 def tempo_coordinator_state(tempo_peers):
-    return State(
-        relations=[tempo_peers]
-    )
+    return State(relations=[tempo_peers])
 
 
 @pytest.fixture
@@ -163,18 +163,26 @@ def update_s3_facade_action():
         "update",
         params={
             "endpoint": "provide-s3",
-            "app_data": json.dumps({
-                "access-key": "key",
-                "bucket": "tempo",
-                "endpoint": "http://1.2.3.4:9000",
-                "secret-key": "soverysecret",
-            })
-        }
+            "app_data": json.dumps(
+                {
+                    "access-key": "key",
+                    "bucket": "tempo",
+                    "endpoint": "http://1.2.3.4:9000",
+                    "secret-key": "soverysecret",
+                }
+            ),
+        },
     )
 
 
-def test_monolithic_deployment(tempo_coordinator, tempo_coordinator_state, tempo_worker,
-                               tempo_worker_state, s3_facade, update_s3_facade_action):
+def test_monolithic_deployment(
+    tempo_coordinator,
+    tempo_coordinator_state,
+    tempo_worker,
+    tempo_worker_state,
+    s3_facade,
+    update_s3_facade_action,
+):
     c = Catan()
 
     c.deploy(s3_facade)
@@ -187,4 +195,4 @@ def test_monolithic_deployment(tempo_coordinator, tempo_coordinator_state, tempo
 
     c.settle()
 
-    c.check_status(tempo_coordinator, name='active')
+    c.check_status(tempo_coordinator, name="active")

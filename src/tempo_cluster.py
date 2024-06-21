@@ -12,7 +12,7 @@ import collections
 import json
 import logging
 from enum import Enum, unique
-from typing import Any, Dict, List, MutableMapping, Optional, Set, cast
+from typing import Any, Dict, List, MutableMapping, Optional, Set
 
 import ops
 import pydantic
@@ -108,59 +108,133 @@ class JujuTopology(pydantic.BaseModel):
     # ...
 
 
-class DatabagModel(BaseModel):
-    """Base databag model."""
+# DatabagModel implementation from traefik.v1.ingress charm lib.
+PYDANTIC_IS_V1 = int(pydantic.version.VERSION.split(".")[0]) < 2
+if PYDANTIC_IS_V1:
 
-    model_config = ConfigDict(
-        # Allow instantiating this class by field name (instead of forcing alias).
-        populate_by_name=True,
-        # Custom config key: whether to nest the whole datastructure (as json)
-        # under a field or spread it out at the toplevel.
-        _NEST_UNDER=None,  # noqa
-    )  # type: ignore
-    """Pydantic config."""
+    class DatabagModel(BaseModel):  # type: ignore
+        """Base databag model."""
 
-    @classmethod
-    def load(cls, databag: MutableMapping[str, str]):
-        """Load this model from a Juju databag."""
-        nest_under = cls.model_config.get("_NEST_UNDER")  # noqa
-        if nest_under:
-            return cls.parse_obj(json.loads(databag[cast(str, nest_under)]))
+        class Config:
+            """Pydantic config."""
 
-        try:
-            data = {k: json.loads(v) for k, v in databag.items() if k not in BUILTIN_JUJU_KEYS}
-        except json.JSONDecodeError as e:
-            msg = f"invalid databag contents: expecting json. {databag}"
-            log.info(msg)
-            raise DataValidationError(msg) from e
+            allow_population_by_field_name = True
+            """Allow instantiating this class by field name (instead of forcing alias)."""
 
-        try:
-            return cls.parse_raw(json.dumps(data))  # type: ignore
-        except pydantic.ValidationError as e:
-            msg = f"failed to validate databag: {databag}"
-            log.info(msg, exc_info=True)
-            raise DataValidationError(msg) from e
+        _NEST_UNDER = None
 
-    def dump(self, databag: Optional[MutableMapping[str, str]] = None, clear: bool = True):
-        """Write the contents of this model to Juju databag.
+        @classmethod
+        def load(cls, databag: MutableMapping):
+            """Load this model from a Juju databag."""
+            if cls._NEST_UNDER:
+                return cls.parse_obj(json.loads(databag[cls._NEST_UNDER]))
 
-        :param databag: the databag to write the data to.
-        :param clear: ensure the databag is cleared before writing it.
-        """
-        if clear and databag:
-            databag.clear()
+            try:
+                data = {
+                    k: json.loads(v)
+                    for k, v in databag.items()
+                    # Don't attempt to parse model-external values
+                    if k in {f.alias for f in cls.__fields__.values()}  # type: ignore
+                }
+            except json.JSONDecodeError as e:
+                msg = f"invalid databag contents: expecting json. {databag}"
+                log.error(msg)
+                raise DataValidationError(msg) from e
 
-        if databag is None:
-            databag = {}
-        nest_under = self.model_config.get("_NEST_UNDER")  # noqa
-        if nest_under:
-            databag[nest_under] = self.json()
+            try:
+                return cls.parse_raw(json.dumps(data))  # type: ignore
+            except pydantic.ValidationError as e:
+                msg = f"failed to validate databag: {databag}"
+                log.debug(msg, exc_info=True)
+                raise DataValidationError(msg) from e
 
-        dct = self.model_dump(by_alias=True)
-        for key, field in self.model_fields.items():  # type: ignore
-            value = dct[key]
-            databag[field.alias or key] = json.dumps(value)
-        return databag
+        def dump(self, databag: Optional[MutableMapping] = None, clear: bool = True):
+            """Write the contents of this model to Juju databag.
+
+            :param databag: the databag to write the data to.
+            :param clear: ensure the databag is cleared before writing it.
+            """
+            if clear and databag:
+                databag.clear()
+
+            if databag is None:
+                databag = {}
+
+            if self._NEST_UNDER:
+                databag[self._NEST_UNDER] = self.json(by_alias=True, exclude_defaults=True)
+                return databag
+
+            for key, value in self.dict(by_alias=True, exclude_defaults=True).items():  # type: ignore
+                databag[key] = json.dumps(value)
+
+            return databag
+
+else:
+    from pydantic import ConfigDict
+
+    class DatabagModel(BaseModel):
+        """Base databag model."""
+
+        model_config = ConfigDict(
+            # tolerate additional keys in databag
+            extra="ignore",
+            # Allow instantiating this class by field name (instead of forcing alias).
+            populate_by_name=True,
+            # Custom config key: whether to nest the whole datastructure (as json)
+            # under a field or spread it out at the toplevel.
+            _NEST_UNDER=None,
+        )  # type: ignore
+        """Pydantic config."""
+
+        @classmethod
+        def load(cls, databag: MutableMapping):
+            """Load this model from a Juju databag."""
+            nest_under = cls.model_config.get("_NEST_UNDER")
+            if nest_under:
+                return cls.model_validate(json.loads(databag[nest_under]))  # type: ignore
+
+            try:
+                data = {
+                    k: json.loads(v)
+                    for k, v in databag.items()
+                    # Don't attempt to parse model-external values
+                    if k in {(f.alias or n) for n, f in cls.__fields__.items()}  # type: ignore
+                }
+            except json.JSONDecodeError as e:
+                msg = f"invalid databag contents: expecting json. {databag}"
+                log.error(msg)
+                raise DataValidationError(msg) from e
+
+            try:
+                return cls.model_validate_json(json.dumps(data))  # type: ignore
+            except pydantic.ValidationError as e:
+                msg = f"failed to validate databag: {databag}"
+                log.debug(msg, exc_info=True)
+                raise DataValidationError(msg) from e
+
+        def dump(self, databag: Optional[MutableMapping] = None, clear: bool = True):
+            """Write the contents of this model to Juju databag.
+
+            :param databag: the databag to write the data to.
+            :param clear: ensure the databag is cleared before writing it.
+            """
+            if clear and databag:
+                databag.clear()
+
+            if databag is None:
+                databag = {}
+            nest_under = self.model_config.get("_NEST_UNDER")
+            if nest_under:
+                databag[nest_under] = self.model_dump_json(  # type: ignore
+                    by_alias=True,
+                    # skip keys whose values are default
+                    exclude_defaults=True,
+                )
+                return databag
+
+            dct = self.model_dump(mode="json", by_alias=True, exclude_defaults=True)  # type: ignore
+            databag.update({k: json.dumps(v) for k, v in dct.items()})
+            return databag
 
 
 class TempoClusterRequirerAppData(DatabagModel):
@@ -247,10 +321,10 @@ class TempoClusterProvider(Object):
     def publish_data(
         self,
         tempo_config: Dict[str, Any],
-        tempo_receiver: Dict[str, Any] = None,
-        ca_cert: str = None,
-        server_cert: str = None,
-        privkey_secret_id: str = None,
+        tempo_receiver: Optional[Dict[ReceiverProtocol, Any]] = None,
+        ca_cert: Optional[str] = None,
+        server_cert: Optional[str] = None,
+        privkey_secret_id: Optional[str] = None,
         loki_endpoints: Optional[Dict[str, str]] = None,
     ) -> None:
         """Publish the tempo config to all related tempo worker clusters."""
@@ -284,7 +358,6 @@ class TempoClusterProvider(Object):
 
             try:
                 worker_app_data = TempoClusterRequirerAppData.load(relation.data[relation.app])
-                worker_roles = set(worker_app_data.roles)
             except DataValidationError as e:
                 log.info(f"invalid databag contents: {e}")
                 continue
@@ -293,8 +366,7 @@ class TempoClusterProvider(Object):
                 try:
                     worker_data = TempoClusterRequirerUnitData.load(relation.data[worker_unit])
                     unit_address = worker_data.address
-                    for role in worker_roles:
-                        data[role].add(unit_address)
+                    data[worker_app_data.role].add(unit_address)
                 except DataValidationError as e:
                     log.info(f"invalid databag contents: {e}")
                     continue

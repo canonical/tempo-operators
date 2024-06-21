@@ -222,7 +222,7 @@ class Tempo:
 
         return config
 
-    def _build_storage_config(self, s3_config: Optional[dict] = None):
+    def _build_storage_config(self, s3_config: dict):
         storage_config = {
             "wal": {
                 # where to store the wal locally

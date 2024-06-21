@@ -133,12 +133,8 @@ class TempoCoordinatorCharm(CharmBase):
         # tracing
         self.framework.observe(self.tracing.on.request, self._on_tracing_request)
         self.framework.observe(self.tracing.on.broken, self._on_tracing_broken)
-        self.framework.observe(
-            self.on.peers_relation_created, self._on_peers_relation_created
-        )
-        self.framework.observe(
-            self.on.peers_relation_changed, self._on_peers_relation_changed
-        )
+        self.framework.observe(self.on.peers_relation_created, self._on_peers_relation_created)
+        self.framework.observe(self.on.peers_relation_changed, self._on_peers_relation_changed)
 
         # tls
         self.framework.observe(self.cert_handler.on.cert_changed, self._on_cert_handler_changed)
@@ -237,7 +233,13 @@ class TempoCoordinatorCharm(CharmBase):
     @property
     def _local_ip(self) -> Optional[str]:
         try:
-            return str(self.model.get_binding("peers").network.bind_address)
+            binding = self.model.get_binding("peers")
+            if not binding:
+                logger.error("unable to get local IP at this time: "
+                             "peers binding not active yet. It could be that the charm "
+                             "is still being set up...")
+                return None
+            return str(binding.network.bind_address)
         except (ops.ModelError, KeyError) as e:
             logger.debug("failed to obtain local ip from peers binding", exc_info=True)
             logger.error(
