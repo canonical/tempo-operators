@@ -42,7 +42,7 @@ class TempoRole(str, Enum):
     """
 
     # scalable-single-binary is a bit too long to type
-    all = "scalable-single-binary"  # default, meta-role.
+    all = "all"  # default, meta-role. gets remapped to scalable-single-binary by the worker.
 
     querier = "querier"
     query_frontend = "query-frontend"
@@ -393,7 +393,7 @@ class TempoClusterProvider(Object):
                         remote_app_databag
                     ).role
                 except DataValidationError as e:
-                    log.info(f"invalid databag contents: {e}")
+                    log.debug(f"invalid databag contents: {e}")
                     continue
 
                 # the number of units with each role is the number of remote units

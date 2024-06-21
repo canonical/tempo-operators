@@ -8,8 +8,6 @@ import scenario
 from catan import App, Catan
 from scenario import Container, State
 
-from tempo_cluster import TempoClusterRequirerAppData, TempoRole
-
 os.environ["CHARM_TRACING_ENABLED"] = "0"
 
 # everyone has their own
@@ -105,12 +103,25 @@ def tempo_coordinator():
 
 
 @pytest.fixture
+def tempo_coordinator_state(tempo_peers):
+    return State(relations=[tempo_peers])
+
+
+@pytest.fixture
 def tempo_worker():
     tempo = App.from_path(
         REPOS_ROOT / "tempo-worker-k8s-operator",
         name="worker",
     )
     yield tempo
+
+
+@pytest.fixture
+def tempo_worker_state():
+    return State(
+        config={"role": "all"},
+        containers=[Container(name="tempo", can_connect=True)],
+    )
 
 
 @pytest.fixture(scope="function")
@@ -133,28 +144,8 @@ def s3(s3_config):
 
 
 @pytest.fixture(scope="function")
-def all_worker():
-    return scenario.Relation(
-        "tempo-cluster",
-        remote_app_data=TempoClusterRequirerAppData(role=TempoRole.all).dump(),
-    )
-
-
-@pytest.fixture(scope="function")
 def tempo_peers():
     return scenario.PeerRelation("peers")
-
-
-@pytest.fixture
-def tempo_coordinator_state(tempo_peers):
-    return State(relations=[tempo_peers])
-
-
-@pytest.fixture
-def tempo_worker_state():
-    return State(
-        containers=[Container(name="tempo", can_connect=True)],
-    )
 
 
 @pytest.fixture

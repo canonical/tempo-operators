@@ -4,10 +4,6 @@
 name = "tempo-k8s"
 version = "0.1"  # this is in fact irrelevant
 
-[project.optional-dependencies]
-lib_pydeps = [
-]
-
 [tool.pyright]
 extraPaths = ["lib"]
 pythonVersion = "3.8"

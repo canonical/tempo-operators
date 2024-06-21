@@ -421,7 +421,7 @@ class TempoCoordinatorCharm(CharmBase):
         """Endpoint at which the charm tracing information will be forwarded."""
         # the charm container and the tempo workload container have apparently the same
         # IP, so we can talk to tempo at localhost.
-        if self.tempo.is_ready():
+        if self.tempo.is_ready:
             return f"{self._internal_url}:{self.tempo.receiver_ports['otlp_http']}"
 
         return None
