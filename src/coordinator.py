@@ -1,6 +1,6 @@
 import logging
 from collections import Counter
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Optional, Set
 
 from tempo_cluster import TempoClusterProvider, TempoRole
 

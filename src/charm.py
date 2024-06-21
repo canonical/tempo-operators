@@ -235,9 +235,11 @@ class TempoCoordinatorCharm(CharmBase):
         try:
             binding = self.model.get_binding("peers")
             if not binding:
-                logger.error("unable to get local IP at this time: "
-                             "peers binding not active yet. It could be that the charm "
-                             "is still being set up...")
+                logger.error(
+                    "unable to get local IP at this time: "
+                    "peers binding not active yet. It could be that the charm "
+                    "is still being set up..."
+                )
                 return None
             return str(binding.network.bind_address)
         except (ops.ModelError, KeyError) as e:

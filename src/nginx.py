@@ -364,7 +364,7 @@ class Nginx:
                     {"directive": "ssl_certificate", "args": [CERT_PATH]},
                     {"directive": "ssl_certificate_key", "args": [KEY_PATH]},
                     {"directive": "ssl_protocols", "args": ["TLSv1", "TLSv1.1", "TLSv1.2"]},
-                    {"directive": "ssl_ciphers", "args": ["HIGH:!aNULL:!MD5"]},  # pyright: ignore
+                    {"directive": "ssl_ciphers", "args": ["HIGH:!aNULL:!MD5"]},  # codespell:ignore
                     *self._locations(addresses_by_role),
                 ],
             }
