@@ -27,7 +27,7 @@ class NginxPrometheusExporter:
     @property
     def layer(self) -> Layer:
         """Return the Pebble layer for Nginx Prometheus exporter."""
-        scheme = "https" if self._charm._is_cert_available else "http"  # type: ignore
+        scheme = "https" if self._charm.tls_available else "http"  # type: ignore
         return Layer(
             {
                 "summary": "nginx prometheus exporter layer",

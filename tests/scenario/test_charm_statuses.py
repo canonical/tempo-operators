@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import ops
+
 from scenario import PeerRelation, State
 
 from tempo import Tempo
@@ -33,11 +34,12 @@ def test_scaled_status_no_workers(context, all_worker):
     assert state_out.unit_status.name == "blocked"
 
 
-def test_scaled_status_with_s3_and_workers(context, s3, all_worker):
+def test_scaled_status_with_s3_and_workers(context, s3, all_worker, nginx_container):
     state_out = context.run(
         "start",
         State(
             relations=[PeerRelation("peers", peers_data={1: {}, 2: {}}), s3, all_worker],
+            containers=[nginx_container],
             unit_status=ops.ActiveStatus(),
         ),
     )
@@ -45,11 +47,12 @@ def test_scaled_status_with_s3_and_workers(context, s3, all_worker):
 
 
 @patch.object(Tempo, "is_ready", new=True)
-def test_happy_status(context, s3, all_worker):
+def test_happy_status(context, s3, all_worker, nginx_container):
     state_out = context.run(
         "start",
         State(
             relations=[PeerRelation("peers", peers_data={1: {}, 2: {}}), s3, all_worker],
+            containers=[nginx_container],
             unit_status=ops.ActiveStatus(),
         ),
     )

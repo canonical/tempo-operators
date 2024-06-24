@@ -9,7 +9,8 @@ import crossplane
 from ops import CharmBase
 from ops.pebble import Layer
 
-from tempo_cluster import TempoClusterProvider
+from tempo import Tempo
+from tempo_cluster import TempoClusterProvider, TempoRole
 
 logger = logging.getLogger(__name__)
 
@@ -169,9 +170,13 @@ class Nginx:
 
     def config(self, tls: bool = False) -> str:
         """Build and return the Nginx configuration."""
+        full_config = self._prepare_config(tls)
+
+        return crossplane.build(full_config)
+
+    def _prepare_config(self, tls: bool = False) -> List[dict]:
         log_level = "error"
         addresses_by_role = self.cluster_provider.gather_addresses_by_role()
-
         # build the complete configuration
         full_config = [
             {"directive": "worker_processes", "args": ["5"]},
@@ -224,8 +229,7 @@ class Nginx:
                 ],
             },
         ]
-
-        return crossplane.build(full_config)
+        return full_config
 
     @property
     def layer(self) -> Layer:
@@ -266,15 +270,25 @@ class Nginx:
             nginx_upstreams.append(
                 {
                     "directive": "upstream",
-                    "args": [role],
+                    "args": [str(role)],
                     "block": [
-                        {"directive": "server", "args": [f"{addr}:{NGINX_PORT}"]}
+                        [directive for directive in self._get_server_by_role(addr, role)]
                         for addr in address_set
                     ],
                 }
             )
 
         return nginx_upstreams
+
+    def _get_server_by_role(self, addr, role):
+        directives = []
+        if role == TempoRole.distributor.value or TempoRole.all.value:
+            for port in Tempo.receiver_ports.values():
+                directives.append({"directive": "server", "args": [f"{addr}:{port}"]})
+        if role == TempoRole.query_frontend.value or TempoRole.all.value:
+            for port in Tempo.server_ports.values():
+                directives.append({"directive": "server", "args": [f"{addr}:{port}"]})
+        return directives
 
     def _locations(self, addresses_by_role: Dict[str, Set[str]]) -> List[Dict[str, Any]]:
         nginx_locations = LOCATIONS_BASIC.copy()
@@ -311,18 +325,8 @@ class Nginx:
                 "directive": "server",
                 "args": [],
                 "block": [
-                    {"directive": "listen", "args": ["3200", "ssl"]},
-                    {"directive": "listen", "args": ["[::]:3200", "ssl"]},
-                    {"directive": "listen", "args": ["4317", "ssl"]},
-                    {"directive": "listen", "args": ["[::]:4317", "ssl"]},
-                    {"directive": "listen", "args": ["4318", "ssl"]},
-                    {"directive": "listen", "args": ["[::]:4318", "ssl"]},
-                    {"directive": "listen", "args": ["9411", "ssl"]},
-                    {"directive": "listen", "args": ["[::]:9411", "ssl"]},
-                    {"directive": "listen", "args": ["9096", "ssl"]},
-                    {"directive": "listen", "args": ["[::]:9096", "ssl"]},
-                    {"directive": "listen", "args": ["14268", "ssl"]},
-                    {"directive": "listen", "args": ["[::]:14268", "ssl"]},
+                    [{"directive": "listen", "args": [f"{port}", "ssl"]} for port in Tempo.all_ports.values()],
+                    [{"directive": "listen", "args": [f"[::]:{port}", "ssl"]} for port in Tempo.all_ports.values()],
                     *self._basic_auth(auth_enabled),
                     {
                         "directive": "proxy_set_header",
@@ -342,16 +346,8 @@ class Nginx:
             "directive": "server",
             "args": [],
             "block": [
-                {"directive": "listen", "args": ["3200"]},
-                {"directive": "listen", "args": ["[::]:3200"]},
-                {"directive": "listen", "args": ["4317"]},
-                {"directive": "listen", "args": ["[::]:4318"]},
-                {"directive": "listen", "args": ["9411"]},
-                {"directive": "listen", "args": ["[::]:9411"]},
-                {"directive": "listen", "args": ["9096"]},
-                {"directive": "listen", "args": ["[::]:9096"]},
-                {"directive": "listen", "args": ["14268"]},
-                {"directive": "listen", "args": ["[::]:14268"]},
+                [{"directive": "listen", "args": [f"{port}"]} for port in Tempo.all_ports.values()],
+                [{"directive": "listen", "args": [f"[::]:{port}"]} for port in Tempo.all_ports.values()],
                 *self._basic_auth(auth_enabled),
                 {
                     "directive": "proxy_set_header",

@@ -156,6 +156,9 @@ class TempoCoordinatorCharm(CharmBase):
         # cluster
         self.framework.observe(self.tempo_cluster.on.changed, self._on_tempo_cluster_changed)
 
+        for evt in self.on.events().values():
+            self.framework.observe(evt, self._on_event)
+
     ######################
     # UTILITY PROPERTIES #
     ######################
@@ -390,6 +393,21 @@ class TempoCoordinatorCharm(CharmBase):
 
     def _on_nginx_prometheus_exporter_pebble_ready(self, _) -> None:
         self.nginx_prometheus_exporter.configure_pebble_layer()
+
+    def _on_event(self, event):
+        """A set of common configuration actions that should happen on every event."""
+        if isinstance(event, CollectStatusEvent):
+            return
+        # plan layers
+        self.nginx.configure_pebble_layer(tls=self.tls_available)
+        self.nginx_prometheus_exporter.configure_pebble_layer()
+        # configure ingress
+        self._configure_ingress()
+        # update cluster relations
+        self._update_tempo_cluster()
+        # update tracing relations
+        self._update_tracing_relations()
+
 
     ###################
     # UTILITY METHODS #

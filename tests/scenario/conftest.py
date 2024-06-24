@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 import pytest
-from scenario import Context, Relation
+from scenario import Container, Context, Relation
 
 from charm import TempoCoordinatorCharm
 from tempo_cluster import TempoClusterRequirerAppData, TempoRole
@@ -44,4 +44,12 @@ def all_worker():
     return Relation(
         "tempo-cluster",
         remote_app_data=TempoClusterRequirerAppData(role=TempoRole.all).dump(),
+    )
+
+
+@pytest.fixture(scope="function")
+def nginx_container():
+    return Container(
+        "nginx",
+        can_connect=True,
     )
