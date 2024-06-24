@@ -171,7 +171,6 @@ class Nginx:
     def config(self, tls: bool = False) -> str:
         """Build and return the Nginx configuration."""
         full_config = self._prepare_config(tls)
-
         return crossplane.build(full_config)
 
     def _prepare_config(self, tls: bool = False) -> List[dict]:
@@ -271,14 +270,18 @@ class Nginx:
                 {
                     "directive": "upstream",
                     "args": [str(role)],
-                    "block": [
-                        [directive for directive in self._get_server_by_role(addr, role)]
-                        for addr in address_set
-                    ],
+                    "block": self._upstream_servers(role, address_set),
                 }
             )
 
         return nginx_upstreams
+
+    def _upstream_servers(self, role, address_set):
+        servers = []
+        for addr in address_set:
+            servers.extend(self._get_server_by_role(addr, role))
+        return servers
+
 
     def _get_server_by_role(self, addr, role):
         directives = []
@@ -317,6 +320,13 @@ class Nginx:
             ]
         return []
 
+    def _listen(self, ssl):
+        directives = []
+        for port in Tempo.all_ports.values():
+            directives.append({"directive": "listen", "args": [f"{port}", "ssl"] if ssl else [f"{port}"]})
+            directives.append({"directive": "listen", "args": [f"[::]:{port}", "ssl"] if ssl else [f"[::]:{port}"]})
+        return directives
+
     def _server(self, addresses_by_role: Dict[str, Set[str]], tls: bool = False) -> Dict[str, Any]:
         auth_enabled = False
 
@@ -325,8 +335,7 @@ class Nginx:
                 "directive": "server",
                 "args": [],
                 "block": [
-                    [{"directive": "listen", "args": [f"{port}", "ssl"]} for port in Tempo.all_ports.values()],
-                    [{"directive": "listen", "args": [f"[::]:{port}", "ssl"]} for port in Tempo.all_ports.values()],
+                    *self._listen(ssl=True),
                     *self._basic_auth(auth_enabled),
                     {
                         "directive": "proxy_set_header",
@@ -346,8 +355,7 @@ class Nginx:
             "directive": "server",
             "args": [],
             "block": [
-                [{"directive": "listen", "args": [f"{port}"]} for port in Tempo.all_ports.values()],
-                [{"directive": "listen", "args": [f"[::]:{port}"]} for port in Tempo.all_ports.values()],
+                *self._listen(ssl=False),
                 *self._basic_auth(auth_enabled),
                 {
                     "directive": "proxy_set_header",

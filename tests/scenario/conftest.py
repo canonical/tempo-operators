@@ -53,3 +53,11 @@ def nginx_container():
         "nginx",
         can_connect=True,
     )
+
+
+@pytest.fixture(scope="function")
+def nginx_prometheus_exporter_container():
+    return Container(
+        "nginx-prometheus-exporter",
+        can_connect=True,
+    )
