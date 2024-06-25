@@ -367,6 +367,10 @@ class Nginx:
                         "directive": "proxy_set_header",
                         "args": ["X-Scope-OrgID", "$ensured_x_scope_orgid"],
                     },
+                    {
+                        "directive": "proxy_set_header",
+                        "args": ["Host", "$host:$server_port"]
+                    },
                     # FIXME: use a suitable SERVER_NAME
                     {"directive": "server_name", "args": [self.server_name]},
                     {"directive": "ssl_certificate", "args": [CERT_PATH]},
@@ -386,6 +390,10 @@ class Nginx:
                 {
                     "directive": "proxy_set_header",
                     "args": ["X-Scope-OrgID", "$ensured_x_scope_orgid"],
+                },
+                {
+                    "directive": "proxy_set_header",
+                    "args": ["Host", "$host:$server_port"]
                 },
                 *self._locations(addresses_by_role),
             ],
