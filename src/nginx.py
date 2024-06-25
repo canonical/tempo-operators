@@ -39,7 +39,7 @@ LOCATIONS_DISTRIBUTOR: List[Dict[str, Any]] = [
         "block": [
             {
                 "directive": "proxy_pass",
-                "args": ["http://distributor"],
+                "args": ["http://otlp-http"],
             },
         ],
     },
@@ -50,11 +50,23 @@ LOCATIONS_DISTRIBUTOR: List[Dict[str, Any]] = [
         "block": [
             {
                 "directive": "proxy_pass",
-                "args": ["http://distributor"],
+                "args": ["http://zipkin"],
             },
         ],
     },
+    # # Jaeger thrift HTTP ingestion
+    # {
+    #     "directive": "location",
+    #     "args": ["/api/traces"],
+    #     "block": [
+    #         {
+    #             "directive": "proxy_pass",
+    #             "args": ["http://jaeger-thrift-http"],
+    #         },
+    #     ],
+    # },
 ]
+# TODO add GRPC locations - perhaps as a separate server section?
 LOCATIONS_QUERY_FRONTEND: List[Dict] = [
     {
         "directive": "location",
@@ -264,43 +276,57 @@ class Nginx:
         ]
 
     def _upstreams(self, addresses_by_role: Dict[str, Set[str]]) -> List[Dict[str, Any]]:
+        addresses_mapped_to_upstreams = {}
         nginx_upstreams = []
-        for role, address_set in addresses_by_role.items():
-            nginx_upstreams.append(
-                {
-                    "directive": "upstream",
-                    "args": [str(role)],
-                    "block": self._upstream_servers(role, address_set),
-                }
-            )
+        if TempoRole.distributor in addresses_by_role.keys():
+            addresses_mapped_to_upstreams["distributor"] = addresses_by_role[TempoRole.distributor]
+        if TempoRole.query_frontend in addresses_by_role.keys():
+            addresses_mapped_to_upstreams["query_frontend"] = addresses_by_role[TempoRole.query_frontend]
+        if TempoRole.all in addresses_by_role.keys():
+            # for all, we add addresses to existing upstreams for distributor / query_frontend or create the set
+            if "distributor" in addresses_mapped_to_upstreams:
+                addresses_mapped_to_upstreams["distributor"] = addresses_mapped_to_upstreams["distributor"].union(addresses_by_role[TempoRole.all])
+            else:
+                addresses_mapped_to_upstreams["distributor"] = addresses_by_role[TempoRole.all]
+            if "query_frontend" in addresses_mapped_to_upstreams:
+                addresses_mapped_to_upstreams["query_frontend"] = addresses_mapped_to_upstreams["query_frontend"].union(addresses_by_role[TempoRole.all])
+            else:
+                addresses_mapped_to_upstreams["query_frontend"] = addresses_by_role[TempoRole.all]
+        if "distributor" in addresses_mapped_to_upstreams.keys():
+            nginx_upstreams.extend(self._distributor_upstreams(addresses_mapped_to_upstreams["distributor"]))
+        if "query_frontend" in addresses_mapped_to_upstreams.keys():
+            nginx_upstreams.extend(self._query_frontend_upstreams(addresses_mapped_to_upstreams["query_frontend"]))
 
         return nginx_upstreams
 
-    def _upstream_servers(self, role, address_set):
-        servers = []
-        for addr in address_set:
-            servers.extend(self._get_server_by_role(addr, role))
-        return servers
+    def _distributor_upstreams(self, address_set):
+        return [
+            self._upstream("distributor", address_set, Tempo.server_ports["tempo_http"]),
+            self._upstream("otlp-http", address_set, Tempo.receiver_ports["otlp_http"]),
+            self._upstream("zipkin", address_set, Tempo.receiver_ports["zipkin"]),
+            self._upstream("jaeger-thrift-http", address_set, Tempo.receiver_ports["jaeger_thrift_http"]),
+        ]
 
+    def _query_frontend_upstreams(self, address_set):
+        return [
+            self._upstream("query-frontend", address_set, Tempo.server_ports["tempo_http"])
+        ]
 
-    def _get_server_by_role(self, addr, role):
-        directives = []
-        if role == TempoRole.distributor.value or TempoRole.all.value:
-            for port in Tempo.receiver_ports.values():
-                directives.append({"directive": "server", "args": [f"{addr}:{port}"]})
-        if role == TempoRole.query_frontend.value or TempoRole.all.value:
-            for port in Tempo.server_ports.values():
-                directives.append({"directive": "server", "args": [f"{addr}:{port}"]})
-        return directives
+    def _upstream(self, role, address_set, port):
+        return {
+            "directive": "upstream",
+            "args": [role],
+            "block": [{"directive": "server", "args": [f"{addr}:{port}"]} for addr in address_set],
+        }
 
     def _locations(self, addresses_by_role: Dict[str, Set[str]]) -> List[Dict[str, Any]]:
         nginx_locations = LOCATIONS_BASIC.copy()
         roles = addresses_by_role.keys()
 
-        if "distributor" in roles:
+        if "distributor" in roles or "all" in roles:
+            # TODO split locations for every port
             nginx_locations.extend(LOCATIONS_DISTRIBUTOR)
-        # TODO do we need ingester, querier, compactor here? they aren't an entrypoint from outside
-        if "query-frontend" in roles:
+        if "query-frontend" in roles or "all" in roles:
             nginx_locations.extend(LOCATIONS_QUERY_FRONTEND)
         return nginx_locations
 
