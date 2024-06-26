@@ -1,11 +1,15 @@
+import logging
 import subprocess
 from dataclasses import dataclass
 from typing import Dict
 
 import yaml
+from pytest_operator.plugin import OpsTest
 
 _JUJU_DATA_CACHE = {}
 _JUJU_KEYS = ("egress-subnets", "ingress-address", "private-address")
+
+logger = logging.getLogger(__name__)
 
 
 def purge(data: dict):
@@ -157,3 +161,29 @@ def get_relation_data(
         requirer_endpoint, provider_endpoint, include_default_juju_keys, model
     )
     return RelationData(provider=provider_data, requirer=requirer_data)
+
+
+async def deploy_literal_bundle(ops_test: OpsTest, bundle: str):
+    run_args = [
+        "juju",
+        "deploy",
+        "--trust",
+        "-m",
+        ops_test.model_name,
+        str(ops_test.render_bundle(bundle)),
+    ]
+
+    retcode, stdout, stderr = await ops_test.run(*run_args)
+    assert retcode == 0, f"Deploy failed: {(stderr or stdout).strip()}"
+    logger.info(stdout)
+
+
+async def run_command(model_name: str, app_name: str, unit_num: int, command: list) -> bytes:
+    cmd = ["juju", "ssh", "--model", model_name, f"{app_name}/{unit_num}", *command]
+    try:
+        res = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        logger.info(res)
+    except subprocess.CalledProcessError as e:
+        logger.error(e.stdout.decode())
+        raise e
+    return res.stdout

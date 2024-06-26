@@ -14,7 +14,7 @@ from pytest_operator.plugin import OpsTest
 
 logger = logging.getLogger(__name__)
 
-METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
+METADATA = yaml.safe_load(Path("./charmcraft.yaml").read_text())
 mc = SimpleNamespace(name="mc")
 
 
@@ -33,9 +33,6 @@ async def test_build_and_deploy(ops_test: OpsTest):
           {mc.name}:
             charm: {charm}
             trust: true
-            resources:
-              nginx-image: {METADATA["resources"]["nginx-image"]["upstream-source"]}
-              nginx-prometheus-exporter-image: {METADATA["resources"]["nginx-prometheus-exporter-image"]["upstream-source"]}
             scale: 1
           loki:
             charm: loki-k8s
@@ -54,9 +51,9 @@ async def test_build_and_deploy(ops_test: OpsTest):
             scale: 1
 
         relations:
-        - [mc:logging-consumer, loki:logging]
-        - [mc:self-metrics-endpoint, prometheus:metrics-endpoint]
-        - [mc:grafana-dashboards-provider, grafana:grafana-dashboard]
+        - [mc:logging, loki:logging]
+        - [mc:metrics-endpoint, prometheus:metrics-endpoint]
+        - [mc:grafana-dashboard, grafana:grafana-dashboard]
     """
     )
 
