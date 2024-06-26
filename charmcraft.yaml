@@ -106,3 +106,17 @@ parts:
       - "jsonschema"
       - "opentelemetry-exporter-otlp-proto-http==1.21.0"
 
+config:
+  options:
+    always_enable_zipkin:
+      description: force enable a receiver for Tempo's 'zipkin' protocol.
+      type: boolean
+      default: false
+    always_enable_otlp_grpc:
+      description: force enable a receiver for Tempo's 'otlp_grpc' protocol.
+      type: boolean
+      default: false
+    always_enable_otlp_http:
+      description: force enable a receiver for Tempo's 'otlp_http' protocol.
+      type: boolean
+      default: false

@@ -7,7 +7,7 @@ import json
 import logging
 import socket
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple, get_args
 
 import ops
 from charms.data_platform_libs.v0.s3 import S3Requirer
@@ -61,9 +61,6 @@ class TempoCoordinatorCharm(CharmBase):
 
         self.tempo = tempo = Tempo(
             external_host=self.hostname,
-            # we need otlp_http receiver for charm_tracing
-            # TODO add any extra receivers enabled manually via config
-            enable_receivers=["otlp_http"],
             use_tls=self.tls_available,
         )
 
@@ -250,6 +247,21 @@ class TempoCoordinatorCharm(CharmBase):
             )
             return None
 
+    @property
+    def enabled_receivers(self) -> Set[str]:
+        """Extra receivers enabled through config"""
+        enabled_receivers = set()
+        # otlp_http is needed by charm_tracing
+        enabled_receivers.add("otlp_http")
+        enabled_receivers.update(
+            [
+                receiver
+                for receiver in get_args(ReceiverProtocol)
+                if self.config.get(f"always_enable_{receiver}") is True
+            ]
+        )
+        return enabled_receivers
+
     ##################
     # EVENT HANDLERS #
     ##################
@@ -392,13 +404,14 @@ class TempoCoordinatorCharm(CharmBase):
         self._update_tempo_cluster()
 
     def _requested_receivers(self) -> Tuple[ReceiverProtocol, ...]:
-        """List what receivers we should activate, based on the active tracing relations."""
+        """List what receivers we should activate, based on the active tracing relations and config-enabled extra receivers."""
         # we start with the sum of the requested endpoints from the requirers
         requested_protocols = set(self.tracing.requested_protocols())
 
+        # update with enabled extra receivers
+        requested_protocols.update(self.enabled_receivers)
         # and publish only those we support
         requested_receivers = requested_protocols.intersection(set(self.tempo.receiver_ports))
-        requested_receivers.update(self.tempo.enabled_receivers)
         return tuple(requested_receivers)
 
     def server_cert(self):
@@ -464,6 +477,9 @@ class TempoCoordinatorCharm(CharmBase):
         """Build the config and publish everything to the application databag."""
         if not self._is_consistent:
             logger.error("skipped tempo cluster update: inconsistent state")
+            return
+
+        if not self.unit.is_leader():
             return
 
         kwargs = {}
