@@ -78,7 +78,6 @@ def test_certs_ready(context, state_with_certs):
 
 def test_cluster_relation(context, state_with_certs, all_worker):
     clustered_state = state_with_certs.replace(relations=state_with_certs.relations + [all_worker])
-
     state_out = context.run(all_worker.joined_event, clustered_state)
     cluster_out = state_out.get_relations(all_worker.endpoint)[0]
     local_app_data = TempoClusterProviderAppData.load(cluster_out.local_app_data)
