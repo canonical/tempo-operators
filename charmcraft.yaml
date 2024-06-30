@@ -109,14 +109,14 @@ parts:
 config:
   options:
     always_enable_zipkin:
-      description: force enable a receiver for Tempo's 'zipkin' protocol.
+      description: Force-enable the receiver for the 'zipkin' protocol in Tempo, even if there is no integration currently requesting it.
       type: boolean
       default: false
     always_enable_otlp_grpc:
-      description: force enable a receiver for Tempo's 'otlp_grpc' protocol.
+      description: Force-enable the receiver for the 'otlp_grpc' protocol in Tempo, even if there is no integration currently requesting it.
       type: boolean
       default: false
     always_enable_otlp_http:
-      description: force enable a receiver for Tempo's 'otlp_http' protocol.
+      description: Force-enable the receiver for the 'otlp_http' protocol in Tempo, even if there is no integration currently requesting it.
       type: boolean
       default: false

@@ -265,8 +265,8 @@ class Tempo:
 
     def _build_receivers_config(self, receivers: Sequence[ReceiverProtocol]):  # noqa: C901
         # receivers: the receivers we have to enable because the requirers we're related to
-        # intend to use them
-        # it already includes self.enabled_receivers: receivers we have to enable because *this charm* will use them.
+        # intend to use them. It already includes receivers that are always enabled
+        # through config or because *this charm* will use them.
         receivers_set = set(receivers)
 
         if not receivers_set:

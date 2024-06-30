@@ -28,7 +28,7 @@ def test_receivers_with_relations(context, s3, all_worker):
     with context.manager(tracing.changed_event, state) as mgr:
         charm: TempoCoordinatorCharm = mgr.charm
         # extra receivers should only include default otlp_http
-        assert charm.enabled_receivers == set(["otlp_http"])
+        assert charm.enabled_receivers == {"otlp_http"}
         out = mgr.run()
 
     tracing_out = out.get_relations(tracing.endpoint)[0]
@@ -69,7 +69,7 @@ def test_receivers_with_relations_and_config(context, s3, all_worker):
     with context.manager("config-changed", state) as mgr:
         charm: TempoCoordinatorCharm = mgr.charm
         # extra receivers should only include default otlp_http
-        assert charm.enabled_receivers == set(["otlp_http", "zipkin"])
+        assert charm.enabled_receivers == {"otlp_http", "zipkin"}
 
     # run action
     action_out = context.run_action("list-receivers", state)
