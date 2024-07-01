@@ -3,14 +3,14 @@
 
 """Helper module for interacting with the Tempo configuration."""
 
+import enum
 import logging
 import re
-from dataclasses import asdict
-from typing import Any, Dict, List, Literal, Optional, Union
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, Field, model_validator, validator
-from pydantic.dataclasses import dataclass as pydantic_dataclass
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 S3_RELATION_NAME = "s3"
 BUCKET_NAME = "tempo"
@@ -18,41 +18,21 @@ BUCKET_NAME = "tempo"
 logger = logging.getLogger(__name__)
 
 
+class ClientAuthTypeEnum(str, enum.Enum):
+    """Client auth types."""
+
+    # Possible values https://pkg.go.dev/crypto/tls#ClientAuthType
+    VERIFY_CLIENT_CERT_IF_GIVEN = "VerifyClientCertIfGiven"
+    NO_CLIENT_CERT = "NoClientCert"
+    REQUEST_CLIENT_CERT = "RequestClientCert"
+    REQUIRE_ANY_CLIENT_CERT = "RequireAnyClientCert"
+    REQUIRE_AND_VERIFY_CLIENT_CERT = "RequireAndVerifyClientCert"
+
+
 class InvalidConfigurationError(Exception):
     """Invalid configuration."""
 
     pass
-
-
-class Memberlist(BaseModel):
-    """Memberlist schema."""
-
-    cluster_label: str
-    cluster_label_verification_disabled: bool = False
-    join_members: List[str]
-
-
-class Tsdb(BaseModel):
-    """Tsdb schema."""
-
-    dir: str = "/data/ingester"
-
-
-class BlocksStorage(BaseModel):
-    """Blocks storage schema."""
-
-    storage_prefix: str = "blocks"
-    tsdb: Tsdb
-
-
-class Limits(BaseModel):
-    """Limits schema."""
-
-    ingestion_rate: int = 0
-    ingestion_burst_size: int = 0
-    max_global_series_per_user: int = 0
-    ruler_max_rules_per_rule_group: int = 0
-    ruler_max_rule_groups_per_tenant: int = 0
 
 
 class Kvstore(BaseModel):
@@ -65,102 +45,180 @@ class Ring(BaseModel):
     """Ring schema."""
 
     kvstore: Kvstore
-    replication_factor: int = 3
+    replication_factor: int
+
+
+class Memberlist(BaseModel):
+    """Memberlist schema."""
+
+    abort_if_cluster_join_fails: bool
+    bind_port: int
+    join_members: List[str]
+    tls_enabled: bool = False
+    tls_cert_path: Optional[str] = None
+    tls_key_path: Optional[str] = None
+    tls_ca_path: Optional[str] = None
+    tls_server_name: Optional[str] = None
+
+
+class ClientTLS(BaseModel):
+    """Client tls config schema."""
+
+    tls_enabled: bool
+    tls_cert_path: str
+    tls_key_path: str
+    tls_ca_path: str
+    tls_server_name: str
+
+
+class Client(BaseModel):
+    """Client schema."""
+
+    grpc_client_config: ClientTLS
 
 
 class Distributor(BaseModel):
     """Distributor schema."""
 
-    ring: Ring
+    ring: Optional[Ring] = None
+    receivers: Dict[str, Any]
 
 
 class Ingester(BaseModel):
     """Ingester schema."""
 
-    ring: Ring
+    trace_idle_period: str
+    max_block_bytes: int
+    max_block_duration: str
+    lifecycler: Optional[Ring] = None
 
 
-class Ruler(BaseModel):
-    """Ruler schema."""
+class FrontendWorker(BaseModel):
+    """FrontendWorker schema."""
 
-    rule_path: str = "/data/ruler"
-    alertmanager_url: Optional[str]
+    frontend_address: str
+    grpc_client_config: Optional[ClientTLS] = None
 
 
-class Alertmanager(BaseModel):
-    """Alertmanager schema."""
+class Querier(BaseModel):
+    """Querier schema."""
 
-    data_dir: str = "/data/alertmanager"
-    external_url: Optional[str]
+    frontend_worker: FrontendWorker
+
+
+class TLS(BaseModel):
+    """TLS configuration schema."""
+
+    model_config = ConfigDict(
+        # Allow serializing enum values.
+        use_enum_values=True
+    )
+    """Pydantic config."""
+
+    cert_file: str
+    key_file: str
+    client_ca_file: str
+    client_auth_type: ClientAuthTypeEnum = ClientAuthTypeEnum.VERIFY_CLIENT_CERT_IF_GIVEN
 
 
 class Server(BaseModel):
     """Server schema."""
 
-    http_tls_config: Dict[str, Dict[str, str]]
-    grpc_tls_config: Dict[str, Dict[str, str]]
+    http_listen_port: int
+    grpc_listen_port: int
+    http_tls_config: Optional[TLS] = None
+    grpc_tls_config: Optional[TLS] = None
 
 
-class _S3ConfigData(BaseModel):
-    model_config = {"populate_by_name": True}
-    access_key_id: str = Field(alias="access-key")
+class Compaction(BaseModel):
+    """Compaction schema."""
+
+    compaction_window: str
+    max_compaction_objects: int
+    block_retention: str
+    compacted_block_retention: str
+    v2_out_buffer_bytes: int
+
+
+class Compactor(BaseModel):
+    """Compactor schema."""
+
+    ring: Optional[Ring] = None
+    compaction: Compaction
+
+
+class Pool(BaseModel):
+    """Pool schema."""
+
+    max_workers: int
+    queue_depth: int
+
+
+class Wal(BaseModel):
+    """Wal schema."""
+
+    path: Path
+
+
+class S3(BaseModel):
+    """S3 config schema."""
+
+    bucket: str
+    access_key: str
     endpoint: str
-    secret_access_key: str = Field(alias="secret-key")
-    bucket_name: str = Field(alias="bucket")
-    region: str = ""
-    insecure: str = "false"
+    secret_key: str
+    insecure: bool = False
 
     @model_validator(mode="before")  # pyright: ignore
     @classmethod
     def set_insecure(cls, data: Any) -> Any:
         if isinstance(data, dict) and data.get("endpoint", None):
-            data["insecure"] = "false" if data["endpoint"].startswith("https://") else "true"
+            data["insecure"] = False if data["endpoint"].startswith("https://") else True
         return data
 
-    @validator("endpoint")
+    @field_validator("endpoint")
     def remove_scheme(cls, v: str) -> str:
         """Remove the scheme from the s3 endpoint."""
-        return re.sub(rf"^{urlparse(v).scheme}://", "", v)
+        # remove scheme to avoid "Endpoint url cannot have fully qualified paths." on Tempo startup
+        return re.sub(
+            rf"^{urlparse(v).scheme}://",
+            "",
+            v,
+        )
 
 
-class _FilesystemStorageBackend(BaseModel):
-    dir: str
+class Block(BaseModel):
+    """Block schema."""
+
+    version: Optional[str]
 
 
-_StorageBackend = Union[_S3ConfigData, _FilesystemStorageBackend]
-_StorageKey = Union[Literal["filesystem"], Literal["s3"]]
+class TraceStorage(BaseModel):
+    """Trace Storage schema."""
+
+    wal: Wal
+    pool: Pool
+    backend: str
+    s3: S3
+    block: Block
 
 
-@pydantic_dataclass
-class CommonConfig:
-    """Common config schema."""
+class Storage(BaseModel):
+    """Storage schema."""
 
-    backend: _StorageKey
-    _StorageKey: _StorageBackend
-
-    def __post_init__(self):
-        """Verify the backend variable typing is correct."""
-        if not asdict(self).get("s3", "") and not asdict(self).get("s3", ""):
-            raise InvalidConfigurationError("Common storage configuration must specify a type!")
-        elif (asdict(self).get("filesystem", "") and not self.backend != "filesystem") or (
-            asdict(self).get("s3", "") and not self.backend != "s3"
-        ):
-            raise InvalidConfigurationError(
-                "Tempo `backend` type must include a configuration block which matches that type"
-            )
+    trace: TraceStorage
 
 
-class TempoBaseConfig(BaseModel):
-    """Base class for tempo config schema."""
+class Tempo(BaseModel):
+    """Tempo config schema."""
 
-    target: str
+    auth_enabled: bool
+    server: Server
+    distributor: Distributor
+    ingester: Ingester
     memberlist: Memberlist
-    multitenancy_enabled: bool = True
-    common: CommonConfig
-    limits: Limits
-    blocks_storage: Optional[BlocksStorage]
-    distributor: Optional[Distributor]
-    ingester: Optional[Ingester]
-    ruler: Optional[Ruler]
-    alertmanager: Optional[Alertmanager]
-    server: Optional[Server]
+    compactor: Compactor
+    querier: Querier
+    storage: Storage
+    ingester_client: Optional[Client] = None
+    metrics_generator_client: Optional[Client] = None

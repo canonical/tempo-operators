@@ -1,10 +1,11 @@
 import pytest
 
+import tempo_config
 from tempo import Tempo
 
 
 @pytest.mark.parametrize(
-    "protocols, expected_config",
+    "protocols, use_tls, expected_config",
     (
         (
             (
@@ -17,6 +18,7 @@ from tempo import Tempo
                 "jaeger_thrift_http",
                 "jaeger_thrift_http",
             ),
+            False,
             {
                 "jaeger": {
                     "protocols": {
@@ -30,6 +32,7 @@ from tempo import Tempo
         ),
         (
             ("otlp_http", "zipkin", "tempo", "jaeger_thrift_http"),
+            False,
             {
                 "jaeger": {
                     "protocols": {
@@ -40,8 +43,69 @@ from tempo import Tempo
                 "otlp": {"protocols": {"http": None}},
             },
         ),
-        ([], {}),
+        (
+            ("otlp_http", "zipkin", "tempo", "jaeger_thrift_http"),
+            True,
+            {
+                "jaeger": {
+                    "protocols": {
+                        "thrift_http": {
+                            "tls": {
+                                "ca_file": "/usr/local/share/ca-certificates/ca.crt",
+                                "cert_file": "/etc/tempo/tls/server.crt",
+                                "key_file": "/etc/tempo/tls/server.key",
+                            }
+                        },
+                    }
+                },
+                "zipkin": {
+                    "tls": {
+                        "ca_file": "/usr/local/share/ca-certificates/ca.crt",
+                        "cert_file": "/etc/tempo/tls/server.crt",
+                        "key_file": "/etc/tempo/tls/server.key",
+                    }
+                },
+                "otlp": {
+                    "protocols": {
+                        "http": {
+                            "tls": {
+                                "ca_file": "/usr/local/share/ca-certificates/ca.crt",
+                                "cert_file": "/etc/tempo/tls/server.crt",
+                                "key_file": "/etc/tempo/tls/server.key",
+                            }
+                        },
+                    }
+                },
+            },
+        ),
+        ([], False, {}),
     ),
 )
-def test_tempo_receivers_config(protocols, expected_config):
-    assert Tempo(None, use_tls=False)._build_receivers_config(protocols) == expected_config
+def test_tempo_distributor_config(protocols, use_tls, expected_config):
+    assert (
+        Tempo(None, use_tls=use_tls)._build_distributor_config(protocols).receivers
+        == expected_config
+    )
+
+
+@pytest.mark.parametrize(
+    "peers, expected_config",
+    (
+        (
+            [],
+            tempo_config.Memberlist(
+                abort_if_cluster_join_fails=False, bind_port=7946, join_members=[]
+            ),
+        ),
+        (
+            ["peer1", "peer2"],
+            tempo_config.Memberlist(
+                abort_if_cluster_join_fails=False,
+                bind_port=7946,
+                join_members=["peer1:7946", "peer2:7946"],
+            ),
+        ),
+    ),
+)
+def test_tempo_memberlist_config(peers, expected_config):
+    assert Tempo()._build_memberlist_config(peers) == expected_config

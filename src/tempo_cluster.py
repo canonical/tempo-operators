@@ -121,13 +121,9 @@ if PYDANTIC_IS_V1:
             allow_population_by_field_name = True
             """Allow instantiating this class by field name (instead of forcing alias)."""
 
-        _NEST_UNDER = None
-
         @classmethod
         def load(cls, databag: MutableMapping):
             """Load this model from a Juju databag."""
-            if cls._NEST_UNDER:
-                return cls.parse_obj(json.loads(databag[cls._NEST_UNDER]))
 
             try:
                 data = {
@@ -160,10 +156,6 @@ if PYDANTIC_IS_V1:
             if databag is None:
                 databag = {}
 
-            if self._NEST_UNDER:
-                databag[self._NEST_UNDER] = self.json(by_alias=True, exclude_defaults=True)
-                return databag
-
             for key, value in self.dict(by_alias=True, exclude_defaults=True).items():  # type: ignore
                 databag[key] = json.dumps(value)
 
@@ -180,25 +172,19 @@ else:
             extra="ignore",
             # Allow instantiating this class by field name (instead of forcing alias).
             populate_by_name=True,
-            # Custom config key: whether to nest the whole datastructure (as json)
-            # under a field or spread it out at the toplevel.
-            _NEST_UNDER=None,
         )  # type: ignore
         """Pydantic config."""
 
         @classmethod
         def load(cls, databag: MutableMapping):
             """Load this model from a Juju databag."""
-            nest_under = cls.model_config.get("_NEST_UNDER")
-            if nest_under:
-                return cls.model_validate(json.loads(databag[nest_under]))  # type: ignore
 
             try:
                 data = {
                     k: json.loads(v)
                     for k, v in databag.items()
                     # Don't attempt to parse model-external values
-                    if k in {(f.alias or n) for n, f in cls.__fields__.items()}  # type: ignore
+                    if k in {(f.alias or n) for n, f in cls.model_fields.items()}  # type: ignore
                 }
             except json.JSONDecodeError as e:
                 msg = f"invalid databag contents: expecting json. {databag}"
@@ -223,14 +209,6 @@ else:
 
             if databag is None:
                 databag = {}
-            nest_under = self.model_config.get("_NEST_UNDER")
-            if nest_under:
-                databag[nest_under] = self.model_dump_json(  # type: ignore
-                    by_alias=True,
-                    # skip keys whose values are default
-                    exclude_defaults=True,
-                )
-                return databag
 
             dct = self.model_dump(mode="json", by_alias=True, exclude_defaults=True)  # type: ignore
             databag.update({k: json.dumps(v) for k, v in dct.items()})
