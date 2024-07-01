@@ -102,6 +102,7 @@ class DatabagAccessPermissionError(TempoClusterError):
 
 class _JujuTopologyModel(pydantic.BaseModel):
     """_JujuTopologyModel."""
+
     model: str
     model_uuid: str
     application: str
