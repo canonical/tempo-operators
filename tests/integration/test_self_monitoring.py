@@ -15,9 +15,9 @@ from pytest_operator.plugin import OpsTest
 
 logger = logging.getLogger(__name__)
 
-METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
+METADATA = yaml.safe_load(Path("./charmcraft.yaml").read_text())
 coord = SimpleNamespace(name="coord")
-apps = ["coord", "write", "read", "prom"]
+apps = ["coord", "prom"]
 
 
 @pytest.mark.abort_on_fail
@@ -34,53 +34,22 @@ async def test_build_and_deploy(ops_test: OpsTest):
           {coord.name}:
             charm: {charm}
             trust: true
-            resources:
-              nginx-image: {METADATA["resources"]["nginx-image"]["upstream-source"]}
-              nginx-prometheus-exporter-image: {METADATA["resources"]["nginx-prometheus-exporter-image"]["upstream-source"]}
             scale: 1
           prom:
             charm: prometheus-k8s
             channel: edge
             scale: 1
             trust: true
-          read:
-            charm: tempo-worker-k8s
-            channel: edge
-            scale: 1
-            constraints: arch=amd64
-            options:
-              alertmanager: true
-              compactor: true
-              querier: true
-              query-frontend: true
-              query-scheduler: true
-              ruler: true
-              store-gateway: true
-            trust: true
-          write:
-            charm: tempo-worker-k8s
-            channel: edge
-            scale: 1
-            constraints: arch=amd64
-            options:
-              compactor: true
-              distributor: true
-              ingester: true
-            trust: true
         relations:
         - - prom:metrics-endpoint
-          - coord:self-metrics-endpoint
-        - - coord:tempo-cluster
-          - read:tempo-cluster
-        - - coord:tempo-cluster
-          - write:tempo-cluster
+          - coord:metrics-endpoint
         """
     )
 
     # Deploy the charm and wait for active/idle status
     await deploy_literal_bundle(ops_test, test_bundle)  # See appendix below
     await ops_test.model.wait_for_idle(
-        apps=["read", "write", "prom"],
+        apps=["prom"],
         status="active",
         raise_on_error=False,
         timeout=600,

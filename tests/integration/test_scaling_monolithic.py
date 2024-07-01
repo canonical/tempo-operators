@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import shlex
 import tempfile
 from pathlib import Path
@@ -12,9 +13,10 @@ from juju.application import Application
 from pytest_operator.plugin import OpsTest
 
 METADATA = yaml.safe_load(Path("./charmcraft.yaml").read_text())
-APP_NAME = "tempo"
+APP_NAME = "tempo-coordinator"
 FACADE = "facade"
 TRACEGEN_SCRIPT_PATH = Path() / "scripts" / "tracegen.py"
+FACADE_MOCKS_PATH = "/var/lib/juju/agents/unit-facade-0/charm/mocks"
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +25,13 @@ logger = logging.getLogger(__name__)
 @pytest.mark.abort_on_fail
 async def test_deploy_tempo(ops_test: OpsTest):
     tempo_charm = await ops_test.build_charm(".")
-    resources = {"tempo-image": METADATA["resources"]["tempo-image"]["upstream-source"]}
-    await ops_test.model.deploy(tempo_charm, resources=resources, application_name=APP_NAME),
+    await ops_test.model.deploy(tempo_charm, application_name=APP_NAME)
 
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME],
-        # tempo might be in waiting as it waits for tempo workload ready
-        raise_on_blocked=True,
+        # coordinator will be blocked on s3 and workers integration
+        status="blocked",
+        raise_on_blocked=False,
         timeout=10000,
         raise_on_error=False,
     )
@@ -65,19 +67,35 @@ def present_facade(
     if unit_data:
         data["unit_data"] = json.dumps(unit_data)
 
-    with tempfile.NamedTemporaryFile() as f:
+    with tempfile.NamedTemporaryFile(dir=os.getcwd()) as f:
         fpath = Path(f.name)
         fpath.write_text(yaml.safe_dump(data))
 
         _model = f" --model {model}" if model else ""
-        run(shlex.split(f"juju run {app}/0{_model} --params {fpath.absolute()}"))
+
+        run(shlex.split(f"juju run {app}/0{_model} update --params {fpath.absolute()}"))
+        # facade charm edge rev9 copies data into 'mocks/provide' not 'mocks/require'
+        # workaround to mv the copied file to the correct path inside 'require' directory
+        # until charm-relation-interfaces/pull/152 is merged.
+        if role == "require":
+            run(
+                shlex.split(
+                    f"juju exec{_model} --unit {app}/0 mv {FACADE_MOCKS_PATH}/provide/require-{interface}.yaml {FACADE_MOCKS_PATH}/require/"
+                )
+            )
+            run(shlex.split(f"juju run {app}/0{_model} update --params {fpath.absolute()}"))
 
 
 @pytest.mark.setup
 @pytest.mark.abort_on_fail
-async def test_tempo_active_when_deploy_s3_facade(ops_test: OpsTest):
+async def test_tempo_active_when_deploy_s3_and_workers_facade(ops_test: OpsTest):
     await ops_test.model.deploy(FACADE, channel="edge")
+    await ops_test.model.wait_for_idle(
+        apps=[FACADE], raise_on_blocked=True, status="active", timeout=2000
+    )
+
     await ops_test.model.integrate(APP_NAME + ":s3", FACADE + ":provide-s3")
+    await ops_test.model.integrate(APP_NAME + ":tempo-cluster", FACADE + ":require-tempo_cluster")
 
     present_facade(
         "s3",
@@ -90,6 +108,19 @@ async def test_tempo_active_when_deploy_s3_facade(ops_test: OpsTest):
         },
     )
 
+    present_facade(
+        "tempo_cluster",
+        model=ops_test.model_name,
+        app_data={
+            "role": '"all"',
+        },
+        unit_data={
+            "juju_topology": json.dumps({"model": ops_test.model_name, "unit": FACADE + "/0"}),
+            "address": FACADE + ".cluster.local.svc",
+        },
+        role="require",
+    )
+
     await ops_test.model.wait_for_idle(
         apps=[FACADE],
         raise_on_blocked=True,
@@ -99,11 +130,9 @@ async def test_tempo_active_when_deploy_s3_facade(ops_test: OpsTest):
 
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME],
-        # we can't raise on blocked as tempo will likely start at blocked
-        raise_on_blocked=False,
-        # we can't wait for a specific status as tempo
-        # might quickly go from waiting to active depending on when the notice comes in
-        timeout=1000,
+        raise_on_blocked=True,
+        status="active",
+        timeout=10000,
     )
 
 

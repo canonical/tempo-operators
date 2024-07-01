@@ -14,7 +14,7 @@ groups:
     for: 15m
     labels:
       severity: critical
-  - alert: TempoRequestErrors
+  - alert: TempoWorkerRequestErrors
     annotations:
       message: |
         The route {{ $labels.route }} in {{ $labels.cluster }}/{{ $labels.namespace }} is experiencing {{ printf "%.2f" $value }}% errors.
@@ -27,7 +27,7 @@ groups:
     for: 15m
     labels:
       severity: critical
-  - alert: TempoRequestLatency
+  - alert: TempoWorkerRequestLatency
     annotations:
       message: |
         {{ $labels.job }} {{ $labels.route }} is experiencing {{ printf "%.2f" $value }}s 99th percentile latency.

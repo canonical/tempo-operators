@@ -68,14 +68,12 @@ class Tempo:
     def __init__(
         self,
         external_host: Optional[str] = None,
-        enable_receivers: Optional[Sequence[ReceiverProtocol]] = None,
         use_tls: bool = False,
     ):
         # ports source: https://github.com/grafana/tempo/blob/main/example/docker-compose/local/docker-compose.yaml
 
         # fqdn, if an ingress is not available, else the ingress address.
         self._external_hostname = external_host or socket.getfqdn()
-        self.enabled_receivers = enable_receivers or []
         self.use_tls = use_tls
 
     @property
@@ -267,8 +265,8 @@ class Tempo:
 
     def _build_receivers_config(self, receivers: Sequence[ReceiverProtocol]):  # noqa: C901
         # receivers: the receivers we have to enable because the requirers we're related to
-        # intend to use them
-        # it already includes self.enabled_receivers: receivers we have to enable because *this charm* will use them.
+        # intend to use them. It already includes receivers that are always enabled
+        # through config or because *this charm* will use them.
         receivers_set = set(receivers)
 
         if not receivers_set:
