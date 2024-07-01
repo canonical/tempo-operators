@@ -31,7 +31,6 @@ async def test_deploy_tempo(ops_test: OpsTest):
         apps=[APP_NAME],
         # coordinator will be blocked on s3 and workers integration
         status="blocked",
-        raise_on_blocked=False,
         timeout=10000,
         raise_on_error=False,
     )
@@ -45,7 +44,6 @@ async def test_scale_tempo_up_without_s3_blocks(ops_test: OpsTest):
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME],
         status="blocked",
-        raise_on_blocked=False,
         timeout=1000,
     )
 
@@ -74,16 +72,6 @@ def present_facade(
         _model = f" --model {model}" if model else ""
 
         run(shlex.split(f"juju run {app}/0{_model} update --params {fpath.absolute()}"))
-        # facade charm edge rev9 copies data into 'mocks/provide' not 'mocks/require'
-        # workaround to mv the copied file to the correct path inside 'require' directory
-        # until charm-relation-interfaces/pull/152 is merged.
-        if role == "require":
-            run(
-                shlex.split(
-                    f"juju exec{_model} --unit {app}/0 mv {FACADE_MOCKS_PATH}/provide/require-{interface}.yaml {FACADE_MOCKS_PATH}/require/"
-                )
-            )
-            run(shlex.split(f"juju run {app}/0{_model} update --params {fpath.absolute()}"))
 
 
 @pytest.mark.setup
@@ -142,7 +130,6 @@ async def test_tempo_blocks_if_s3_goes_away(ops_test: OpsTest):
     await app.destroy(destroy_storage=True)
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME],
-        raise_on_blocked=False,
         status="blocked",
         timeout=1000,
     )

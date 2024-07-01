@@ -4,17 +4,17 @@
 
 """Tempo workload configuration and client."""
 import logging
-import re
 import socket
 from subprocess import CalledProcessError, getoutput
-from typing import Dict, List, Optional, Sequence, Tuple
-from urllib.parse import urlparse
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from charms.tempo_k8s.v2.tracing import (
     ReceiverProtocol,
     receiver_protocol_to_transport_protocol,
 )
 from charms.traefik_route_k8s.v0.traefik_route import TraefikRouteRequirer
+
+import tempo_config
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +31,6 @@ class Tempo:
     tls_cert_path = "/etc/tempo/tls/server.crt"
     tls_key_path = "/etc/tempo/tls/server.key"
     tls_ca_path = "/usr/local/share/ca-certificates/ca.crt"
-
-    _tls_min_version = ""
-    # cfr https://grafana.com/docs/enterprise-traces/latest/configure/reference/#supported-contents-and-default-values
-    # "VersionTLS12"
 
     wal_path = "/etc/tempo/tempo_wal"
     log_path = "/var/log/tempo.log"
@@ -130,21 +126,21 @@ class Tempo:
         return f"{url}:{receiver_port}"
 
     def _build_server_config(self):
-        server_config = {
-            "http_listen_port": self.tempo_http_server_port,
+        server_config = tempo_config.Server(
+            http_listen_port=self.tempo_http_server_port,
             # we need to specify a grpc server port even if we're not using the grpc server,
             # otherwise it will default to 9595 and make promtail bork
-            "grpc_listen_port": self.tempo_grpc_server_port,
-        }
+            grpc_listen_port=self.tempo_grpc_server_port,
+        )
+
         if self.use_tls:
-            for cfg in ("http_tls_config", "grpc_tls_config"):
-                server_config[cfg] = {  # type: ignore
-                    "cert_file": str(self.tls_cert_path),
-                    "key_file": str(self.tls_key_path),
-                    "client_ca_file": str(self.tls_ca_path),
-                    "client_auth_type": "VerifyClientCertIfGiven",
-                }
-            server_config["tls_min_version"] = self._tls_min_version  # type: ignore
+            server_tls_config = tempo_config.TLS(
+                cert_file=str(self.tls_cert_path),
+                key_file=str(self.tls_key_path),
+                client_ca_file=str(self.tls_ca_path),
+            )
+            server_config.http_tls_config = server_tls_config
+            server_config.grpc_tls_config = server_tls_config
 
         return server_config
 
@@ -153,51 +149,21 @@ class Tempo:
         receivers: Sequence[ReceiverProtocol],
         s3_config: dict,
         peers: Optional[List[str]] = None,
-    ) -> dict:
+    ) -> Dict[str, Any]:
         """Generate the Tempo configuration.
 
         Only activate the provided receivers.
         """
-        config = {
-            "auth_enabled": False,
-            "server": self._build_server_config(),
-            # more configuration information can be found at
-            # https://github.com/open-telemetry/opentelemetry-collector/tree/overlord/receiver
-            "distributor": {"receivers": self._build_receivers_config(receivers)},
-            # the length of time after a trace has not received spans to consider it complete and flush it
-            # cut the head block when it hits this number of traces or ...
-            #   this much time passes
-            "ingester": {
-                "trace_idle_period": "10s",
-                "max_block_bytes": 100,
-                "max_block_duration": "30m",
-            },
-            "memberlist": {
-                "abort_if_cluster_join_fails": False,
-                "bind_port": self.memberlist_port,
-                "join_members": (
-                    [f"{peer}:{self.memberlist_port}" for peer in peers] if peers else []
-                ),
-            },
-            "compactor": {
-                "compaction": {
-                    # blocks in this time window will be compacted together
-                    "compaction_window": "1h",
-                    # maximum size of compacted blocks
-                    "max_compaction_objects": 1000000,
-                    # total trace retention
-                    "block_retention": "720h",
-                    "compacted_block_retention": "1h",
-                    "v2_out_buffer_bytes": 5242880,
-                }
-            },
-            # TODO this won't work for distributed coordinator where query frontend will be on a different unit
-            "querier": {
-                "frontend_worker": {"frontend_address": f"localhost:{self.tempo_grpc_server_port}"}
-            },
-            # see https://grafana.com/docs/tempo/latest/configuration/#storage
-            "storage": self._build_storage_config(s3_config),
-        }
+        config = tempo_config.Tempo(
+            auth_enabled=False,
+            server=self._build_server_config(),
+            distributor=self._build_distributor_config(receivers),
+            ingester=self._build_ingester_config(),
+            memberlist=self._build_memberlist_config(peers),
+            compactor=self._build_compactor_config(),
+            querier=self._build_querier_config(),
+            storage=self._build_storage_config(s3_config),
+        )
 
         if self.use_tls:
             # cfr:
@@ -210,42 +176,38 @@ class Tempo:
                 # try with fqdn?
                 "tls_server_name": self._external_hostname,
             }
-            config["ingester_client"] = {"grpc_client_config": tls_config}
-            config["metrics_generator_client"] = {"grpc_client_config": tls_config}
+            config.ingester_client = tempo_config.Client(
+                grpc_client_config=tempo_config.ClientTLS(**tls_config)
+            )
+            config.metrics_generator_client = tempo_config.Client(
+                grpc_client_config=tempo_config.ClientTLS(**tls_config)
+            )
+            config.querier.frontend_worker.grpc_client_config = tempo_config.ClientTLS(
+                **tls_config
+            )
+            config.memberlist = config.memberlist.model_copy(update=tls_config)
 
-            config["querier"]["frontend_worker"].update({"grpc_client_config": tls_config})
-
-            # this is not an error.
-            config["memberlist"].update(tls_config)
-
-        return config
+        return config.model_dump()
 
     def _build_storage_config(self, s3_config: dict):
-        storage_config = {
-            "wal": {
-                # where to store the wal locally
-                "path": self.wal_path
-            },
-            "pool": {
+        storage_config = tempo_config.TraceStorage(
+            # where to store the wal locally
+            wal=tempo_config.Wal(path=self.wal_path),
+            pool=tempo_config.Pool(
                 # number of traces per index record
-                "max_workers": 400,
-                "queue_depth": 20000,
-            },
-            "backend": "s3",
-            "s3": {
-                "bucket": s3_config["bucket"],
-                "access_key": s3_config["access-key"],
-                # remove scheme to avoid "Endpoint url cannot have fully qualified paths." on Tempo startup
-                "endpoint": re.sub(
-                    rf"^{urlparse(s3_config['endpoint']).scheme}://",
-                    "",
-                    s3_config["endpoint"],
-                ),
-                "secret_key": s3_config["secret-key"],
-                "insecure": (False if s3_config["endpoint"].startswith("https://") else True),
-            },
-        }
-        return {"trace": storage_config}
+                max_workers=400,
+                queue_depth=20000,
+            ),
+            backend="s3",
+            s3=tempo_config.S3(
+                bucket=s3_config["bucket"],
+                access_key=s3_config["access-key"],
+                endpoint=s3_config["endpoint"],
+                secret_key=s3_config["secret-key"],
+            ),
+            block=tempo_config.Block(version="v2"),
+        )
+        return tempo_config.Storage(trace=storage_config)
 
     def is_ready(self):
         """Whether the tempo built-in readiness check reports 'ready'."""
@@ -263,7 +225,51 @@ class Tempo:
             return False
         return out == "ready"
 
-    def _build_receivers_config(self, receivers: Sequence[ReceiverProtocol]):  # noqa: C901
+    def _build_querier_config(self):
+        """Build querier config"""
+        # TODO this won't work for distributed coordinator where query frontend will be on a different unit
+        return tempo_config.Querier(
+            frontend_worker=tempo_config.FrontendWorker(
+                frontend_address=f"localhost:{self.tempo_grpc_server_port}"
+            ),
+        )
+
+    def _build_compactor_config(self):
+        """Build compactor config"""
+        return tempo_config.Compactor(
+            compaction=tempo_config.Compaction(
+                # blocks in this time window will be compacted together
+                compaction_window="1h",
+                # maximum size of compacted blocks
+                max_compaction_objects=1000000,
+                # total trace retention
+                block_retention="720h",
+                compacted_block_retention="1h",
+                v2_out_buffer_bytes=5242880,
+            )
+        )
+
+    def _build_memberlist_config(self, peers: Optional[List[str]]) -> tempo_config.Memberlist:
+        """Build memberlist config"""
+        return tempo_config.Memberlist(
+            abort_if_cluster_join_fails=False,
+            bind_port=self.memberlist_port,
+            join_members=([f"{peer}:{self.memberlist_port}" for peer in peers] if peers else []),
+        )
+
+    def _build_ingester_config(self):
+        """Build ingester config"""
+        # the length of time after a trace has not received spans to consider it complete and flush it
+        # cut the head block when it hits this number of traces or ...
+        #   this much time passes
+        return tempo_config.Ingester(
+            trace_idle_period="10s",
+            max_block_bytes=100,
+            max_block_duration="30m",
+        )
+
+    def _build_distributor_config(self, receivers: Sequence[ReceiverProtocol]):  # noqa: C901
+        """Build distributor config"""
         # receivers: the receivers we have to enable because the requirers we're related to
         # intend to use them. It already includes receivers that are always enabled
         # through config or because *this charm* will use them.
@@ -278,7 +284,6 @@ class Tempo:
                     "ca_file": str(self.tls_ca_path),
                     "cert_file": str(self.tls_cert_path),
                     "key_file": str(self.tls_key_path),
-                    "min_version": self._tls_min_version,
                 }
             }
         else:
@@ -311,4 +316,4 @@ class Tempo:
         if jaeger_config:
             config["jaeger"] = {"protocols": jaeger_config}
 
-        return config
+        return tempo_config.Distributor(receivers=config)

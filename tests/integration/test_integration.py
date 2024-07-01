@@ -1,3 +1,4 @@
+# TODO: uncomment and fix when the fully functional tempo cluster is ready (e.g: traces get ingested, can query for traces)
 # import asyncio
 # import json
 # import logging
