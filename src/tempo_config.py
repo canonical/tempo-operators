@@ -3,17 +3,25 @@
 
 """Helper module for interacting with the Tempo configuration."""
 
+import enum
 import logging
 import re
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 S3_RELATION_NAME = "s3"
 BUCKET_NAME = "tempo"
 
 logger = logging.getLogger(__name__)
+
+
+class ClientAuthTypeEnum(str, enum.Enum):
+    """client auth types"""
+
+    VERIFY_CLIENT_CERT_IF_GIVEN = "VerifyClientCertIfGiven"
 
 
 class InvalidConfigurationError(Exception):
@@ -41,7 +49,7 @@ class Memberlist(BaseModel):
     abort_if_cluster_join_fails: bool
     bind_port: int
     join_members: List[str]
-    tls_enabled: Optional[bool] = False
+    tls_enabled: bool = False
     tls_cert_path: Optional[str] = None
     tls_key_path: Optional[str] = None
     tls_ca_path: Optional[str] = None
@@ -96,10 +104,16 @@ class Querier(BaseModel):
 class TLS(BaseModel):
     """TLS configuration schema."""
 
+    model_config = ConfigDict(
+        # Allow serializing enum values.
+        use_enum_values=True
+    )
+    """Pydantic config."""
+
     cert_file: str
     key_file: str
     client_ca_file: str
-    client_auth_type: Optional[str] = "VerifyClientCertIfGiven"
+    client_auth_type: ClientAuthTypeEnum = ClientAuthTypeEnum.VERIFY_CLIENT_CERT_IF_GIVEN
 
 
 class Server(BaseModel):
@@ -138,7 +152,7 @@ class Pool(BaseModel):
 class Wal(BaseModel):
     """Wal schema."""
 
-    path: str
+    path: Path
 
 
 class S3(BaseModel):
@@ -148,7 +162,7 @@ class S3(BaseModel):
     access_key: str
     endpoint: str
     secret_key: str
-    insecure: Optional[bool] = False
+    insecure: bool = False
 
     @model_validator(mode="before")  # pyright: ignore
     @classmethod

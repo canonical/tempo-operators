@@ -187,12 +187,12 @@ class Tempo:
             )
             config.memberlist = config.memberlist.model_copy(update=tls_config)
 
-        return config.model_dump()
+        return config.model_dump(mode="json", exclude_none=True)
 
     def _build_storage_config(self, s3_config: dict):
         storage_config = tempo_config.TraceStorage(
             # where to store the wal locally
-            wal=tempo_config.Wal(path=self.wal_path),
+            wal=tempo_config.Wal(path=self.wal_path),  # type: ignore
             pool=tempo_config.Pool(
                 # number of traces per index record
                 max_workers=400,

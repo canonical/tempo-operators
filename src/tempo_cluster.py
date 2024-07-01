@@ -156,7 +156,7 @@ if PYDANTIC_IS_V1:
             if databag is None:
                 databag = {}
 
-            for key, value in self.dict(by_alias=True, exclude_none=True).items():  # type: ignore
+            for key, value in self.dict(by_alias=True, exclude_defaults=True).items():  # type: ignore
                 databag[key] = json.dumps(value)
 
             return databag
@@ -210,7 +210,7 @@ else:
             if databag is None:
                 databag = {}
 
-            dct = self.model_dump(mode="json", by_alias=True, exclude_none=True)  # type: ignore
+            dct = self.model_dump(mode="json", by_alias=True, exclude_defaults=True)  # type: ignore
             databag.update({k: json.dumps(v) for k, v in dct.items()})
             return databag
 
