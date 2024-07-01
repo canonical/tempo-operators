@@ -8,7 +8,7 @@ from ops.testing import Harness
 
 from charm import TempoCoordinatorCharm
 
-CONTAINER_NAME = "tempo"
+CONTAINER_NAME = "nginx"
 
 
 class TestTempoCoordinatorCharm(unittest.TestCase):
@@ -19,6 +19,8 @@ class TestTempoCoordinatorCharm(unittest.TestCase):
         self.addCleanup(self.harness.cleanup)
         self.harness.set_leader(True)
         self.harness.begin_with_initial_hooks()
+        self.harness.add_relation("s3", "s3-integrator")
+        self.harness.add_relation("tempo-cluster", "tempo-worker-k8s")
         self.maxDiff = None  # we're comparing big traefik configs in tests
 
     def test_entrypoints_are_generated_with_sanitized_names(self):

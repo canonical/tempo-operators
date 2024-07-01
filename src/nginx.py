@@ -186,7 +186,8 @@ class Nginx:
         return crossplane.build(full_config)
 
     def _prepare_config(self, tls: bool = False) -> List[dict]:
-        log_level = "error"
+        # TODO remember to put it back to error
+        log_level = "debug"
         addresses_by_role = self.cluster_provider.gather_addresses_by_role()
         # build the complete configuration
         full_config = [
@@ -253,7 +254,7 @@ class Nginx:
                     "nginx": {
                         "override": "replace",
                         "summary": "nginx",
-                        "command": "nginx",
+                        "command": "nginx -g 'daemon off;'",
                         "startup": "enabled",
                     }
                 },
@@ -351,6 +352,7 @@ class Nginx:
         for port in Tempo.all_ports.values():
             directives.append({"directive": "listen", "args": [f"{port}", "ssl"] if ssl else [f"{port}"]})
             directives.append({"directive": "listen", "args": [f"[::]:{port}", "ssl"] if ssl else [f"[::]:{port}"]})
+            return directives
         return directives
 
     def _server(self, addresses_by_role: Dict[str, Set[str]], tls: bool = False) -> Dict[str, Any]:
@@ -366,10 +368,6 @@ class Nginx:
                     {
                         "directive": "proxy_set_header",
                         "args": ["X-Scope-OrgID", "$ensured_x_scope_orgid"],
-                    },
-                    {
-                        "directive": "proxy_set_header",
-                        "args": ["Host", "$host:$server_port"]
                     },
                     # FIXME: use a suitable SERVER_NAME
                     {"directive": "server_name", "args": [self.server_name]},
@@ -391,10 +389,11 @@ class Nginx:
                     "directive": "proxy_set_header",
                     "args": ["X-Scope-OrgID", "$ensured_x_scope_orgid"],
                 },
-                {
-                    "directive": "proxy_set_header",
-                    "args": ["Host", "$host:$server_port"]
-                },
+                # {
+                #     "directive": "proxy_set_header",
+                #     "args": ["Host", "$host:$server_port"]
+                # },
+                {"directive": "server_name", "args": [self.server_name]},
                 *self._locations(addresses_by_role),
             ],
         }
