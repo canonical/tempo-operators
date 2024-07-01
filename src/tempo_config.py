@@ -19,9 +19,14 @@ logger = logging.getLogger(__name__)
 
 
 class ClientAuthTypeEnum(str, enum.Enum):
-    """client auth types"""
+    """Client auth types."""
 
+    # Possible values https://pkg.go.dev/crypto/tls#ClientAuthType
     VERIFY_CLIENT_CERT_IF_GIVEN = "VerifyClientCertIfGiven"
+    NO_CLIENT_CERT = "NoClientCert"
+    REQUEST_CLIENT_CERT = "RequestClientCert"
+    REQUIRE_ANY_CLIENT_CERT = "RequireAnyClientCert"
+    REQUIRE_AND_VERIFY_CLIENT_CERT = "RequireAndVerifyClientCert"
 
 
 class InvalidConfigurationError(Exception):
