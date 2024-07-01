@@ -100,12 +100,13 @@ class DatabagAccessPermissionError(TempoClusterError):
     """Raised when a follower attempts to write leader settings."""
 
 
-class JujuTopology(pydantic.BaseModel):
-    """JujuTopology."""
-
+class _JujuTopologyModel(pydantic.BaseModel):
+    """_JujuTopologyModel."""
     model: str
+    model_uuid: str
+    application: str
+    charm_name: str
     unit: str
-    # ...
 
 
 # DatabagModel implementation from traefik.v1.ingress charm lib.
@@ -246,7 +247,7 @@ class TempoClusterRequirerAppData(DatabagModel):
 class TempoClusterRequirerUnitData(DatabagModel):
     """TempoClusterRequirerUnitData."""
 
-    juju_topology: JujuTopology
+    juju_topology: _JujuTopologyModel
     address: str
 
 
@@ -284,7 +285,6 @@ class TempoClusterProvider(Object):
     ):
         super().__init__(charm, key or endpoint)
         self._charm = charm
-        self.juju_topology = {"unit": self.model.unit.name, "model": self.model.name}
 
         # filter out common unhappy relation states
         self._relations: List[ops.Relation] = [
