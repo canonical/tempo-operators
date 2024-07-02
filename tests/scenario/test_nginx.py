@@ -34,6 +34,7 @@ def test_nginx_config_is_parsed_by_crossplane(context, nginx_container, tempo_cl
     tempo_charm.unit = MagicMock(return_value=unit)
 
     nginx = Nginx(tempo_charm, tempo_cluster_provider, "lolcathost")
+    logger.info(nginx._prepare_config(tls=False))
 
     prepared_config = nginx.config(tls=False)
     assert isinstance(prepared_config, str)

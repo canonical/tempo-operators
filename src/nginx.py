@@ -186,8 +186,7 @@ class Nginx:
         return crossplane.build(full_config)
 
     def _prepare_config(self, tls: bool = False) -> List[dict]:
-        # TODO remember to put it back to error
-        log_level = "debug"
+        log_level = "error"
         addresses_by_role = self.cluster_provider.gather_addresses_by_role()
         # build the complete configuration
         full_config = [
@@ -237,7 +236,7 @@ class Nginx:
                     },
                     {"directive": "proxy_read_timeout", "args": ["300"]},
                     # server block
-                    self._server(addresses_by_role, tls),
+                    *self._servers(addresses_by_role, tls),
                 ],
             },
         ]
@@ -279,6 +278,7 @@ class Nginx:
     def _upstreams(self, addresses_by_role: Dict[str, Set[str]]) -> List[Dict[str, Any]]:
         addresses_mapped_to_upstreams = {}
         nginx_upstreams = []
+        # TODO this code might be unnecessarily complex. Can we simplify it?
         if TempoRole.distributor in addresses_by_role.keys():
             addresses_mapped_to_upstreams["distributor"] = addresses_by_role[TempoRole.distributor]
         if TempoRole.query_frontend in addresses_by_role.keys():
@@ -302,15 +302,16 @@ class Nginx:
 
     def _distributor_upstreams(self, address_set):
         return [
-            self._upstream("distributor", address_set, Tempo.server_ports["tempo_http"]),
             self._upstream("otlp-http", address_set, Tempo.receiver_ports["otlp_http"]),
+            self._upstream("otlp-grpc", address_set, Tempo.receiver_ports["otlp_grpc"]),
             self._upstream("zipkin", address_set, Tempo.receiver_ports["zipkin"]),
             self._upstream("jaeger-thrift-http", address_set, Tempo.receiver_ports["jaeger_thrift_http"]),
         ]
 
     def _query_frontend_upstreams(self, address_set):
         return [
-            self._upstream("query-frontend", address_set, Tempo.server_ports["tempo_http"])
+            self._upstream("tempo-http", address_set, Tempo.server_ports["tempo_http"]),
+            self._upstream("tempo-grpc", address_set, Tempo.server_ports["tempo_grpc"]),
         ]
 
     def _upstream(self, role, address_set, port):
@@ -320,15 +321,20 @@ class Nginx:
             "block": [{"directive": "server", "args": [f"{addr}:{port}"]} for addr in address_set],
         }
 
-    def _locations(self, addresses_by_role: Dict[str, Set[str]]) -> List[Dict[str, Any]]:
-        nginx_locations = LOCATIONS_BASIC.copy()
-        roles = addresses_by_role.keys()
-
-        if "distributor" in roles or "all" in roles:
-            # TODO split locations for every port
-            nginx_locations.extend(LOCATIONS_DISTRIBUTOR)
-        if "query-frontend" in roles or "all" in roles:
-            nginx_locations.extend(LOCATIONS_QUERY_FRONTEND)
+    def _locations(self, upstream: str, grpc: bool) -> List[Dict[str, Any]]:
+        protocol = "grpc" if grpc else "http"
+        nginx_locations = [
+            {
+                "directive": "location",
+                "args": ["/"],
+                "block": [
+                    {
+                        "directive": "grpc_pass" if grpc else "proxy_pass",
+                        "args": [f"{protocol}://{upstream}"],
+                    }
+                ],
+            }
+        ]
         return nginx_locations
 
     def _resolver(self, custom_resolver: Optional[List[Any]] = None) -> List[Dict[str, Any]]:
@@ -347,15 +353,27 @@ class Nginx:
             ]
         return []
 
-    def _listen(self, ssl):
+    def _listen(self, port, ssl):
         directives = []
-        for port in Tempo.all_ports.values():
-            directives.append({"directive": "listen", "args": [f"{port}", "ssl"] if ssl else [f"{port}"]})
-            directives.append({"directive": "listen", "args": [f"[::]:{port}", "ssl"] if ssl else [f"[::]:{port}"]})
-            return directives
+        directives.append({"directive": "listen", "args": [f"{port}", "ssl"] if ssl else [f"{port}"]})
+        directives.append({"directive": "listen", "args": [f"[::]:{port}", "ssl"] if ssl else [f"[::]:{port}"]})
         return directives
 
-    def _server(self, addresses_by_role: Dict[str, Set[str]], tls: bool = False) -> Dict[str, Any]:
+    def _servers(self, addresses_by_role: Dict[str, Set[str]], tls: bool = False) -> List[Dict[str, Any]]:
+        servers = []
+        roles = addresses_by_role.keys()
+
+        if "distributor" in roles or "all" in roles:
+            servers.append(self._server(Tempo.receiver_ports["otlp_http"], "otlp-http", False, tls))
+            servers.append(self._server(Tempo.receiver_ports["zipkin"], "zipkin", False, tls))
+            servers.append(self._server(Tempo.receiver_ports["jaeger_thrift_http"], "jaeger-thrift-http", False, tls))
+            servers.append(self._server(Tempo.receiver_ports["otlp_grpc"], "otlp-grpc", True, tls))
+        if "query-frontend" in roles or "all" in roles:
+            servers.append(self._server(Tempo.server_ports["tempo_http"], "tempo-http", False, tls))
+            servers.append(self._server(Tempo.server_ports["tempo_grpc"], "tempo-grpc", True, tls))
+        return servers
+
+    def _server(self, port: int, upstream: str, grpc: bool = False, tls: bool = False) -> Dict[str, Any]:
         auth_enabled = False
 
         if tls:
@@ -363,7 +381,7 @@ class Nginx:
                 "directive": "server",
                 "args": [],
                 "block": [
-                    *self._listen(ssl=True),
+                    *self._listen(port, ssl=True),
                     *self._basic_auth(auth_enabled),
                     {
                         "directive": "proxy_set_header",
@@ -375,7 +393,7 @@ class Nginx:
                     {"directive": "ssl_certificate_key", "args": [KEY_PATH]},
                     {"directive": "ssl_protocols", "args": ["TLSv1", "TLSv1.1", "TLSv1.2"]},
                     {"directive": "ssl_ciphers", "args": ["HIGH:!aNULL:!MD5"]},  # codespell:ignore
-                    *self._locations(addresses_by_role),
+                    *self._locations(upstream, grpc),
                 ],
             }
 
@@ -383,17 +401,13 @@ class Nginx:
             "directive": "server",
             "args": [],
             "block": [
-                *self._listen(ssl=False),
+                *self._listen(port, ssl=False),
                 *self._basic_auth(auth_enabled),
                 {
                     "directive": "proxy_set_header",
                     "args": ["X-Scope-OrgID", "$ensured_x_scope_orgid"],
                 },
-                # {
-                #     "directive": "proxy_set_header",
-                #     "args": ["Host", "$host:$server_port"]
-                # },
                 {"directive": "server_name", "args": [self.server_name]},
-                *self._locations(addresses_by_role),
+                *self._locations(upstream, grpc),
             ],
         }
