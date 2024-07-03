@@ -13,7 +13,6 @@ import ops
 from charms.data_platform_libs.v0.s3 import S3Requirer
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
-from charms.observability_libs.v0.kubernetes_service_patch import KubernetesServicePatch
 from charms.observability_libs.v1.cert_handler import VAULT_SECRET_LABEL, CertHandler
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.tempo_k8s.v1.charm_tracing import trace_charm
@@ -28,8 +27,8 @@ from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, Relation, WaitingStatus
 
 from coordinator import TempoCoordinator
-from nginx import CA_CERT_PATH, CERT_PATH, KEY_PATH, Nginx
-from nginx_prometheus_exporter import NGINX_PROMETHEUS_EXPORTER_PORT, NginxPrometheusExporter
+from nginx import Nginx
+from nginx_prometheus_exporter import NginxPrometheusExporter
 from tempo import Tempo
 from tempo_cluster import TempoClusterProvider
 
@@ -408,7 +407,6 @@ class TempoCoordinatorCharm(CharmBase):
         self._update_tempo_cluster()
         # update tracing relations
         self._update_tracing_relations()
-
 
     ###################
     # UTILITY METHODS #

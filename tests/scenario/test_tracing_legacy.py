@@ -6,8 +6,11 @@ from scenario import Relation, State
 
 
 @pytest.fixture
-def base_state():
-    return State(leader=True)
+def base_state(nginx_container, nginx_prometheus_exporter_container):
+    return State(
+        leader=True,
+        containers=[nginx_container, nginx_prometheus_exporter_container],
+    )
 
 
 @pytest.mark.parametrize("evt_name", ("changed", "created", "joined"))

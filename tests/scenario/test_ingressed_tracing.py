@@ -9,8 +9,11 @@ from tempo import Tempo
 
 
 @pytest.fixture
-def base_state():
-    return State(leader=True)
+def base_state(nginx_container, nginx_prometheus_exporter_container):
+    return State(
+        leader=True,
+        containers=[nginx_container, nginx_prometheus_exporter_container],
+    )
 
 
 def test_external_url_present(context, base_state, s3, all_worker):

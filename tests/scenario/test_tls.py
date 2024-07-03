@@ -10,7 +10,7 @@ from charm import TempoCoordinatorCharm
 
 
 @pytest.fixture
-def base_state():
+def base_state(nginx_container, nginx_prometheus_exporter_container):
     return State(
         leader=True,
         secrets=[
@@ -23,6 +23,7 @@ def base_state():
                 contents={0: {"foo": "bar"}},
             )
         ],
+        containers=[nginx_container, nginx_prometheus_exporter_container],
     )
 
 

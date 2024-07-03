@@ -1,14 +1,14 @@
+import logging
 from typing import List
 from unittest.mock import MagicMock
 
-import logging
 import pytest
 
 from nginx import Nginx
 from tempo_cluster import TempoClusterProvider
 
-
 logger = logging.getLogger(__name__)
+
 
 @pytest.fixture
 def tempo_cluster_provider():
@@ -26,6 +26,7 @@ def test_nginx_config_is_list_before_crossplane(context, nginx_container, tempo_
 
     prepared_config = nginx._prepare_config(tls=False)
     assert isinstance(prepared_config, List)
+
 
 def test_nginx_config_is_parsed_by_crossplane(context, nginx_container, tempo_cluster_provider):
     unit = MagicMock()
@@ -53,7 +54,7 @@ def test_nginx_config_is_parsed_by_crossplane(context, nginx_container, tempo_cl
             "querier": {"1.2.4.7"},
             "query_frontend": {"1.2.5.1"},
             "compactor": {"1.2.6.6"},
-            "metrics_generator": {"1.2.8.4"}
+            "metrics_generator": {"1.2.8.4"},
         },
         {
             "distributor": {"1.2.3.5"},
@@ -61,7 +62,7 @@ def test_nginx_config_is_parsed_by_crossplane(context, nginx_container, tempo_cl
             "querier": {"1.2.4.7"},
             "query_frontend": {"1.2.5.1"},
             "compactor": {"1.2.6.6"},
-            "metrics_generator": {"1.2.8.4"}
+            "metrics_generator": {"1.2.8.4"},
         },
         {
             "distributor": {"1.2.3.5"},
@@ -69,7 +70,7 @@ def test_nginx_config_is_parsed_by_crossplane(context, nginx_container, tempo_cl
             "querier": {"1.2.4.7"},
             "query_frontend": {"1.2.5.1"},
             "compactor": {"1.2.6.6"},
-            "metrics_generator": {"1.2.8.4"}
+            "metrics_generator": {"1.2.8.4"},
         },
         {
             "distributor": {"1.2.3.5", "1.2.3.7"},
@@ -77,11 +78,13 @@ def test_nginx_config_is_parsed_by_crossplane(context, nginx_container, tempo_cl
             "querier": {"1.2.4.7", "1.2.4.9"},
             "query_frontend": {"1.2.5.1", "1.2.5.2"},
             "compactor": {"1.2.6.6", "1.2.6.7"},
-            "metrics_generator": {"1.2.8.4", "1.2.8.5"}
-        }
+            "metrics_generator": {"1.2.8.4", "1.2.8.5"},
+        },
     ),
 )
-def test_nginx_config_is_parsed_with_workers(context, nginx_container, tempo_cluster_provider, addresses):
+def test_nginx_config_is_parsed_with_workers(
+    context, nginx_container, tempo_cluster_provider, addresses
+):
     tempo_cluster_provider.gather_addresses_by_role = MagicMock(return_value=addresses)
 
     unit = MagicMock()

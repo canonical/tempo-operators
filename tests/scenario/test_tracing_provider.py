@@ -3,7 +3,9 @@ from charms.tempo_k8s.v2.tracing import ProtocolType, TracingProviderAppData
 from scenario import Relation, State
 
 
-def test_receivers_removed_on_relation_broken(context, s3, all_worker):
+def test_receivers_removed_on_relation_broken(
+    context, s3, all_worker, nginx_container, nginx_prometheus_exporter_container
+):
     tracing_grpc = Relation(
         "tracing",
         remote_app_data={"receivers": '["otlp_grpc"]'},
@@ -24,6 +26,7 @@ def test_receivers_removed_on_relation_broken(context, s3, all_worker):
     state = State(
         leader=True,
         relations=[tracing_grpc, tracing_http, s3, all_worker],
+        containers=[nginx_container, nginx_prometheus_exporter_container],
     )
 
     with charm_tracing_disabled():

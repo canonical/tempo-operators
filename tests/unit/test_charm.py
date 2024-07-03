@@ -2,7 +2,6 @@
 # See LICENSE file for licensing details.
 
 import unittest
-from unittest.mock import patch
 
 from ops.testing import Harness
 
@@ -12,7 +11,6 @@ CONTAINER_NAME = "nginx"
 
 
 class TestTempoCoordinatorCharm(unittest.TestCase):
-    @patch("charm.KubernetesServicePatch", lambda x, y: None)
     def setUp(self):
         self.harness = Harness(TempoCoordinatorCharm)
         self.harness.set_model_name("testmodel")

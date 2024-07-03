@@ -21,144 +21,6 @@ KEY_PATH = f"{NGINX_DIR}/certs/server.key"
 CERT_PATH = f"{NGINX_DIR}/certs/server.cert"
 CA_CERT_PATH = f"{NGINX_DIR}/certs/ca.cert"
 
-LOCATIONS_DISTRIBUTOR: List[Dict[str, Any]] = [
-    {
-        "directive": "location",
-        "args": ["/distributor"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://distributor"],
-            },
-        ],
-    },
-    # OTLP/HTTP ingestion
-    {
-        "directive": "location",
-        "args": ["/v1/traces"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://otlp-http"],
-            },
-        ],
-    },
-    # Zipkin ingestion
-    {
-        "directive": "location",
-        "args": ["/api/v2/spans"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://zipkin"],
-            },
-        ],
-    },
-    # # Jaeger thrift HTTP ingestion
-    # {
-    #     "directive": "location",
-    #     "args": ["/api/traces"],
-    #     "block": [
-    #         {
-    #             "directive": "proxy_pass",
-    #             "args": ["http://jaeger-thrift-http"],
-    #         },
-    #     ],
-    # },
-]
-# TODO add GRPC locations - perhaps as a separate server section?
-LOCATIONS_QUERY_FRONTEND: List[Dict] = [
-    {
-        "directive": "location",
-        "args": ["/prometheus"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://query-frontend"],
-            },
-        ],
-    },
-    {
-        "directive": "location",
-        "args": ["/api/echo"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://query-frontend"],
-            },
-        ],
-    },
-    {
-        "directive": "location",
-        "args": ["/api/traces"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://query-frontend"],
-            },
-        ],
-    },
-    {
-        "directive": "location",
-        "args": ["/api/search"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://query-frontend"],
-            },
-        ],
-    },
-    {
-        "directive": "location",
-        "args": ["/api/v2/search"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://query-frontend"],
-            },
-        ],
-    },
-    {
-        "directive": "location",
-        "args": ["/api/overrides"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://query-frontend"],
-            },
-        ],
-    },
-    # Buildinfo endpoint can go to any component
-    {
-        "directive": "location",
-        "args": ["=", "/api/status/buildinfo"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://query-frontend"],
-            },
-        ],
-    },
-]
-
-LOCATIONS_BASIC: List[Dict] = [
-    {
-        "directive": "location",
-        "args": ["=", "/"],
-        "block": [
-            {"directive": "return", "args": ["200", "'OK'"]},
-            {"directive": "auth_basic", "args": ["off"]},
-        ],
-    },
-    {  # Location to be used by nginx-prometheus-exporter
-        "directive": "location",
-        "args": ["=", "/status"],
-        "block": [
-            {"directive": "stub_status", "args": []},
-        ],
-    },
-]
-
 
 class Nginx:
     """Helper class to manage the nginx workload."""
@@ -282,21 +144,31 @@ class Nginx:
         if TempoRole.distributor in addresses_by_role.keys():
             addresses_mapped_to_upstreams["distributor"] = addresses_by_role[TempoRole.distributor]
         if TempoRole.query_frontend in addresses_by_role.keys():
-            addresses_mapped_to_upstreams["query_frontend"] = addresses_by_role[TempoRole.query_frontend]
+            addresses_mapped_to_upstreams["query_frontend"] = addresses_by_role[
+                TempoRole.query_frontend
+            ]
         if TempoRole.all in addresses_by_role.keys():
             # for all, we add addresses to existing upstreams for distributor / query_frontend or create the set
             if "distributor" in addresses_mapped_to_upstreams:
-                addresses_mapped_to_upstreams["distributor"] = addresses_mapped_to_upstreams["distributor"].union(addresses_by_role[TempoRole.all])
+                addresses_mapped_to_upstreams["distributor"] = addresses_mapped_to_upstreams[
+                    "distributor"
+                ].union(addresses_by_role[TempoRole.all])
             else:
                 addresses_mapped_to_upstreams["distributor"] = addresses_by_role[TempoRole.all]
             if "query_frontend" in addresses_mapped_to_upstreams:
-                addresses_mapped_to_upstreams["query_frontend"] = addresses_mapped_to_upstreams["query_frontend"].union(addresses_by_role[TempoRole.all])
+                addresses_mapped_to_upstreams["query_frontend"] = addresses_mapped_to_upstreams[
+                    "query_frontend"
+                ].union(addresses_by_role[TempoRole.all])
             else:
                 addresses_mapped_to_upstreams["query_frontend"] = addresses_by_role[TempoRole.all]
         if "distributor" in addresses_mapped_to_upstreams.keys():
-            nginx_upstreams.extend(self._distributor_upstreams(addresses_mapped_to_upstreams["distributor"]))
+            nginx_upstreams.extend(
+                self._distributor_upstreams(addresses_mapped_to_upstreams["distributor"])
+            )
         if "query_frontend" in addresses_mapped_to_upstreams.keys():
-            nginx_upstreams.extend(self._query_frontend_upstreams(addresses_mapped_to_upstreams["query_frontend"]))
+            nginx_upstreams.extend(
+                self._query_frontend_upstreams(addresses_mapped_to_upstreams["query_frontend"])
+            )
 
         return nginx_upstreams
 
@@ -305,7 +177,9 @@ class Nginx:
             self._upstream("otlp-http", address_set, Tempo.receiver_ports["otlp_http"]),
             self._upstream("otlp-grpc", address_set, Tempo.receiver_ports["otlp_grpc"]),
             self._upstream("zipkin", address_set, Tempo.receiver_ports["zipkin"]),
-            self._upstream("jaeger-thrift-http", address_set, Tempo.receiver_ports["jaeger_thrift_http"]),
+            self._upstream(
+                "jaeger-thrift-http", address_set, Tempo.receiver_ports["jaeger_thrift_http"]
+            ),
         ]
 
     def _query_frontend_upstreams(self, address_set):
@@ -355,8 +229,12 @@ class Nginx:
 
     def _listen(self, port, ssl, http2):
         directives = []
-        directives.append({"directive": "listen", "args": self._listen_args(port, False, ssl, http2)})
-        directives.append({"directive": "listen", "args": self._listen_args(port, True, ssl, http2)})
+        directives.append(
+            {"directive": "listen", "args": self._listen_args(port, False, ssl, http2)}
+        )
+        directives.append(
+            {"directive": "listen", "args": self._listen_args(port, True, ssl, http2)}
+        )
         return directives
 
     def _listen_args(self, port, ipv6, ssl, http2):
@@ -371,21 +249,33 @@ class Nginx:
             args.append("http2")
         return args
 
-    def _servers(self, addresses_by_role: Dict[str, Set[str]], tls: bool = False) -> List[Dict[str, Any]]:
+    def _servers(
+        self, addresses_by_role: Dict[str, Set[str]], tls: bool = False
+    ) -> List[Dict[str, Any]]:
         servers = []
         roles = addresses_by_role.keys()
 
         if "distributor" in roles or "all" in roles:
-            servers.append(self._server(Tempo.receiver_ports["otlp_http"], "otlp-http", False, tls))
+            servers.append(
+                self._server(Tempo.receiver_ports["otlp_http"], "otlp-http", False, tls)
+            )
             servers.append(self._server(Tempo.receiver_ports["zipkin"], "zipkin", False, tls))
-            servers.append(self._server(Tempo.receiver_ports["jaeger_thrift_http"], "jaeger-thrift-http", False, tls))
+            servers.append(
+                self._server(
+                    Tempo.receiver_ports["jaeger_thrift_http"], "jaeger-thrift-http", False, tls
+                )
+            )
             servers.append(self._server(Tempo.receiver_ports["otlp_grpc"], "otlp-grpc", True, tls))
         if "query-frontend" in roles or "all" in roles:
-            servers.append(self._server(Tempo.server_ports["tempo_http"], "tempo-http", False, tls))
+            servers.append(
+                self._server(Tempo.server_ports["tempo_http"], "tempo-http", False, tls)
+            )
             servers.append(self._server(Tempo.server_ports["tempo_grpc"], "tempo-grpc", True, tls))
         return servers
 
-    def _server(self, port: int, upstream: str, grpc: bool = False, tls: bool = False) -> Dict[str, Any]:
+    def _server(
+        self, port: int, upstream: str, grpc: bool = False, tls: bool = False
+    ) -> Dict[str, Any]:
         auth_enabled = False
 
         if tls:

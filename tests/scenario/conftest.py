@@ -9,10 +9,9 @@ from tempo_cluster import TempoClusterRequirerAppData, TempoRole
 
 @pytest.fixture
 def tempo_charm():
-    with patch("charm.KubernetesServicePatch"):
-        with patch("lightkube.core.client.GenericSyncClient"):
-            with patch("charm.TempoCoordinatorCharm._update_server_cert"):
-                yield TempoCoordinatorCharm
+    with patch("lightkube.core.client.GenericSyncClient"):
+        with patch("charm.TempoCoordinatorCharm._update_server_cert"):
+            yield TempoCoordinatorCharm
 
 
 @pytest.fixture(scope="function")
