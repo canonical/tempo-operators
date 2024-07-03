@@ -353,11 +353,23 @@ class Nginx:
             ]
         return []
 
-    def _listen(self, port, ssl):
+    def _listen(self, port, ssl, http2):
         directives = []
-        directives.append({"directive": "listen", "args": [f"{port}", "ssl"] if ssl else [f"{port}"]})
-        directives.append({"directive": "listen", "args": [f"[::]:{port}", "ssl"] if ssl else [f"[::]:{port}"]})
+        directives.append({"directive": "listen", "args": self._listen_args(port, False, ssl, http2)})
+        directives.append({"directive": "listen", "args": self._listen_args(port, True, ssl, http2)})
         return directives
+
+    def _listen_args(self, port, ipv6, ssl, http2):
+        args = []
+        if ipv6:
+            args.append(f"[::]:{port}")
+        else:
+            args.append(f"{port}")
+        if ssl:
+            args.append("ssl")
+        if http2:
+            args.append("http2")
+        return args
 
     def _servers(self, addresses_by_role: Dict[str, Set[str]], tls: bool = False) -> List[Dict[str, Any]]:
         servers = []
@@ -381,7 +393,7 @@ class Nginx:
                 "directive": "server",
                 "args": [],
                 "block": [
-                    *self._listen(port, ssl=True),
+                    *self._listen(port, ssl=True, http2=grpc),
                     *self._basic_auth(auth_enabled),
                     {
                         "directive": "proxy_set_header",
@@ -401,7 +413,7 @@ class Nginx:
             "directive": "server",
             "args": [],
             "block": [
-                *self._listen(port, ssl=False),
+                *self._listen(port, ssl=False, http2=grpc),
                 *self._basic_auth(auth_enabled),
                 {
                     "directive": "proxy_set_header",
