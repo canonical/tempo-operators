@@ -7,7 +7,8 @@ from typing import Any, Dict, List, Optional, Set
 
 import crossplane
 from ops import CharmBase
-from ops.pebble import Layer
+from ops.pebble import Layer, PathError, ProtocolError
+
 
 from tempo import Tempo
 from tempo_cluster import TempoClusterProvider, TempoRole
@@ -35,12 +36,18 @@ class Nginx:
 
     def configure_pebble_layer(self, tls: bool) -> None:
         """Configure pebble layer."""
+        new_config: str = self.config(tls)
+        should_restart: bool = self._has_config_changed(new_config)
         if self._container.can_connect():
             self._container.push(
                 self.config_path, self.config(tls=tls), make_dirs=True  # type: ignore
             )
             self._container.add_layer("nginx", self.layer, combine=True)
             self._container.autostart()
+
+            if should_restart:
+                logger.info("new nginx config: restarting the service")
+                self.reload()
 
     def config(self, tls: bool = False) -> str:
         """Build and return the Nginx configuration."""
@@ -103,6 +110,28 @@ class Nginx:
             },
         ]
         return full_config
+
+    def _has_config_changed(self, new_config: str) -> bool:
+        """Return True if the passed config differs from the one on disk."""
+        if not self._container.can_connect():
+            logger.debug("Could not connect to Nginx container")
+            return False
+
+        try:
+            current_config = self._container.pull(self.config_path).read()
+        except (ProtocolError, PathError) as e:
+            logger.warning(
+                "Could not check the current nginx configuration due to "
+                "a failure in retrieving the file: %s",
+                e,
+            )
+            return False
+
+        return current_config != new_config
+
+    def reload(self) -> None:
+        """Reload the nginx config without restarting the service."""
+        self._container.exec(["nginx", "-s", "reload"])
 
     @property
     def layer(self) -> Layer:
