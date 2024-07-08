@@ -5,7 +5,6 @@ import os
 import shutil
 from pathlib import Path
 
-import yaml
 from pytest import fixture
 from pytest_operator.plugin import OpsTest
 
