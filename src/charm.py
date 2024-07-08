@@ -157,7 +157,7 @@ class TempoCoordinatorCharm(CharmBase):
         self.framework.observe(self.tempo_cluster.on.changed, self._on_tempo_cluster_changed)
 
         for evt in self.on.events().values():
-            self.framework.observe(evt, self._on_event)
+            self.framework.observe(evt, self._on_event)  # type: ignore
 
     ######################
     # UTILITY PROPERTIES #
@@ -394,7 +394,7 @@ class TempoCoordinatorCharm(CharmBase):
     def _on_nginx_prometheus_exporter_pebble_ready(self, _) -> None:
         self.nginx_prometheus_exporter.configure_pebble_layer()
 
-    def _on_event(self, event):
+    def _on_event(self, event) -> None:
         """A set of common configuration actions that should happen on every event."""
         if isinstance(event, CollectStatusEvent):
             return
@@ -426,7 +426,7 @@ class TempoCoordinatorCharm(CharmBase):
         # notify the cluster
         self._update_tempo_cluster()
 
-    def _update_tracing_relations(self):
+    def _update_tracing_relations(self) -> None:
         tracing_relations = self.model.relations["tracing"]
         if not tracing_relations:
             # todo: set waiting status and configure tempo to run without receivers if possible,
@@ -454,12 +454,12 @@ class TempoCoordinatorCharm(CharmBase):
         requested_receivers = requested_protocols.intersection(set(self.tempo.receiver_ports))
         return tuple(requested_receivers)
 
-    def server_cert(self):
+    def server_cert(self) -> str:
         """For charm tracing."""
         self._update_server_cert()
         return self.tempo.server_cert_path
 
-    def _update_server_cert(self):
+    def _update_server_cert(self) -> None:
         """Server certificate for charm tracing tls, if tls is enabled."""
         server_cert = Path(self.tempo.server_cert_path)
         if self.tls_available:
@@ -513,7 +513,7 @@ class TempoCoordinatorCharm(CharmBase):
 
         return endpoints
 
-    def _update_tempo_cluster(self):
+    def _update_tempo_cluster(self) -> None:
         """Build the config and publish everything to the application databag."""
         if not self._is_consistent:
             logger.error("skipped tempo cluster update: inconsistent state")

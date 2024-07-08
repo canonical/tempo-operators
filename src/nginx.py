@@ -9,7 +9,6 @@ import crossplane
 from ops import CharmBase
 from ops.pebble import Layer, PathError, ProtocolError
 
-
 from tempo import Tempo
 from tempo_cluster import TempoClusterProvider, TempoRole
 
@@ -201,7 +200,7 @@ class Nginx:
 
         return nginx_upstreams
 
-    def _distributor_upstreams(self, address_set):
+    def _distributor_upstreams(self, address_set: Set[str]) -> List[Dict[str, Any]]:
         return [
             self._upstream("otlp-http", address_set, Tempo.receiver_ports["otlp_http"]),
             self._upstream("otlp-grpc", address_set, Tempo.receiver_ports["otlp_grpc"]),
@@ -211,13 +210,13 @@ class Nginx:
             ),
         ]
 
-    def _query_frontend_upstreams(self, address_set):
+    def _query_frontend_upstreams(self, address_set: Set[str]) -> List[Dict[str, Any]]:
         return [
             self._upstream("tempo-http", address_set, Tempo.server_ports["tempo_http"]),
             self._upstream("tempo-grpc", address_set, Tempo.server_ports["tempo_grpc"]),
         ]
 
-    def _upstream(self, role, address_set, port):
+    def _upstream(self, role: str, address_set: Set[str], port: int) -> Dict[str, Any]:
         return {
             "directive": "upstream",
             "args": [role],
@@ -256,7 +255,7 @@ class Nginx:
             ]
         return []
 
-    def _listen(self, port, ssl, http2):
+    def _listen(self, port: int, ssl: bool, http2: bool) -> List[Dict[str, Any]]:
         directives = []
         directives.append(
             {"directive": "listen", "args": self._listen_args(port, False, ssl, http2)}
@@ -266,7 +265,7 @@ class Nginx:
         )
         return directives
 
-    def _listen_args(self, port, ipv6, ssl, http2):
+    def _listen_args(self, port: int, ipv6: bool, ssl: bool, http2: bool) -> List[str]:
         args = []
         if ipv6:
             args.append(f"[::]:{port}")
