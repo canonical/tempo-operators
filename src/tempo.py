@@ -207,7 +207,9 @@ class Tempo:
                 endpoint=s3_config["endpoint"],
                 secret_key=s3_config["secret-key"],
             ),
-            block=tempo_config.Block(version="v2"),
+            # starting from Tempo 2.4, we need to use at least parquet v3 to have search capabilities (Grafana support)
+            # https://grafana.com/docs/tempo/latest/release-notes/v2-4/#vparquet3-is-now-the-default-block-format
+            block=tempo_config.Block(version="vParquet3"),
         )
         return tempo_config.Storage(trace=storage_config)
 
