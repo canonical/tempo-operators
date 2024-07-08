@@ -19,16 +19,6 @@ async def tempo_charm(ops_test: OpsTest):
     return charm
 
 
-@fixture(scope="module")
-def tempo_metadata(ops_test: OpsTest):
-    return yaml.safe_load(Path("./metadata.yaml").read_text())
-
-
-@fixture(scope="module")
-def tempo_oci_image(ops_test: OpsTest, tempo_metadata):
-    return tempo_metadata["resources"]["tempo-image"]["upstream-source"]
-
-
 @fixture(scope="module", autouse=True)
 def copy_charm_libs_into_tester_charm(ops_test):
     """Ensure the tester charm has the libraries it uses."""
