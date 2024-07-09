@@ -21,7 +21,9 @@ def all_worker_with_initial_config(all_worker: Relation, s3_config):
     container.exists = lambda path: (
         False if path in [Tempo.tls_cert_path, Tempo.tls_key_path, Tempo.tls_ca_path] else True
     )
-    initial_config = Tempo(container).generate_config(["otlp_http"], s3_config)
+    initial_config = Tempo(container).generate_config(
+        ["otlp_http"], s3_config, {"all": "localhost"}
+    )
     new_local_app_data = TempoClusterProviderAppData(
         tempo_config=initial_config,
         loki_endpoints={},
@@ -111,5 +113,7 @@ def test_tempo_restart_on_ingress_v2_changed(
     # THEN
     # Tempo pushes a new config to the all_worker
     new_config = get_tempo_config(state_out)
-    expected_config = Tempo().generate_config(["otlp_http", requested_protocol], s3_config)
+    expected_config = Tempo().generate_config(
+        ["otlp_http", requested_protocol], s3_config, {"all": "localhost"}
+    )
     assert new_config == expected_config
