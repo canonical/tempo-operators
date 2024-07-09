@@ -494,7 +494,10 @@ class TempoCoordinatorCharm(CharmBase):
         # are no changes, Juju will notice there's no delta and do nothing
         self.tempo_cluster.publish_data(
             tempo_config=self.tempo.generate_config(
-                self._requested_receivers(), self._s3_config, self.tempo_cluster.gather_addresses()
+                self._requested_receivers(),
+                self._s3_config,
+                self.tempo_cluster.gather_addresses_by_role(),
+                self.tempo_cluster.gather_addresses(),
             ),
             loki_endpoints=self.loki_endpoints_by_unit,
             # TODO tempo receiver for charm tracing

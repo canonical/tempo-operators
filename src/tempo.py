@@ -15,6 +15,7 @@ from charms.tempo_k8s.v2.tracing import (
 from charms.traefik_route_k8s.v0.traefik_route import TraefikRouteRequirer
 
 import tempo_config
+from tempo_cluster import TempoRole
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +149,7 @@ class Tempo:
         self,
         receivers: Sequence[ReceiverProtocol],
         s3_config: dict,
+        roles_addresses: Dict[str, Set[str]],
         peers: Optional[Set[str]] = None,
     ) -> Dict[str, Any]:
         """Generate the Tempo configuration.
@@ -161,7 +163,7 @@ class Tempo:
             ingester=self._build_ingester_config(),
             memberlist=self._build_memberlist_config(peers),
             compactor=self._build_compactor_config(),
-            querier=self._build_querier_config(),
+            querier=self._build_querier_config(roles_addresses),
             storage=self._build_storage_config(s3_config),
         )
 
@@ -225,12 +227,15 @@ class Tempo:
             return False
         return out == "ready"
 
-    def _build_querier_config(self):
+    def _build_querier_config(self, roles_addresses: Dict[str, Set[str]]):
         """Build querier config"""
-        # TODO this won't work for distributed coordinator where query frontend will be on a different unit
+        addr = "localhost"
+        if TempoRole.query_frontend in roles_addresses.keys():
+            addr = roles_addresses[TempoRole.query_frontend].pop()
+
         return tempo_config.Querier(
             frontend_worker=tempo_config.FrontendWorker(
-                frontend_address=f"localhost:{self.tempo_grpc_server_port}"
+                frontend_address=f"{addr}:{self.tempo_grpc_server_port}"
             ),
         )
 
