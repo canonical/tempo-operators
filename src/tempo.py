@@ -6,7 +6,7 @@
 import logging
 import socket
 from subprocess import CalledProcessError, getoutput
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 from charms.tempo_k8s.v2.tracing import (
     ReceiverProtocol,
@@ -148,7 +148,7 @@ class Tempo:
         self,
         receivers: Sequence[ReceiverProtocol],
         s3_config: dict,
-        peers: Optional[List[str]] = None,
+        peers: Optional[Set[str]] = None,
     ) -> Dict[str, Any]:
         """Generate the Tempo configuration.
 
@@ -249,7 +249,7 @@ class Tempo:
             )
         )
 
-    def _build_memberlist_config(self, peers: Optional[List[str]]) -> tempo_config.Memberlist:
+    def _build_memberlist_config(self, peers: Optional[Set[str]]) -> tempo_config.Memberlist:
         """Build memberlist config"""
         return tempo_config.Memberlist(
             abort_if_cluster_join_fails=False,
