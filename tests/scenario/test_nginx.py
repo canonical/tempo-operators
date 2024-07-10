@@ -24,7 +24,7 @@ def test_nginx_config_is_list_before_crossplane(context, nginx_container, tempo_
 
     nginx = Nginx(tempo_charm, tempo_cluster_provider, "lolcathost")
 
-    prepared_config = nginx._prepare_config(tls=False)
+    prepared_config = nginx._prepare_config()
     assert isinstance(prepared_config, List)
 
 
@@ -35,9 +35,9 @@ def test_nginx_config_is_parsed_by_crossplane(context, nginx_container, tempo_cl
     tempo_charm.unit = MagicMock(return_value=unit)
 
     nginx = Nginx(tempo_charm, tempo_cluster_provider, "lolcathost")
-    logger.info(nginx._prepare_config(tls=False))
+    logger.info(nginx._prepare_config())
 
-    prepared_config = nginx.config(tls=False)
+    prepared_config = nginx.config()
     assert isinstance(prepared_config, str)
 
 
@@ -94,5 +94,5 @@ def test_nginx_config_is_parsed_with_workers(
 
     nginx = Nginx(tempo_charm, tempo_cluster_provider, "lolcathost")
 
-    prepared_config = nginx.config(tls=False)
+    prepared_config = nginx.config()
     assert isinstance(prepared_config, str)

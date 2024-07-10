@@ -33,27 +33,25 @@ class Nginx:
         self.server_name = server_name
         self._container = self._charm.unit.get_container("nginx")
 
-    def configure_pebble_layer(self, tls: bool) -> None:
+    def configure_pebble_layer(self) -> None:
         """Configure pebble layer."""
-        new_config: str = self.config(tls)
+        new_config: str = self.config()
         should_restart: bool = self._has_config_changed(new_config)
         if self._container.can_connect():
-            self._container.push(
-                self.config_path, self.config(tls=tls), make_dirs=True  # type: ignore
-            )
+            self._container.push(self.config_path, new_config, make_dirs=True)  # type: ignore
             self._container.add_layer("nginx", self.layer, combine=True)
             self._container.autostart()
 
             if should_restart:
-                logger.info("new nginx config: restarting the service")
+                logger.info("new nginx config: reloading the service")
                 self.reload()
 
-    def config(self, tls: bool = False) -> str:
+    def config(self) -> str:
         """Build and return the Nginx configuration."""
-        full_config = self._prepare_config(tls)
+        full_config = self._prepare_config()
         return crossplane.build(full_config)
 
-    def _prepare_config(self, tls: bool = False) -> List[dict]:
+    def _prepare_config(self) -> List[dict]:
         log_level = "error"
         addresses_by_role = self.cluster_provider.gather_addresses_by_role()
         # build the complete configuration
@@ -104,7 +102,7 @@ class Nginx:
                     },
                     {"directive": "proxy_read_timeout", "args": ["300"]},
                     # server block
-                    *self._servers(addresses_by_role, tls),
+                    *self._servers(addresses_by_role),
                 ],
             },
         ]
@@ -223,8 +221,9 @@ class Nginx:
             "block": [{"directive": "server", "args": [f"{addr}:{port}"]} for addr in address_set],
         }
 
-    def _locations(self, upstream: str, grpc: bool) -> List[Dict[str, Any]]:
-        protocol = "grpc" if grpc else "http"
+    def _locations(self, upstream: str, grpc: bool, tls: bool) -> List[Dict[str, Any]]:
+        s = "s" if tls else ""
+        protocol = f"grpc{s}" if grpc else f"http{s}"
         nginx_locations = [
             {
                 "directive": "location",
@@ -277,34 +276,28 @@ class Nginx:
             args.append("http2")
         return args
 
-    def _servers(
-        self, addresses_by_role: Dict[str, Set[str]], tls: bool = False
-    ) -> List[Dict[str, Any]]:
+    def _servers(self, addresses_by_role: Dict[str, Set[str]]) -> List[Dict[str, Any]]:
         servers = []
         roles = addresses_by_role.keys()
 
         if "distributor" in roles or "all" in roles:
-            servers.append(
-                self._server(Tempo.receiver_ports["otlp_http"], "otlp-http", False, tls)
-            )
-            servers.append(self._server(Tempo.receiver_ports["zipkin"], "zipkin", False, tls))
+            servers.append(self._server(Tempo.receiver_ports["otlp_http"], "otlp-http", False))
+            servers.append(self._server(Tempo.receiver_ports["zipkin"], "zipkin", False))
             servers.append(
                 self._server(
-                    Tempo.receiver_ports["jaeger_thrift_http"], "jaeger-thrift-http", False, tls
+                    Tempo.receiver_ports["jaeger_thrift_http"], "jaeger-thrift-http", False
                 )
             )
-            servers.append(self._server(Tempo.receiver_ports["otlp_grpc"], "otlp-grpc", True, tls))
+            servers.append(self._server(Tempo.receiver_ports["otlp_grpc"], "otlp-grpc", True))
         if "query-frontend" in roles or "all" in roles:
-            servers.append(
-                self._server(Tempo.server_ports["tempo_http"], "tempo-http", False, tls)
-            )
-            servers.append(self._server(Tempo.server_ports["tempo_grpc"], "tempo-grpc", True, tls))
+            servers.append(self._server(Tempo.server_ports["tempo_http"], "tempo-http", False))
+            servers.append(self._server(Tempo.server_ports["tempo_grpc"], "tempo-grpc", True))
         return servers
 
-    def _server(
-        self, port: int, upstream: str, grpc: bool = False, tls: bool = False
-    ) -> Dict[str, Any]:
+    def _server(self, port: int, upstream: str, grpc: bool = False) -> Dict[str, Any]:
         auth_enabled = False
+
+        tls = self.tls_ready
 
         if tls:
             return {
@@ -323,7 +316,7 @@ class Nginx:
                     {"directive": "ssl_certificate_key", "args": [KEY_PATH]},
                     {"directive": "ssl_protocols", "args": ["TLSv1", "TLSv1.1", "TLSv1.2"]},
                     {"directive": "ssl_ciphers", "args": ["HIGH:!aNULL:!MD5"]},  # codespell:ignore
-                    *self._locations(upstream, grpc),
+                    *self._locations(upstream, grpc, tls),
                 ],
             }
 
@@ -338,6 +331,29 @@ class Nginx:
                     "args": ["X-Scope-OrgID", "$ensured_x_scope_orgid"],
                 },
                 {"directive": "server_name", "args": [self.server_name]},
-                *self._locations(upstream, grpc),
+                *self._locations(upstream, grpc, tls),
             ],
         }
+
+    @property
+    def tls_ready(self) -> bool:
+        """Whether cert, key, and ca paths are found on disk and Nginx is ready to use tls."""
+        if not self._container.can_connect():
+            return False
+        return all(
+            self._container.exists(tls_path) for tls_path in (KEY_PATH, CERT_PATH, CA_CERT_PATH)
+        )
+
+    def configure_tls(self, private_key: str, server_cert: str, ca_cert: str) -> None:
+        """Save the certificates file to disk and run update-ca-certificates."""
+        if self._container.can_connect():
+            self._container.push(KEY_PATH, private_key, make_dirs=True)
+            self._container.push(CERT_PATH, server_cert, make_dirs=True)
+            self._container.push(CA_CERT_PATH, ca_cert, make_dirs=True)
+
+    def delete_certificates(self) -> None:
+        """Delete the certificate files from disk and run update-ca-certificates."""
+        if self._container.can_connect():
+            self._container.remove_path(CERT_PATH, recursive=True)
+            self._container.remove_path(KEY_PATH, recursive=True)
+            self._container.remove_path(CA_CERT_PATH, recursive=True)

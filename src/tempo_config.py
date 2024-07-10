@@ -137,7 +137,6 @@ class Compaction(BaseModel):
     max_compaction_objects: int
     block_retention: str
     compacted_block_retention: str
-    v2_out_buffer_bytes: int
 
 
 class Compactor(BaseModel):

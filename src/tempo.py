@@ -252,7 +252,6 @@ class Tempo:
                 # total trace retention
                 block_retention="720h",
                 compacted_block_retention="1h",
-                v2_out_buffer_bytes=5242880,
             )
         )
 

@@ -292,8 +292,14 @@ class TempoCoordinatorCharm(CharmBase):
     def _on_cert_handler_changed(self, _):
         if self.tls_available:
             logger.debug("enabling TLS")
+            self.nginx.configure_tls(
+                server_cert=self.cert_handler.server_cert,  # type: ignore
+                ca_cert=self.cert_handler.ca_cert,  # type: ignore
+                private_key=self.cert_handler.private_key,  # type: ignore
+            )
         else:
             logger.debug("disabling TLS")
+            self.nginx.delete_certificates()
 
         # tls readiness change means config change.
         # sync scheme change with traefik and related consumers
@@ -389,7 +395,7 @@ class TempoCoordinatorCharm(CharmBase):
                 e.add_status(ActiveStatus())
 
     def _on_nginx_pebble_ready(self, _) -> None:
-        self.nginx.configure_pebble_layer(tls=self.tls_available)
+        self.nginx.configure_pebble_layer()
 
     def _on_nginx_prometheus_exporter_pebble_ready(self, _) -> None:
         self.nginx_prometheus_exporter.configure_pebble_layer()
@@ -399,7 +405,7 @@ class TempoCoordinatorCharm(CharmBase):
         if isinstance(event, CollectStatusEvent):
             return
         # plan layers
-        self.nginx.configure_pebble_layer(tls=self.tls_available)
+        self.nginx.configure_pebble_layer()
         self.nginx_prometheus_exporter.configure_pebble_layer()
         # configure ingress
         self._configure_ingress()
