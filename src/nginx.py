@@ -166,53 +166,53 @@ class Nginx:
     def _upstreams(self, addresses_by_role: Dict[str, Set[str]]) -> List[Dict[str, Any]]:
         addresses_mapped_to_upstreams = {}
         nginx_upstreams = []
-        # TODO this code might be unnecessarily complex. Can we simplify it?
-        if TempoRole.distributor in addresses_by_role.keys():
-            addresses_mapped_to_upstreams["distributor"] = addresses_by_role[TempoRole.distributor]
-        if TempoRole.query_frontend in addresses_by_role.keys():
-            addresses_mapped_to_upstreams["query_frontend"] = addresses_by_role[
-                TempoRole.query_frontend
-            ]
+        addresses_mapped_to_upstreams = addresses_by_role.copy()
         if TempoRole.all in addresses_by_role.keys():
             # for all, we add addresses to existing upstreams for distributor / query_frontend or create the set
-            if "distributor" in addresses_mapped_to_upstreams:
-                addresses_mapped_to_upstreams["distributor"] = addresses_mapped_to_upstreams[
-                    "distributor"
-                ].union(addresses_by_role[TempoRole.all])
+            if TempoRole.distributor in addresses_mapped_to_upstreams:
+                addresses_mapped_to_upstreams[TempoRole.distributor] = (
+                    addresses_mapped_to_upstreams[TempoRole.distributor].union(
+                        addresses_by_role[TempoRole.all]
+                    )
+                )
             else:
-                addresses_mapped_to_upstreams["distributor"] = addresses_by_role[TempoRole.all]
-            if "query_frontend" in addresses_mapped_to_upstreams:
-                addresses_mapped_to_upstreams["query_frontend"] = addresses_mapped_to_upstreams[
-                    "query_frontend"
-                ].union(addresses_by_role[TempoRole.all])
+                addresses_mapped_to_upstreams[TempoRole.distributor] = addresses_by_role[
+                    TempoRole.all
+                ]
+            if TempoRole.query_frontend in addresses_mapped_to_upstreams:
+                addresses_mapped_to_upstreams[TempoRole.query_frontend] = (
+                    addresses_mapped_to_upstreams[TempoRole.query_frontend].union(
+                        addresses_by_role[TempoRole.all]
+                    )
+                )
             else:
-                addresses_mapped_to_upstreams["query_frontend"] = addresses_by_role[TempoRole.all]
-        if "distributor" in addresses_mapped_to_upstreams.keys():
+                addresses_mapped_to_upstreams[TempoRole.query_frontend] = addresses_by_role[
+                    TempoRole.all
+                ]
+        if TempoRole.distributor in addresses_mapped_to_upstreams.keys():
             nginx_upstreams.extend(
-                self._distributor_upstreams(addresses_mapped_to_upstreams["distributor"])
+                self._distributor_upstreams(addresses_mapped_to_upstreams[TempoRole.distributor])
             )
-        if "query_frontend" in addresses_mapped_to_upstreams.keys():
+        if TempoRole.query_frontend in addresses_mapped_to_upstreams.keys():
             nginx_upstreams.extend(
-                self._query_frontend_upstreams(addresses_mapped_to_upstreams["query_frontend"])
+                self._query_frontend_upstreams(
+                    addresses_mapped_to_upstreams[TempoRole.query_frontend]
+                )
             )
 
         return nginx_upstreams
 
     def _distributor_upstreams(self, address_set: Set[str]) -> List[Dict[str, Any]]:
-        return [
-            self._upstream("otlp-http", address_set, Tempo.receiver_ports["otlp_http"]),
-            self._upstream("otlp-grpc", address_set, Tempo.receiver_ports["otlp_grpc"]),
-            self._upstream("zipkin", address_set, Tempo.receiver_ports["zipkin"]),
-            self._upstream(
-                "jaeger-thrift-http", address_set, Tempo.receiver_ports["jaeger_thrift_http"]
-            ),
-        ]
+        upstreams = []
+        for protocol, port in Tempo.receiver_ports.items():
+            upstreams.append(self._upstream(protocol.replace("_", "-"), address_set, port))
+        return upstreams
 
     def _query_frontend_upstreams(self, address_set: Set[str]) -> List[Dict[str, Any]]:
-        return [
-            self._upstream("tempo-http", address_set, Tempo.server_ports["tempo_http"]),
-            self._upstream("tempo-grpc", address_set, Tempo.server_ports["tempo_grpc"]),
-        ]
+        upstreams = []
+        for protocol, port in Tempo.server_ports.items():
+            upstreams.append(self._upstream(protocol.replace("_", "-"), address_set, port))
+        return upstreams
 
     def _upstream(self, role: str, address_set: Set[str], port: int) -> Dict[str, Any]:
         return {
@@ -280,18 +280,12 @@ class Nginx:
         servers = []
         roles = addresses_by_role.keys()
 
-        if "distributor" in roles or "all" in roles:
-            servers.append(self._server(Tempo.receiver_ports["otlp_http"], "otlp-http", False))
-            servers.append(self._server(Tempo.receiver_ports["zipkin"], "zipkin", False))
-            servers.append(
-                self._server(
-                    Tempo.receiver_ports["jaeger_thrift_http"], "jaeger-thrift-http", False
-                )
-            )
-            servers.append(self._server(Tempo.receiver_ports["otlp_grpc"], "otlp-grpc", True))
-        if "query-frontend" in roles or "all" in roles:
-            servers.append(self._server(Tempo.server_ports["tempo_http"], "tempo-http", False))
-            servers.append(self._server(Tempo.server_ports["tempo_grpc"], "tempo-grpc", True))
+        if TempoRole.distributor.value in roles or TempoRole.all.value in roles:
+            for protocol, port in Tempo.receiver_ports.items():
+                servers.append(self._server(port, protocol.replace("_", "-"), "grpc" in protocol))
+        if TempoRole.query_frontend.value in roles or TempoRole.all.value in roles:
+            for protocol, port in Tempo.server_ports.items():
+                servers.append(self._server(port, protocol.replace("_", "-"), "grpc" in protocol))
         return servers
 
     def _server(self, port: int, upstream: str, grpc: bool = False) -> Dict[str, Any]:

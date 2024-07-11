@@ -42,7 +42,7 @@ class Tempo:
 
     memberlist_port = 7946
 
-    server_ports = {
+    server_ports: Dict[str, int] = {
         "tempo_http": 3200,
         "tempo_grpc": 9096,  # default grpc listen port is 9095, but that conflicts with promtail.
     }
