@@ -90,7 +90,6 @@ class TempoCoordinatorCharm(CharmBase):
         # # Patch the juju-created Kubernetes service to contain the right ports
         self.unit.set_ports(*self.tempo.all_ports.values())
 
-        # self._service_patcher = KubernetesServicePatch(self, external_ports)
         # Provide ability for Tempo to be scraped by Prometheus using prometheus_scrape
         self._scraping = MetricsEndpointProvider(
             self,
