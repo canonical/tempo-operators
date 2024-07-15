@@ -63,10 +63,16 @@ def patch_certs():
 
 
 @pytest.fixture
-def state_with_certs(context, s3, certs_relation):
+def state_with_certs(
+    context, s3, certs_relation, nginx_container, nginx_prometheus_exporter_container
+):
     return context.run(
         certs_relation.joined_event,
-        scenario.State(leader=True, relations=[s3, certs_relation]),
+        scenario.State(
+            leader=True,
+            relations=[s3, certs_relation],
+            containers=[nginx_container, nginx_prometheus_exporter_container],
+        ),
     )
 
 
@@ -96,7 +102,14 @@ def test_cluster_relation(context, state_with_certs, all_worker):
 
 @pytest.mark.parametrize("requested_protocol", ("otlp_grpc", "zipkin"))
 def test_tempo_restart_on_ingress_v2_changed(
-    context, tmp_path, requested_protocol, s3, s3_config, all_worker_with_initial_config
+    context,
+    tmp_path,
+    requested_protocol,
+    s3,
+    s3_config,
+    all_worker_with_initial_config,
+    nginx_container,
+    nginx_prometheus_exporter_container,
 ):
     # GIVEN
     # the remote end requests an otlp_grpc endpoint
@@ -107,7 +120,11 @@ def test_tempo_restart_on_ingress_v2_changed(
 
     # WHEN
     # the charm receives a tracing(v2) relation-changed requesting an otlp_grpc receiver
-    state = State(leader=True, relations=[tracing, s3, all_worker_with_initial_config])
+    state = State(
+        leader=True,
+        relations=[tracing, s3, all_worker_with_initial_config],
+        containers=[nginx_container, nginx_prometheus_exporter_container],
+    )
     state_out = context.run(tracing.changed_event, state)
 
     # THEN

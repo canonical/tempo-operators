@@ -2,23 +2,23 @@
 # See LICENSE file for licensing details.
 
 import unittest
-from unittest.mock import patch
 
 from ops.testing import Harness
 
 from charm import TempoCoordinatorCharm
 
-CONTAINER_NAME = "tempo"
+CONTAINER_NAME = "nginx"
 
 
 class TestTempoCoordinatorCharm(unittest.TestCase):
-    @patch("charm.KubernetesServicePatch", lambda x, y: None)
     def setUp(self):
         self.harness = Harness(TempoCoordinatorCharm)
         self.harness.set_model_name("testmodel")
         self.addCleanup(self.harness.cleanup)
         self.harness.set_leader(True)
         self.harness.begin_with_initial_hooks()
+        self.harness.add_relation("s3", "s3-integrator")
+        self.harness.add_relation("tempo-cluster", "tempo-worker-k8s")
         self.maxDiff = None  # we're comparing big traefik configs in tests
 
     def test_entrypoints_are_generated_with_sanitized_names(self):

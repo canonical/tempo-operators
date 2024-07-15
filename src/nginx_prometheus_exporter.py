@@ -7,8 +7,6 @@ import logging
 from ops import CharmBase
 from ops.pebble import Layer
 
-from nginx import NGINX_PORT
-
 logger = logging.getLogger(__name__)
 
 NGINX_PROMETHEUS_EXPORTER_PORT = "9113"
@@ -29,7 +27,7 @@ class NginxPrometheusExporter:
     @property
     def layer(self) -> Layer:
         """Return the Pebble layer for Nginx Prometheus exporter."""
-        scheme = "https" if self._charm._is_cert_available else "http"  # type: ignore
+        scheme = "https" if self._charm.tls_available else "http"  # type: ignore
         return Layer(
             {
                 "summary": "nginx prometheus exporter layer",
@@ -38,7 +36,7 @@ class NginxPrometheusExporter:
                     "nginx": {
                         "override": "replace",
                         "summary": "nginx prometheus exporter",
-                        "command": f"nginx-prometheus-exporter --no-nginx.ssl-verify --web.listen-address=:{NGINX_PROMETHEUS_EXPORTER_PORT}  --nginx.scrape-uri={scheme}://127.0.0.1:{NGINX_PORT}/status",
+                        "command": f"nginx-prometheus-exporter --no-nginx.ssl-verify --web.listen-address=:{NGINX_PROMETHEUS_EXPORTER_PORT}  --nginx.scrape-uri={scheme}://127.0.0.1:3200/status",
                         "startup": "enabled",
                     }
                 },

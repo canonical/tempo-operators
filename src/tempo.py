@@ -42,7 +42,7 @@ class Tempo:
 
     memberlist_port = 7946
 
-    server_ports = {
+    server_ports: Dict[str, int] = {
         "tempo_http": 3200,
         "tempo_grpc": 9096,  # default grpc listen port is 9095, but that conflicts with promtail.
     }
@@ -207,7 +207,9 @@ class Tempo:
                 endpoint=s3_config["endpoint"],
                 secret_key=s3_config["secret-key"],
             ),
-            block=tempo_config.Block(version="v2"),
+            # starting from Tempo 2.4, we need to use at least parquet v3 to have search capabilities (Grafana support)
+            # https://grafana.com/docs/tempo/latest/release-notes/v2-4/#vparquet3-is-now-the-default-block-format
+            block=tempo_config.Block(version="vParquet3"),
         )
         return tempo_config.Storage(trace=storage_config)
 
@@ -250,7 +252,6 @@ class Tempo:
                 # total trace retention
                 block_retention="720h",
                 compacted_block_retention="1h",
-                v2_out_buffer_bytes=5242880,
             )
         )
 

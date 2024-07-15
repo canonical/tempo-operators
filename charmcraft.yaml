@@ -16,6 +16,22 @@ description: |
 summary: |
   Tempo is a distributed tracing backend by Grafana.
 
+containers:
+  nginx:
+    resource: nginx-image
+  nginx-prometheus-exporter:
+    resource: nginx-prometheus-exporter-image
+
+resources:
+  nginx-image:
+    type: oci-image
+    description: OCI image for nginx
+    upstream-source: ubuntu/nginx:1.24-24.04_beta
+  nginx-prometheus-exporter-image:
+    type: oci-image
+    description: OCI image for nginx-prometheus-exporter
+    upstream-source: nginx/nginx-prometheus-exporter:1.1.0
+
 links:
   # FIXME: create docs tree root
   documentation: https://discourse.charmhub.io/t/tempo-coordinator-k8s-docs-index

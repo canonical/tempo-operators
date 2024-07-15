@@ -13,7 +13,6 @@ import ops
 from charms.data_platform_libs.v0.s3 import S3Requirer
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
-from charms.observability_libs.v0.kubernetes_service_patch import KubernetesServicePatch
 from charms.observability_libs.v1.cert_handler import VAULT_SECRET_LABEL, CertHandler
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.tempo_k8s.v1.charm_tracing import trace_charm
@@ -28,6 +27,8 @@ from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, Relation, WaitingStatus
 
 from coordinator import TempoCoordinator
+from nginx import Nginx
+from nginx_prometheus_exporter import NginxPrometheusExporter
 from tempo import Tempo
 from tempo_cluster import TempoClusterProvider
 
@@ -48,6 +49,7 @@ class TempoCoordinatorCharm(CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
+
         self.ingress = TraefikRouteRequirer(self, self.model.get_relation("ingress"), "ingress")  # type: ignore
         self.tempo_cluster = TempoClusterProvider(self)
         self.coordinator = TempoCoordinator(self.tempo_cluster)
@@ -66,6 +68,13 @@ class TempoCoordinatorCharm(CharmBase):
 
         self.s3_requirer = S3Requirer(self, Tempo.s3_relation_name, Tempo.s3_bucket_name)
 
+        self.nginx = Nginx(
+            self,
+            cluster_provider=self.tempo_cluster,
+            server_name=self.hostname,
+        )
+        self.nginx_prometheus_exporter = NginxPrometheusExporter(self)
+
         # configure this tempo as a datasource in grafana
         self.grafana_source_provider = GrafanaSourceProvider(
             self,
@@ -79,8 +88,8 @@ class TempoCoordinatorCharm(CharmBase):
             ],
         )
         # # Patch the juju-created Kubernetes service to contain the right ports
-        external_ports = tempo.get_external_ports(self.app.name)
-        self._service_patcher = KubernetesServicePatch(self, external_ports)
+        self.unit.set_ports(*self.tempo.all_ports.values())
+
         # Provide ability for Tempo to be scraped by Prometheus using prometheus_scrape
         self._scraping = MetricsEndpointProvider(
             self,
@@ -115,6 +124,13 @@ class TempoCoordinatorCharm(CharmBase):
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.list_receivers_action, self._on_list_receivers_action)
 
+        # nginx
+        self.framework.observe(self.on.nginx_pebble_ready, self._on_nginx_pebble_ready)
+        self.framework.observe(
+            self.on.nginx_prometheus_exporter_pebble_ready,
+            self._on_nginx_prometheus_exporter_pebble_ready,
+        )
+
         # ingress
         ingress = self.on["ingress"]
         self.framework.observe(ingress.relation_created, self._on_ingress_relation_created)
@@ -138,6 +154,9 @@ class TempoCoordinatorCharm(CharmBase):
 
         # cluster
         self.framework.observe(self.tempo_cluster.on.changed, self._on_tempo_cluster_changed)
+
+        for evt in self.on.events().values():
+            self.framework.observe(evt, self._on_event)  # type: ignore
 
     ######################
     # UTILITY PROPERTIES #
@@ -272,8 +291,14 @@ class TempoCoordinatorCharm(CharmBase):
     def _on_cert_handler_changed(self, _):
         if self.tls_available:
             logger.debug("enabling TLS")
+            self.nginx.configure_tls(
+                server_cert=self.cert_handler.server_cert,  # type: ignore
+                ca_cert=self.cert_handler.ca_cert,  # type: ignore
+                private_key=self.cert_handler.private_key,  # type: ignore
+            )
         else:
             logger.debug("disabling TLS")
+            self.nginx.delete_certificates()
 
         # tls readiness change means config change.
         # sync scheme change with traefik and related consumers
@@ -368,6 +393,26 @@ class TempoCoordinatorCharm(CharmBase):
             else:
                 e.add_status(ActiveStatus())
 
+    def _on_nginx_pebble_ready(self, _) -> None:
+        self.nginx.configure_pebble_layer()
+
+    def _on_nginx_prometheus_exporter_pebble_ready(self, _) -> None:
+        self.nginx_prometheus_exporter.configure_pebble_layer()
+
+    def _on_event(self, event) -> None:
+        """A set of common configuration actions that should happen on every event."""
+        if isinstance(event, CollectStatusEvent):
+            return
+        # plan layers
+        self.nginx.configure_pebble_layer()
+        self.nginx_prometheus_exporter.configure_pebble_layer()
+        # configure ingress
+        self._configure_ingress()
+        # update cluster relations
+        self._update_tempo_cluster()
+        # update tracing relations
+        self._update_tracing_relations()
+
     ###################
     # UTILITY METHODS #
     ###################
@@ -386,7 +431,7 @@ class TempoCoordinatorCharm(CharmBase):
         # notify the cluster
         self._update_tempo_cluster()
 
-    def _update_tracing_relations(self):
+    def _update_tracing_relations(self) -> None:
         tracing_relations = self.model.relations["tracing"]
         if not tracing_relations:
             # todo: set waiting status and configure tempo to run without receivers if possible,
@@ -414,12 +459,12 @@ class TempoCoordinatorCharm(CharmBase):
         requested_receivers = requested_protocols.intersection(set(self.tempo.receiver_ports))
         return tuple(requested_receivers)
 
-    def server_cert(self):
+    def server_cert(self) -> str:
         """For charm tracing."""
         self._update_server_cert()
         return self.tempo.server_cert_path
 
-    def _update_server_cert(self):
+    def _update_server_cert(self) -> None:
         """Server certificate for charm tracing tls, if tls is enabled."""
         server_cert = Path(self.tempo.server_cert_path)
         if self.tls_available:
@@ -473,7 +518,7 @@ class TempoCoordinatorCharm(CharmBase):
 
         return endpoints
 
-    def _update_tempo_cluster(self):
+    def _update_tempo_cluster(self) -> None:
         """Build the config and publish everything to the application databag."""
         if not self._is_consistent:
             logger.error("skipped tempo cluster update: inconsistent state")

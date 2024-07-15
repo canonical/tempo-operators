@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 import pytest
-from scenario import Context, Relation
+from scenario import Container, Context, Relation
 
 from charm import TempoCoordinatorCharm
 from tempo_cluster import TempoClusterRequirerAppData, TempoRole
@@ -9,10 +9,9 @@ from tempo_cluster import TempoClusterRequirerAppData, TempoRole
 
 @pytest.fixture
 def tempo_charm():
-    with patch("charm.KubernetesServicePatch"):
-        with patch("lightkube.core.client.GenericSyncClient"):
-            with patch("charm.TempoCoordinatorCharm._update_server_cert"):
-                yield TempoCoordinatorCharm
+    with patch("lightkube.core.client.GenericSyncClient"):
+        with patch("charm.TempoCoordinatorCharm._update_server_cert"):
+            yield TempoCoordinatorCharm
 
 
 @pytest.fixture(scope="function")
@@ -44,4 +43,20 @@ def all_worker():
     return Relation(
         "tempo-cluster",
         remote_app_data=TempoClusterRequirerAppData(role=TempoRole.all).dump(),
+    )
+
+
+@pytest.fixture(scope="function")
+def nginx_container():
+    return Container(
+        "nginx",
+        can_connect=True,
+    )
+
+
+@pytest.fixture(scope="function")
+def nginx_prometheus_exporter_container():
+    return Container(
+        "nginx-prometheus-exporter",
+        can_connect=True,
     )

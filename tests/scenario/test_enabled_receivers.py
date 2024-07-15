@@ -12,19 +12,31 @@ from scenario import Relation, State
 from charm import TempoCoordinatorCharm
 
 
-def test_receivers_with_no_relations_or_config(context, s3, all_worker):
+def test_receivers_with_no_relations_or_config(
+    context, s3, all_worker, nginx_container, nginx_prometheus_exporter_container
+):
 
-    state = State(leader=True, relations=[s3, all_worker])
+    state = State(
+        leader=True,
+        relations=[s3, all_worker],
+        containers=[nginx_container, nginx_prometheus_exporter_container],
+    )
     state_out = context.run_action("list-receivers", state)
     assert state_out.results == {"otlp-http": f"http://{socket.getfqdn()}:4318"}
 
 
-def test_receivers_with_relations(context, s3, all_worker):
+def test_receivers_with_relations(
+    context, s3, all_worker, nginx_container, nginx_prometheus_exporter_container
+):
     tracing = Relation(
         "tracing",
         remote_app_data=TracingRequirerAppData(receivers=["otlp_grpc"]).dump(),
     )
-    state = State(leader=True, relations=[s3, all_worker, tracing])
+    state = State(
+        leader=True,
+        relations=[s3, all_worker, tracing],
+        containers=[nginx_container, nginx_prometheus_exporter_container],
+    )
     with context.manager(tracing.changed_event, state) as mgr:
         charm: TempoCoordinatorCharm = mgr.charm
         # extra receivers should only include default otlp_http
@@ -45,7 +57,9 @@ def test_receivers_with_relations(context, s3, all_worker):
     }
 
 
-def test_receivers_with_relations_and_config(context, s3, all_worker):
+def test_receivers_with_relations_and_config(
+    context, s3, all_worker, nginx_container, nginx_prometheus_exporter_container
+):
     tracing = Relation(
         "tracing",
         local_app_data=TracingProviderAppData(
@@ -64,7 +78,10 @@ def test_receivers_with_relations_and_config(context, s3, all_worker):
     )
     # start with a state that has config changed
     state = State(
-        config={"always_enable_zipkin": True}, leader=True, relations=[s3, all_worker, tracing]
+        config={"always_enable_zipkin": True},
+        leader=True,
+        relations=[s3, all_worker, tracing],
+        containers=[nginx_container, nginx_prometheus_exporter_container],
     )
     with context.manager("config-changed", state) as mgr:
         charm: TempoCoordinatorCharm = mgr.charm
