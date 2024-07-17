@@ -6,10 +6,10 @@ import scenario
 from charms.tempo_k8s.v2.tracing import TracingRequirerAppData
 from charms.tls_certificates_interface.v3.tls_certificates import ProviderCertificate
 from scenario import Relation, State
+from tempo_cluster import TempoClusterProviderAppData
 
 from charm import TempoCoordinatorCharm
 from tempo import Tempo
-from tempo_cluster import TempoClusterProviderAppData
 from tests.scenario.helpers import get_tempo_config
 
 

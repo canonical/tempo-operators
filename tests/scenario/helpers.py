@@ -1,5 +1,4 @@
 import scenario
-
 from tempo_cluster import TempoClusterProviderAppData
 
 

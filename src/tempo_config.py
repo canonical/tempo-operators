@@ -2,20 +2,94 @@
 # See LICENSE file for licensing details.
 
 """Helper module for interacting with the Tempo configuration."""
-
 import enum
 import logging
 import re
+from enum import Enum, unique
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Mapping, Optional
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-S3_RELATION_NAME = "s3"
-BUCKET_NAME = "tempo"
-
 logger = logging.getLogger(__name__)
+
+
+# TODO: inherit enum.StrEnum when jammy is no longer supported.
+# https://docs.python.org/3/library/enum.html#enum.StrEnum
+@unique
+class TempoRole(str, Enum):
+    """Tempo component role names.
+
+    References:
+     arch:
+      -> https://grafana.com/docs/tempo/latest/operations/architecture/
+     config:
+      -> https://grafana.com/docs/tempo/latest/configuration/#server
+    """
+
+    # scalable-single-binary is a bit too long to type
+    all = "all"  # default, meta-role. gets remapped to scalable-single-binary by the worker.
+
+    querier = "querier"
+    query_frontend = "query-frontend"
+    ingester = "ingester"
+    distributor = "distributor"
+    compactor = "compactor"
+    metrics_generator = "metrics-generator"
+
+    @staticmethod
+    def all_nonmeta():
+        return {
+            TempoRole.querier,
+            TempoRole.query_frontend,
+            TempoRole.ingester,
+            TempoRole.distributor,
+            TempoRole.compactor,
+            TempoRole.metrics_generator,
+        }
+
+
+META_ROLES = {
+    "all": set(TempoRole.all_nonmeta()),
+}
+"""Tempo component meta-role names."""
+
+MINIMAL_DEPLOYMENT = {
+    TempoRole.querier: 1,
+    TempoRole.query_frontend: 1,
+    TempoRole.ingester: 1,
+    TempoRole.distributor: 1,
+    TempoRole.compactor: 1,
+    TempoRole.metrics_generator: 1,
+}
+"""The minimal set of roles that need to be allocated for the
+deployment to be considered consistent (otherwise we set blocked)."""
+
+RECOMMENDED_DEPLOYMENT = {
+    TempoRole.querier: 1,
+    TempoRole.query_frontend: 1,
+    TempoRole.ingester: 3,
+    TempoRole.distributor: 1,
+    TempoRole.compactor: 1,
+    TempoRole.metrics_generator: 1,
+}
+
+"""
+The set of roles that need to be allocated for the
+deployment to be considered robust according to Grafana Tempo's
+Helm chart configurations.
+https://github.com/grafana/helm-charts/blob/main/charts/tempo-distributed/
+"""
+
+
+class TempoRolesConfig:
+    """Define the configuration for Tempo roles."""
+
+    roles: Iterable[str] = {role for role in TempoRole}
+    meta_roles: Mapping[str, Iterable[str]] = META_ROLES
+    minimal_deployment: Iterable[str] = MINIMAL_DEPLOYMENT
+    recommended_deployment = RECOMMENDED_DEPLOYMENT
 
 
 class ClientAuthTypeEnum(str, enum.Enum):

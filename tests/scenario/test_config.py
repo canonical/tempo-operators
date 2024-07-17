@@ -1,7 +1,7 @@
 from scenario import State
+from tempo_cluster import TempoClusterRequirerUnitData
 
 from charm import TempoCoordinatorCharm
-from tempo_cluster import TempoClusterRequirerUnitData
 
 
 def test_memberlist_multiple_members(

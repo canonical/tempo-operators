@@ -3,10 +3,10 @@ from typing import List
 from unittest.mock import MagicMock
 
 import pytest
-
 from nginx import Nginx
-from tempo import Tempo
 from tempo_cluster import TempoClusterProvider
+
+from tempo import Tempo
 
 logger = logging.getLogger(__name__)
 

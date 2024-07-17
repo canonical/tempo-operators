@@ -2,9 +2,9 @@ from unittest.mock import patch
 
 import pytest
 from scenario import Container, Context, Relation
+from tempo_cluster import TempoClusterRequirerAppData, TempoRole
 
 from charm import TempoCoordinatorCharm
-from tempo_cluster import TempoClusterRequirerAppData, TempoRole
 
 
 @pytest.fixture
