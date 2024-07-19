@@ -5,8 +5,6 @@ import yaml
 from charms.tempo_k8s.v1.charm_tracing import charm_tracing_disabled
 from scenario import Relation, State
 
-from tempo import Tempo
-
 
 @pytest.fixture
 def base_state(nginx_container, nginx_prometheus_exporter_container):
@@ -38,7 +36,7 @@ def test_ingress_relation_set_with_dynamic_config(context, base_state, s3, all_w
     ingress = Relation("ingress", remote_app_data={"external_host": "1.2.3.4", "scheme": "http"})
     state = base_state.replace(relations=[ingress, s3, all_worker])
 
-    with patch.object(Tempo, "is_ready", lambda _: False):
+    with patch("charm.TempoCoordinatorCharm.is_workload_ready", lambda _: False):
         out = context.run(ingress.joined_event, state)
 
     charm_name = "tempo-coordinator-k8s"

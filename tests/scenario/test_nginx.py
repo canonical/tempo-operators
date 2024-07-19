@@ -1,44 +1,23 @@
 import logging
 from typing import List
-from unittest.mock import MagicMock
 
 import pytest
-from nginx import Nginx
-from tempo_cluster import TempoClusterProvider
 
+from nginx_config import NginxConfig
 from tempo import Tempo
 
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture
-def tempo_cluster_provider():
-    cluster_mock = MagicMock()
-    return TempoClusterProvider(cluster_mock)
-
-
-def test_nginx_config_is_list_before_crossplane(context, nginx_container, tempo_cluster_provider):
-    unit = MagicMock()
-    unit.get_container = nginx_container
-    tempo_charm = MagicMock()
-    tempo_charm.unit = MagicMock(return_value=unit)
-
-    nginx = Nginx(tempo_charm, tempo_cluster_provider, "lolcathost")
-
-    prepared_config = nginx._prepare_config()
+def test_nginx_config_is_list_before_crossplane(context, nginx_container, coordinator):
+    nginx = NginxConfig("localhost")
+    prepared_config = nginx._prepare_config(coordinator)
     assert isinstance(prepared_config, List)
 
 
-def test_nginx_config_is_parsed_by_crossplane(context, nginx_container, tempo_cluster_provider):
-    unit = MagicMock()
-    unit.get_container = nginx_container
-    tempo_charm = MagicMock()
-    tempo_charm.unit = MagicMock(return_value=unit)
-
-    nginx = Nginx(tempo_charm, tempo_cluster_provider, "lolcathost")
-    logger.info(nginx._prepare_config())
-
-    prepared_config = nginx.config()
+def test_nginx_config_is_parsed_by_crossplane(context, nginx_container, coordinator):
+    nginx = NginxConfig("localhost")
+    prepared_config = nginx.config(coordinator)
     assert isinstance(prepared_config, str)
 
 
@@ -46,10 +25,7 @@ def test_nginx_config_is_parsed_by_crossplane(context, nginx_container, tempo_cl
     "addresses",
     (
         {},
-        {"all": {"1.2.3.4"}},
-        {"all": {"1.2.3.4", "1.2.3.5"}},
         {
-            "all": {"1.2.3.4"},
             "distributor": {"1.2.3.5"},
             "ingester": {"1.2.3.6"},
             "querier": {"1.2.4.7"},
@@ -83,29 +59,19 @@ def test_nginx_config_is_parsed_by_crossplane(context, nginx_container, tempo_cl
         },
     ),
 )
-def test_nginx_config_is_parsed_with_workers(
-    context, nginx_container, tempo_cluster_provider, addresses
-):
-    tempo_cluster_provider.gather_addresses_by_role = MagicMock(return_value=addresses)
+def test_nginx_config_is_parsed_with_workers(context, nginx_container, coordinator, addresses):
+    coordinator.cluster.gather_addresses_by_role.return_value = addresses
 
-    unit = MagicMock()
-    unit.get_container = nginx_container
-    tempo_charm = MagicMock()
-    tempo_charm.unit = MagicMock(return_value=unit)
+    nginx = NginxConfig("localhost")
 
-    nginx = Nginx(tempo_charm, tempo_cluster_provider, "lolcathost")
-
-    prepared_config = nginx.config()
+    prepared_config = nginx.config(coordinator)
     assert isinstance(prepared_config, str)
 
 
 @pytest.mark.parametrize(
     "addresses",
     (
-        {"all": {"1.2.3.4"}},
-        {"all": {"1.2.3.4", "1.2.3.5"}},
         {
-            "all": {"1.2.3.4"},
             "distributor": {"1.2.3.5"},
             "ingester": {"1.2.3.6"},
             "querier": {"1.2.4.7"},
@@ -124,23 +90,16 @@ def test_nginx_config_is_parsed_with_workers(
     ),
 )
 def test_nginx_config_contains_upstreams_and_proxy_pass(
-    context, nginx_container, tempo_cluster_provider, addresses
+    context, nginx_container, coordinator, addresses
 ):
-    tempo_cluster_provider.gather_addresses_by_role = MagicMock(return_value=addresses)
+    coordinator.cluster.gather_addresses_by_role.return_value = addresses
 
-    unit = MagicMock()
-    unit.get_container = nginx_container
-    tempo_charm = MagicMock()
-    tempo_charm.unit = MagicMock(return_value=unit)
+    nginx = NginxConfig("localhost")
 
-    nginx = Nginx(tempo_charm, tempo_cluster_provider, "lolcathost")
-
-    prepared_config = nginx.config()
+    prepared_config = nginx.config(coordinator)
 
     for role, addresses in addresses.items():
         for address in addresses:
-            if role == "all":
-                _assert_config_per_role(Tempo.all_ports, address, prepared_config)
             if role == "distributor":
                 _assert_config_per_role(Tempo.receiver_ports, address, prepared_config)
             if role == "query-frontend":

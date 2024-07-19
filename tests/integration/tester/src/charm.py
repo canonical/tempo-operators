@@ -40,7 +40,7 @@ class TempoTesterCharm(CharmBase):
         self.tracing = TracingEndpointRequirer(
             self, relation_name="tracing", protocols=["otlp_http", "otlp_grpc"]
         )
-        self.tempo_otlp_http_endpoint = charm_tracing_config(self.tracing, None)
+        self.tempo_otlp_http_endpoint, _ = charm_tracing_config(self.tracing, None)
         # Core lifecycle events
         self.framework.observe(self.on.config_changed, self._update)
 

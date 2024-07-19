@@ -144,6 +144,7 @@ class TempoCoordinatorCharm(CharmBase):
         scheme = "http"
         if hasattr(self, "coordinator") and self.coordinator.nginx.are_certificates_on_disk:
             scheme = "https"
+
         return f"{scheme}://{self.hostname}"
 
     @property
@@ -187,7 +188,6 @@ class TempoCoordinatorCharm(CharmBase):
         """Handle a remote requesting a tracing endpoint."""
         logger.debug(f"received tracing request from {e.relation.app}: {e.requested_receivers}")
         self._update_tracing_relations()
-
 
     def _on_ingress_relation_created(self, _: RelationEvent):
         self._configure_ingress()

@@ -1,13 +1,28 @@
+import json
 import logging
+import os
+import shlex
 import subprocess
+import tempfile
 from dataclasses import dataclass
-from typing import Dict
+from pathlib import Path
+from typing import Dict, Literal
 
 import yaml
+from juju.application import Application
+from juju.unit import Unit
+from minio import Minio
 from pytest_operator.plugin import OpsTest
 
 _JUJU_DATA_CACHE = {}
 _JUJU_KEYS = ("egress-subnets", "ingress-address", "private-address")
+ACCESS_KEY = "accesskey"
+SECRET_KEY = "secretkey"
+MINIO = "minio"
+BUCKET_NAME = "tempo"
+S3_INTEGRATOR = "s3-integrator"
+WORKER_NAME = "tempo-worker"
+APP_NAME = "tempo"
 
 logger = logging.getLogger(__name__)
 
@@ -187,3 +202,108 @@ async def run_command(model_name: str, app_name: str, unit_num: int, command: li
         logger.error(e.stdout.decode())
         raise e
     return res.stdout
+
+
+def present_facade(
+    interface: str,
+    app_data: Dict = None,
+    unit_data: Dict = None,
+    role: Literal["provide", "require"] = "provide",
+    model: str = None,
+    app: str = "facade",
+):
+    """Set up the facade charm to present this data over the interface ``interface``."""
+    data = {
+        "endpoint": f"{role}-{interface}",
+    }
+    if app_data:
+        data["app_data"] = json.dumps(app_data)
+    if unit_data:
+        data["unit_data"] = json.dumps(unit_data)
+
+    with tempfile.NamedTemporaryFile(dir=os.getcwd()) as f:
+        fpath = Path(f.name)
+        fpath.write_text(yaml.safe_dump(data))
+
+        _model = f" --model {model}" if model else ""
+
+        subprocess.run(shlex.split(f"juju run {app}/0{_model} update --params {fpath.absolute()}"))
+
+
+async def get_unit_address(ops_test: OpsTest, app_name, unit_no):
+    status = await ops_test.model.get_status()
+    app = status["applications"][app_name]
+    if app is None:
+        assert False, f"no app exists with name {app_name}"
+    unit = app["units"].get(f"{app_name}/{unit_no}")
+    if unit is None:
+        assert False, f"no unit exists in app {app_name} with index {unit_no}"
+    return unit["address"]
+
+
+async def deploy_and_configure_minio(ops_test: OpsTest):
+    config = {
+        "access-key": ACCESS_KEY,
+        "secret-key": SECRET_KEY,
+    }
+    await ops_test.model.deploy(MINIO, channel="edge", trust=True, config=config)
+    await ops_test.model.wait_for_idle(apps=[MINIO], status="active", timeout=2000)
+    minio_addr = await get_unit_address(ops_test, MINIO, "0")
+
+    mc_client = Minio(
+        f"{minio_addr}:9000",
+        access_key="accesskey",
+        secret_key="secretkey",
+        secure=False,
+    )
+
+    # create tempo bucket
+    found = mc_client.bucket_exists(BUCKET_NAME)
+    if not found:
+        mc_client.make_bucket(BUCKET_NAME)
+
+    # configure s3-integrator
+    s3_integrator_app: Application = ops_test.model.applications[S3_INTEGRATOR]
+    s3_integrator_leader: Unit = s3_integrator_app.units[0]
+
+    await s3_integrator_app.set_config(
+        {
+            "endpoint": f"minio-0.minio-endpoints.{ops_test.model.name}.svc.cluster.local:9000",
+            "bucket": BUCKET_NAME,
+        }
+    )
+
+    action = await s3_integrator_leader.run_action("sync-s3-credentials", **config)
+    action_result = await action.wait()
+    assert action_result.status == "completed"
+
+
+async def deploy_cluster(ops_test: OpsTest):
+    # await ops_test.model.deploy(FACADE, channel="edge")
+    # await ops_test.model.wait_for_idle(
+    #     apps=[FACADE], raise_on_blocked=True, status="active", timeout=2000
+    # )
+
+    # TODO: deploy from latest edge
+    tempo_worker_charm = "/home/michael/Work/tempo-worker-k8s-operator/charm"
+
+    resources = {
+        "tempo-image": "docker.io/ubuntu/tempo:2-22.04",
+    }
+
+    await ops_test.model.deploy(
+        tempo_worker_charm, resources=resources, application_name=WORKER_NAME
+    )
+    await ops_test.model.deploy(S3_INTEGRATOR, channel="edge")
+
+    await ops_test.model.integrate(APP_NAME + ":s3", S3_INTEGRATOR + ":s3-credentials")
+    await ops_test.model.integrate(APP_NAME + ":tempo-cluster", WORKER_NAME + ":tempo-cluster")
+
+    await deploy_and_configure_minio(ops_test)
+
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME, WORKER_NAME, S3_INTEGRATOR],
+        status="active",
+        timeout=1000,
+        idle_period=30,
+    )

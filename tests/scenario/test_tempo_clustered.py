@@ -1,37 +1,49 @@
 import datetime
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
 import scenario
 from charms.tempo_k8s.v2.tracing import TracingRequirerAppData
 from charms.tls_certificates_interface.v3.tls_certificates import ProviderCertificate
+from cosl.coordinated_workers.interface import ClusterProvider, ClusterProviderAppData
 from scenario import Relation, State
-from tempo_cluster import TempoClusterProviderAppData
 
 from charm import TempoCoordinatorCharm
 from tempo import Tempo
 from tests.scenario.helpers import get_tempo_config
 
 
+@pytest.fixture(scope="function")
+def coordinator_with_initial_config(s3_config):
+    new_coordinator_mock = MagicMock()
+    new_coordinator_mock.return_value.tls_available = False
+    new_coordinator_mock.return_value.hostname = "tempo-test-0.test.cluster.svc.local"
+    new_coordinator_mock.return_value._s3_config = s3_config
+    new_coordinator_mock.return_value.cluster.gather_addresses.return_value = {"localhost"}
+    new_coordinator_mock.return_value.cluster.gather_addresses_by_role.return_value = {
+        "query-frontend": {"localhost"},
+        "distributor": {"localhost"},
+    }
+
+    return new_coordinator_mock
+
+
 @pytest.fixture
-def all_worker_with_initial_config(all_worker: Relation, s3_config):
-    container = MagicMock()
-    container.can_connect = lambda: True
-    # prevent tls_ready from reporting True
-    container.exists = lambda path: (
-        False if path in [Tempo.tls_cert_path, Tempo.tls_key_path, Tempo.tls_ca_path] else True
+def all_worker_with_initial_config(all_worker: Relation, coordinator_with_initial_config):
+
+    initial_config = Tempo(lambda: ("otlp_http",)).config(
+        coordinator_with_initial_config.return_value
     )
-    initial_config = Tempo(container).generate_config(
-        ["otlp_http"], s3_config, {"all": "localhost"}
-    )
-    new_local_app_data = TempoClusterProviderAppData(
-        tempo_config=initial_config,
-        loki_endpoints={},
-        ca_cert="foo cert",
-        server_cert="bar cert",
-        privkey_secret_id="super secret",
-        tempo_receiver={"otlp_http": "https://foo.com/fake_receiver"},
-    ).dump()
+
+    new_local_app_data = {
+        "worker_config": json.dumps(initial_config),
+        "ca_cert": json.dumps("foo cert"),
+        "server_cert": json.dumps("bar cert"),
+        "privkey_secret_id": json.dumps("super secret"),
+        "tracing_receivers": json.dumps({"otlp_http": "https://foo.com/fake_receiver"}),
+    }
+
     return all_worker.replace(local_app_data=new_local_app_data)
 
 
@@ -79,16 +91,16 @@ def state_with_certs(
 def test_certs_ready(context, state_with_certs):
     with context.manager("update-status", state_with_certs) as mgr:
         charm: TempoCoordinatorCharm = mgr.charm
-        assert charm.cert_handler.server_cert == MOCK_SERVER_CERT
-        assert charm.cert_handler.ca_cert == MOCK_CA_CERT
-        assert charm.cert_handler.private_key
+        assert charm.coordinator.cert_handler.server_cert == MOCK_SERVER_CERT
+        assert charm.coordinator.cert_handler.ca_cert == MOCK_CA_CERT
+        assert charm.coordinator.cert_handler.private_key
 
 
 def test_cluster_relation(context, state_with_certs, all_worker):
     clustered_state = state_with_certs.replace(relations=state_with_certs.relations + [all_worker])
     state_out = context.run(all_worker.joined_event, clustered_state)
     cluster_out = state_out.get_relations(all_worker.endpoint)[0]
-    local_app_data = TempoClusterProviderAppData.load(cluster_out.local_app_data)
+    local_app_data = ClusterProviderAppData.load(cluster_out.local_app_data)
 
     assert local_app_data.ca_cert == MOCK_CA_CERT
     assert local_app_data.server_cert == MOCK_SERVER_CERT
@@ -97,22 +109,26 @@ def test_cluster_relation(context, state_with_certs, all_worker):
     # certhandler's vault uses revision 0 to store an uninitialized-vault marker
     assert secret.contents[1]["private-key"]
 
-    assert local_app_data.tempo_config
+    assert local_app_data.worker_config
 
 
+@patch.object(ClusterProvider, "gather_addresses")
 @pytest.mark.parametrize("requested_protocol", ("otlp_grpc", "zipkin"))
 def test_tempo_restart_on_ingress_v2_changed(
+    mock_cluster,
+    coordinator_with_initial_config,
     context,
-    tmp_path,
     requested_protocol,
     s3,
-    s3_config,
     all_worker_with_initial_config,
     nginx_container,
     nginx_prometheus_exporter_container,
 ):
+    mock_cluster.return_value = {"localhost"}
+
     # GIVEN
     # the remote end requests an otlp_grpc endpoint
+
     tracing = Relation(
         "tracing",
         remote_app_data=TracingRequirerAppData(receivers=[requested_protocol]).dump(),
@@ -125,12 +141,13 @@ def test_tempo_restart_on_ingress_v2_changed(
         relations=[tracing, s3, all_worker_with_initial_config],
         containers=[nginx_container, nginx_prometheus_exporter_container],
     )
+
     state_out = context.run(tracing.changed_event, state)
 
     # THEN
     # Tempo pushes a new config to the all_worker
     new_config = get_tempo_config(state_out)
-    expected_config = Tempo().generate_config(
-        ["otlp_http", requested_protocol], s3_config, {"all": "localhost"}
+    expected_config = Tempo(lambda: ["otlp_http", requested_protocol]).config(
+        coordinator_with_initial_config.return_value
     )
     assert new_config == expected_config

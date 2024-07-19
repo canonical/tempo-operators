@@ -74,6 +74,7 @@ class Tempo:
 
         Only activate the provided receivers.
         """
+
         config = tempo_config.Tempo(
             auth_enabled=False,
             server=self._build_server_config(coordinator.tls_available),
@@ -157,11 +158,10 @@ class Tempo:
         # if distributor and query-frontend have the same address, then the mode of operation is 'all'.
         if roles_addresses.get(tempo_config.TempoRole.query_frontend) == roles_addresses.get(
             tempo_config.TempoRole.distributor
-            or (not roles_addresses.get(tempo_config.TempoRole.query_frontend))
-        ):
+        ) or not roles_addresses.get(tempo_config.TempoRole.query_frontend):
             addr = "localhost"
         else:
-            addr = roles_addresses.get(tempo_config.TempoRole.query_frontend).pop()
+            addr = roles_addresses.get(tempo_config.TempoRole.query_frontend, set()).pop()
 
         return tempo_config.Querier(
             frontend_worker=tempo_config.FrontendWorker(
