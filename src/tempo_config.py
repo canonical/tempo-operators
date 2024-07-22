@@ -61,7 +61,6 @@ MINIMAL_DEPLOYMENT = {
     TempoRole.ingester: 1,
     TempoRole.distributor: 1,
     TempoRole.compactor: 1,
-    TempoRole.metrics_generator: 1,
 }
 """The minimal set of roles that need to be allocated for the
 deployment to be considered consistent (otherwise we set blocked)."""
