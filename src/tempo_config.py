@@ -46,7 +46,6 @@ class TempoRole(str, Enum):
             TempoRole.ingester,
             TempoRole.distributor,
             TempoRole.compactor,
-            TempoRole.metrics_generator,
         }
 
 
@@ -66,12 +65,12 @@ MINIMAL_DEPLOYMENT = {
 deployment to be considered consistent (otherwise we set blocked)."""
 
 RECOMMENDED_DEPLOYMENT = {
-    TempoRole.querier: 1,
-    TempoRole.query_frontend: 1,
-    TempoRole.ingester: 3,
-    TempoRole.distributor: 1,
-    TempoRole.compactor: 1,
-    TempoRole.metrics_generator: 1,
+    TempoRole.querier.value: 1,
+    TempoRole.query_frontend.value: 1,
+    TempoRole.ingester.value: 3,
+    TempoRole.distributor.value: 1,
+    TempoRole.compactor.value: 1,
+    TempoRole.metrics_generator.value: 1,
 }
 
 """
@@ -88,7 +87,7 @@ class TempoRolesConfig:
     roles: Iterable[str] = {role for role in TempoRole}
     meta_roles: Mapping[str, Iterable[str]] = META_ROLES
     minimal_deployment: Iterable[str] = MINIMAL_DEPLOYMENT
-    recommended_deployment = RECOMMENDED_DEPLOYMENT
+    recommended_deployment: Dict[str, int] = RECOMMENDED_DEPLOYMENT
 
 
 class ClientAuthTypeEnum(str, enum.Enum):

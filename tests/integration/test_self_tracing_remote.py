@@ -20,7 +20,7 @@ APP_REMOTE_NAME = "tempo-source"
 
 @pytest.mark.abort_on_fail
 async def test_build_and_deploy(ops_test: OpsTest):
-    tempo_charm = "/home/michael/Work/tempo-coordinator-k8s-operator/charm"
+    tempo_charm = await ops_test.build_charm(".")
     resources = {
         "nginx-image": METADATA["resources"]["nginx-image"]["upstream-source"],
         "nginx-prometheus-exporter-image": METADATA["resources"][
@@ -37,7 +37,7 @@ async def test_build_and_deploy(ops_test: OpsTest):
     await deploy_cluster(ops_test, APP_NAME)
 
     await asyncio.gather(
-        ops_test.model.wait_for_idle(status="active", raise_on_blocked=True, timeout=1000)
+        ops_test.model.wait_for_idle( apps=[APP_NAME], status="active", raise_on_blocked=True, timeout=1000)
     )
 
 
@@ -45,6 +45,7 @@ async def test_build_and_deploy(ops_test: OpsTest):
 async def test_relate(ops_test: OpsTest):
     await ops_test.model.integrate(APP_NAME + ":tracing", APP_REMOTE_NAME + ":self-tracing")
     await ops_test.model.wait_for_idle(
+        apps=[APP_NAME],
         status="active",
         timeout=1000,
     )

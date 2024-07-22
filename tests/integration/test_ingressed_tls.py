@@ -34,8 +34,7 @@ async def get_ingress_proxied_endpoint(ops_test: OpsTest):
 @pytest.mark.setup
 @pytest.mark.abort_on_fail
 async def test_build_and_deploy(ops_test: OpsTest):
-    # tempo_charm = await ops_test.build_charm(".")
-    tempo_charm = "/home/michael/Work/tempo-coordinator-k8s-operator/charm"
+    tempo_charm = await ops_test.build_charm(".")
     resources = {
         "nginx-image": METADATA["resources"]["nginx-image"]["upstream-source"],
         "nginx-prometheus-exporter-image": METADATA["resources"][

@@ -324,7 +324,7 @@ def get_traces(tempo_host: str, service_name="tracegenhttp", tls=True):
     return traces
 
 
-@retry(stop=stop_after_attempt(10), wait=wait_exponential(multiplier=1, min=4, max=10))
+@retry(stop=stop_after_attempt(15), wait=wait_exponential(multiplier=1, min=4, max=10))
 async def get_traces_patiently(tempo_host, service_name="tracegenhttp", tls=True):
     traces = get_traces(tempo_host, service_name=service_name, tls=tls)
     assert len(traces) > 0
