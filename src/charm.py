@@ -277,10 +277,9 @@ class TempoCoordinatorCharm(CharmBase):
         """Server CA certificate for charm tracing tls, if tls is enabled."""
         server_ca_cert = Path(self.tempo.tls_ca_path)
         if self.coordinator.tls_available:
-            if not server_ca_cert.exists():
+            if self.coordinator.cert_handler.ca_cert:
                 server_ca_cert.parent.mkdir(parents=True, exist_ok=True)
-                if self.coordinator.cert_handler.ca_cert:
-                    server_ca_cert.write_text(self.coordinator.cert_handler.ca_cert)
+                server_ca_cert.write_text(self.coordinator.cert_handler.ca_cert)
         else:  # tls unavailable: delete local cert
             server_ca_cert.unlink(missing_ok=True)
 
