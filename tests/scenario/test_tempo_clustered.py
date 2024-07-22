@@ -15,11 +15,16 @@ from tests.scenario.helpers import get_tempo_config
 
 
 @pytest.fixture(scope="function")
-def coordinator_with_initial_config(s3_config):
+def coordinator_with_initial_config():
     new_coordinator_mock = MagicMock()
     new_coordinator_mock.return_value.tls_available = False
     new_coordinator_mock.return_value.hostname = "tempo-test-0.test.cluster.svc.local"
-    new_coordinator_mock.return_value._s3_config = s3_config
+    new_coordinator_mock.return_value._s3_config = {
+        "access_key_id": "key",
+        "bucket_name": "tempo",
+        "endpoint": "http://1.2.3.4:9000",
+        "secret_access_key": "soverysecret",
+    }
     new_coordinator_mock.return_value.cluster.gather_addresses.return_value = {"localhost"}
     new_coordinator_mock.return_value.cluster.gather_addresses_by_role.return_value = {
         "query-frontend": {"localhost"},

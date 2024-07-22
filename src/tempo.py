@@ -110,7 +110,7 @@ class Tempo:
             )
             config.memberlist = config.memberlist.model_copy(update=tls_config)
 
-        return yaml.dump(config.model_dump(mode="json", exclude_none=True))
+        return yaml.dump(config.model_dump(mode="json", by_alias=True, exclude_none=True))
 
     def _build_server_config(self, use_tls=False):
         server_config = tempo_config.Server(
@@ -141,12 +141,7 @@ class Tempo:
                 queue_depth=20000,
             ),
             backend="s3",
-            s3=tempo_config.S3(
-                bucket=s3_config["bucket"],
-                access_key=s3_config["access-key"],
-                endpoint=s3_config["endpoint"],
-                secret_key=s3_config["secret-key"],
-            ),
+            s3=tempo_config.S3(**s3_config),
             # starting from Tempo 2.4, we need to use at least parquet v3 to have search capabilities (Grafana support)
             # https://grafana.com/docs/tempo/latest/release-notes/v2-4/#vparquet3-is-now-the-default-block-format
             block=tempo_config.Block(version="vParquet3"),

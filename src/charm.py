@@ -58,6 +58,7 @@ class TempoCoordinatorCharm(CharmBase):
                 "logging": "logging",
                 "metrics": "metrics-endpoint",
                 "s3": "s3",
+                "tracing": "self-tracing",
             },
             nginx_config=NginxConfig(server_name=self.hostname).config,
             workers_config=self.tempo.config,
@@ -287,7 +288,10 @@ class TempoCoordinatorCharm(CharmBase):
         """Endpoint at which the charm tracing information will be forwarded."""
         # the charm container and the tempo workload container have apparently the same
         # IP, so we can talk to tempo at localhost.
-        if self.is_workload_ready():
+        if hasattr(self, "coordinator") and self.coordinator.tracing.is_ready():
+            return self.coordinator.tracing.get_endpoint("otlp_http")
+        # In absence of another Tempo instance, we don't want to lose this instance's charm traces
+        elif self.is_workload_ready():
             return f"{self._internal_url}:{self.tempo.receiver_ports['otlp_http']}"
 
     def requested_receivers_urls(self) -> Dict[str, str]:

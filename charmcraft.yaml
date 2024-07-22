@@ -67,6 +67,11 @@ provides:
 
 
 requires:
+  self-tracing:
+    interface: tracing
+    description: |
+      Integration to enable Tempo to send its own traces to itself or to another Tempo instance. 
+    limit: 1
   s3:
     interface: s3
     limit: 1

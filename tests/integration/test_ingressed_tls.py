@@ -1,24 +1,16 @@
 import asyncio
-import json
 import logging
-import random
-import subprocess
-import tempfile
 from pathlib import Path
 
 import pytest
-import requests
 import yaml
-from helpers import deploy_cluster
+from helpers import deploy_cluster, emit_trace, get_traces_patiently
 from juju.application import Application
 from pytest_operator.plugin import OpsTest
-from tenacity import retry, stop_after_attempt, wait_exponential
-
-from tempo import Tempo
-from tests.integration.helpers import get_relation_data
 
 METADATA = yaml.safe_load(Path("./charmcraft.yaml").read_text())
 APP_NAME = "tempo"
+WORKER_NAME = "tempo-worker"
 SSC = "self-signed-certificates"
 SSC_APP_NAME = "ssc"
 TRAEFIK = "traefik-k8s"
@@ -28,63 +20,15 @@ TRACEGEN_SCRIPT_PATH = Path() / "scripts" / "tracegen.py"
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture(scope="function")
-def nonce():
-    """Generate an integer nonce for easier trace querying."""
-    return str(random.random())[2:]
-
-
-@pytest.fixture(scope="function")
-def server_cert(ops_test: OpsTest):
-    data = get_relation_data(
-        requirer_endpoint=f"{APP_NAME}/0:certificates",
-        provider_endpoint=f"{SSC_APP_NAME}/0:certificates",
-        model=ops_test.model.name,
-    )
-    cert = json.loads(data.provider.application_data["certificates"])[0]["certificate"]
-
-    with tempfile.NamedTemporaryFile() as f:
-        p = Path(f.name)
-        p.write_text(cert)
-        yield p
-
-
-def get_traces(tempo_host: str, nonce, service_name="tracegen"):
-    req = requests.get(
-        "https://" + tempo_host + ":3200/api/search",
-        params={"service.name": service_name, "nonce": nonce},
-        verify=False,
-    )
-    assert req.status_code == 200
-    return json.loads(req.text)["traces"]
-
-
-@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10))
-async def get_traces_patiently(tempo_host, nonce):
-    assert get_traces(tempo_host, nonce=nonce)
-
-
-async def get_tempo_host(ops_test: OpsTest):
+async def get_ingress_proxied_endpoint(ops_test: OpsTest):
     status = await ops_test.model.get_status()
     app = status["applications"][TRAEFIK_APP_NAME]
-    return app.public_address
+    status_msg = app["status"]["info"]
 
-
-async def emit_trace(
-    endpoint, ops_test: OpsTest, nonce, proto: str = "http", verbose=0, use_cert=False
-):
-    """Use juju ssh to run tracegen from the tempo charm; to avoid any DNS issues."""
-    cmd = (
-        f"juju ssh -m {ops_test.model_name} {APP_NAME}/0 "
-        f"TRACEGEN_ENDPOINT={endpoint} "
-        f"TRACEGEN_VERBOSE={verbose} "
-        f"TRACEGEN_PROTOCOL={proto} "
-        f"TRACEGEN_CERT={Tempo.tls_ca_path if use_cert else ''} "
-        f"TRACEGEN_NONCE={nonce} "
-        "python3 tracegen.py"
-    )
-
-    return subprocess.getoutput(cmd)
+    # hacky way to get ingress hostname
+    if "Serving at" not in status_msg:
+        assert False, f"Ingressed hostname is not present in {TRAEFIK_APP_NAME} status message."
+    return status_msg.replace("Serving at", "").strip()
 
 
 @pytest.mark.setup
@@ -138,9 +82,11 @@ async def test_relate(ops_test: OpsTest):
     )
     await ops_test.model.integrate(APP_NAME + ":ingress", TRAEFIK_APP_NAME + ":traefik-route")
     await ops_test.model.wait_for_idle(
-        apps=[APP_NAME, SSC_APP_NAME, TRAEFIK_APP_NAME],
+        apps=[APP_NAME, SSC_APP_NAME, TRAEFIK_APP_NAME, WORKER_NAME],
         status="active",
         timeout=1000,
+        # make idle period 1 minute, as Tempo workload might not be up yet
+        idle_period=60,
     )
 
 
@@ -160,13 +106,13 @@ async def test_relate(ops_test: OpsTest):
 
 @pytest.mark.abort_on_fail
 async def test_verify_ingressed_trace_http_tls(ops_test: OpsTest, nonce, server_cert):
-    tempo_host = await get_tempo_host(ops_test)
+    tempo_host = await get_ingress_proxied_endpoint(ops_test)
 
     await emit_trace(
         f"https://{tempo_host}:4318/v1/traces", nonce=nonce, ops_test=ops_test, use_cert=True
     )
     # THEN we can verify it's been ingested
-    assert get_traces_patiently(tempo_host, nonce=nonce)
+    assert await get_traces_patiently(tempo_host)
 
 
 @pytest.mark.abort_on_fail
@@ -184,13 +130,13 @@ async def test_verify_ingressed_traces_grpc_tls(ops_test: OpsTest, nonce, server
         timeout=1000,
     )
 
-    tempo_host = await get_tempo_host(ops_test)
+    tempo_host = await get_ingress_proxied_endpoint(ops_test)
 
     await emit_trace(
         f"{tempo_host}:4317", nonce=nonce, proto="grpc", ops_test=ops_test, use_cert=True
     )
     # THEN we can verify it's been ingested
-    assert get_traces_patiently(tempo_host, nonce=nonce)
+    assert await get_traces_patiently(tempo_host, service_name="grpc")
 
 
 @pytest.mark.teardown

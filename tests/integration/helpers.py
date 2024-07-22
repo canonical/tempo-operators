@@ -8,11 +8,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Literal
 
+import requests
 import yaml
 from juju.application import Application
 from juju.unit import Unit
 from minio import Minio
 from pytest_operator.plugin import OpsTest
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+from tempo import Tempo
 
 _JUJU_DATA_CACHE = {}
 _JUJU_KEYS = ("egress-subnets", "ingress-address", "private-address")
@@ -278,7 +282,7 @@ async def deploy_and_configure_minio(ops_test: OpsTest):
     assert action_result.status == "completed"
 
 
-async def deploy_cluster(ops_test: OpsTest):
+async def deploy_cluster(ops_test: OpsTest, tempo_app=APP_NAME):
     # await ops_test.model.deploy(FACADE, channel="edge")
     # await ops_test.model.wait_for_idle(
     #     apps=[FACADE], raise_on_blocked=True, status="active", timeout=2000
@@ -296,14 +300,55 @@ async def deploy_cluster(ops_test: OpsTest):
     )
     await ops_test.model.deploy(S3_INTEGRATOR, channel="edge")
 
-    await ops_test.model.integrate(APP_NAME + ":s3", S3_INTEGRATOR + ":s3-credentials")
-    await ops_test.model.integrate(APP_NAME + ":tempo-cluster", WORKER_NAME + ":tempo-cluster")
+    await ops_test.model.integrate(tempo_app + ":s3", S3_INTEGRATOR + ":s3-credentials")
+    await ops_test.model.integrate(tempo_app + ":tempo-cluster", WORKER_NAME + ":tempo-cluster")
 
     await deploy_and_configure_minio(ops_test)
 
     await ops_test.model.wait_for_idle(
-        apps=[APP_NAME, WORKER_NAME, S3_INTEGRATOR],
+        apps=[tempo_app, WORKER_NAME, S3_INTEGRATOR],
         status="active",
         timeout=1000,
         idle_period=30,
     )
+
+
+def get_traces(tempo_host: str, service_name="tracegenhttp", tls=True):
+    url = f"{'https' if tls else 'http'}://{tempo_host}:3200/api/search?tags=service.name={service_name}"
+    req = requests.get(
+        url,
+        verify=False,
+    )
+    assert req.status_code == 200
+    traces = json.loads(req.text)["traces"]
+    return traces
+
+
+@retry(stop=stop_after_attempt(10), wait=wait_exponential(multiplier=1, min=4, max=10))
+async def get_traces_patiently(tempo_host, service_name="tracegenhttp", tls=True):
+    traces = get_traces(tempo_host, service_name=service_name, tls=tls)
+    assert len(traces) > 0
+    return traces
+
+
+async def emit_trace(
+    endpoint, ops_test: OpsTest, nonce, proto: str = "http", verbose=0, use_cert=False
+):
+    """Use juju ssh to run tracegen from the tempo charm; to avoid any DNS issues."""
+    cmd = (
+        f"juju ssh -m {ops_test.model_name} {APP_NAME}/0 "
+        f"TRACEGEN_ENDPOINT={endpoint} "
+        f"TRACEGEN_VERBOSE={verbose} "
+        f"TRACEGEN_PROTOCOL={proto} "
+        f"TRACEGEN_CERT={Tempo.tls_ca_path if use_cert else ''} "
+        f"TRACEGEN_NONCE={nonce} "
+        "python3 tracegen.py"
+    )
+
+    return subprocess.getoutput(cmd)
+
+
+async def get_application_ip(ops_test: OpsTest, app_name: str):
+    status = await ops_test.model.get_status()
+    app = status["applications"][app_name]
+    return app.public_address

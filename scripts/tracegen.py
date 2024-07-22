@@ -36,12 +36,12 @@ def emit_trace(
         return (emit_trace(endpoint, log_trace_to_console, cert, "grpc", nonce=nonce) and
                 emit_trace(endpoint, log_trace_to_console, cert, "http", nonce=nonce))
 
-    return _export_trace(span_exporter, log_trace_to_console=log_trace_to_console, nonce=nonce)
+    return _export_trace(span_exporter, log_trace_to_console=log_trace_to_console, nonce=nonce, protocol = protocol)
 
 
-def _export_trace(span_exporter, log_trace_to_console: bool = False, nonce: Any = None):
+def _export_trace(span_exporter, log_trace_to_console: bool = False, nonce: Any = None, protocol: Literal["grpc", "http"] = "http"):
     resource = Resource.create(attributes={
-        "service.name": "tracegen",
+        "service.name": f"tracegen{protocol}",
         "nonce": str(nonce)
     }
     )

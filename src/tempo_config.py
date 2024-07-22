@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 logger = logging.getLogger(__name__)
 
@@ -236,10 +236,13 @@ class Wal(BaseModel):
 class S3(BaseModel):
     """S3 config schema."""
 
-    bucket: str
-    access_key: str
+    model_config = ConfigDict(populate_by_name=True)
+    """Pydantic config."""
+
+    bucket_name: str = Field(alias="bucket")
+    access_key_id: str = Field(alias="access_key")
     endpoint: str
-    secret_key: str
+    secret_access_key: str = Field(alias="secret_key")
     insecure: bool = False
 
     @model_validator(mode="before")  # pyright: ignore
