@@ -37,7 +37,9 @@ async def test_build_and_deploy(ops_test: OpsTest):
     await deploy_cluster(ops_test, APP_NAME)
 
     await asyncio.gather(
-        ops_test.model.wait_for_idle( apps=[APP_NAME], status="active", raise_on_blocked=True, timeout=1000)
+        ops_test.model.wait_for_idle(
+            apps=[APP_NAME], status="active", raise_on_blocked=True, timeout=1000
+        )
     )
 
 
