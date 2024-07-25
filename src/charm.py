@@ -89,6 +89,7 @@ class TempoCoordinatorCharm(CharmBase):
             or not self.coordinator.is_coherent
             or not self.coordinator.s3_ready
         ):
+            # logging will be handled by `self.coordinator` for each of the above circumstances.
             return
 
         # lifecycle
@@ -172,8 +173,6 @@ class TempoCoordinatorCharm(CharmBase):
 
     def _on_cert_handler_changed(self, e: ops.RelationChangedEvent):
 
-        self.coordinator._on_cert_handler_changed(e)
-
         # tls readiness change means config change.
         # sync scheme change with traefik and related consumers
         self._configure_ingress()
@@ -216,7 +215,7 @@ class TempoCoordinatorCharm(CharmBase):
 
     # keep this event handler at the bottom
     def _on_collect_unit_status(self, e: ops.CollectStatusEvent):
-        self.coordinator._on_collect_unit_status(e)
+        pass
         # add Tempo charm custom blocking conditions
         # TODO: avoid waiting for update-status event
         # if not self.is_workload_ready():
@@ -287,7 +286,7 @@ class TempoCoordinatorCharm(CharmBase):
         """Endpoint at which the charm tracing information will be forwarded."""
         # the charm container and the tempo workload container have apparently the same
         # IP, so we can talk to tempo at localhost.
-        if hasattr(self, "coordinator") and self.coordinator.tracing.is_ready():
+        if self.coordinator and self.coordinator.tracing.is_ready():
             return self.coordinator.tracing.get_endpoint("otlp_http")
         # In absence of another Tempo instance, we don't want to lose this instance's charm traces
         elif self.is_workload_ready():

@@ -151,12 +151,13 @@ class Tempo:
     def _build_querier_config(self, roles_addresses: Dict[str, Set[str]]):
         """Build querier config"""
         # if distributor and query-frontend have the same address, then the mode of operation is 'all'.
-        if roles_addresses.get(tempo_config.TempoRole.query_frontend) == roles_addresses.get(
-            tempo_config.TempoRole.distributor
-        ) or not roles_addresses.get(tempo_config.TempoRole.query_frontend):
+        query_frontend_addresses = roles_addresses.get(tempo_config.TempoRole.query_frontend)
+        distributor_addresses = roles_addresses.get(tempo_config.TempoRole.distributor)
+
+        if not query_frontend_addresses or query_frontend_addresses == distributor_addresses:
             addr = "localhost"
         else:
-            addr = roles_addresses.get(tempo_config.TempoRole.query_frontend, set()).pop()
+            addr = query_frontend_addresses.pop()
 
         return tempo_config.Querier(
             frontend_worker=tempo_config.FrontendWorker(
