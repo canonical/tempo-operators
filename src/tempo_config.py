@@ -237,6 +237,8 @@ class S3(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     """Pydantic config."""
 
+    # Use aliases to override keys in `coordinator::_s3_config`
+    # to align with upstream Tempo's configuration keys: `bucket`, `access_key`, `secret_key`.
     bucket_name: str = Field(alias="bucket")
     access_key_id: str = Field(alias="access_key")
     endpoint: str
