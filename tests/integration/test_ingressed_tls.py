@@ -135,7 +135,7 @@ async def test_verify_ingressed_traces_grpc_tls(ops_test: OpsTest, nonce, server
         f"{tempo_host}:4317", nonce=nonce, proto="grpc", ops_test=ops_test, use_cert=True
     )
     # THEN we can verify it's been ingested
-    assert await get_traces_patiently(tempo_host, service_name="grpc")
+    assert await get_traces_patiently(tempo_host, service_name="tracegen-grpc")
 
 
 @pytest.mark.teardown

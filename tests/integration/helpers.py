@@ -313,7 +313,7 @@ async def deploy_cluster(ops_test: OpsTest, tempo_app=APP_NAME):
     )
 
 
-def get_traces(tempo_host: str, service_name="tracegenhttp", tls=True):
+def get_traces(tempo_host: str, service_name="tracegen-http", tls=True):
     url = f"{'https' if tls else 'http'}://{tempo_host}:3200/api/search?tags=service.name={service_name}"
     req = requests.get(
         url,
@@ -325,7 +325,7 @@ def get_traces(tempo_host: str, service_name="tracegenhttp", tls=True):
 
 
 @retry(stop=stop_after_attempt(15), wait=wait_exponential(multiplier=1, min=4, max=10))
-async def get_traces_patiently(tempo_host, service_name="tracegenhttp", tls=True):
+async def get_traces_patiently(tempo_host, service_name="tracegen-http", tls=True):
     traces = get_traces(tempo_host, service_name=service_name, tls=tls)
     assert len(traces) > 0
     return traces

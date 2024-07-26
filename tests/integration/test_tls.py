@@ -122,7 +122,9 @@ async def test_verify_traces_grpc_tls(ops_test: OpsTest, nonce, server_cert):
     # WHEN we emit a trace secured with TLS
     await emit_trace(tempo_endpoint, ops_test, nonce=nonce, verbose=1, proto="grpc", use_cert=True)
     # THEN we can verify it's been ingested
-    await get_traces_patiently(await get_application_ip(ops_test, APP_NAME), service_name="grpc")
+    await get_traces_patiently(
+        await get_application_ip(ops_test, APP_NAME), service_name="tracegen-grpc"
+    )
 
 
 @pytest.mark.teardown

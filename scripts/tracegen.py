@@ -41,7 +41,7 @@ def emit_trace(
 
 def _export_trace(span_exporter, log_trace_to_console: bool = False, nonce: Any = None, protocol: Literal["grpc", "http"] = "http"):
     resource = Resource.create(attributes={
-        "service.name": f"tracegen{protocol}",
+        "service.name": f"tracegen-{protocol}",
         "nonce": str(nonce)
     }
     )
