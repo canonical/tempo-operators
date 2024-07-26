@@ -74,6 +74,16 @@ def test_ingress_relation_set_with_dynamic_config(context, base_state, s3, all_w
                     "rule": "ClientIP(`0.0.0.0/0`)",
                     "service": f"juju-{state.model.name}-{charm_name}-service-tempo-grpc",
                 },
+                f"juju-{state.model.name}-{charm_name}-opencensus": {
+                    "entryPoints": ["opencensus"],
+                    "rule": "ClientIP(`0.0.0.0/0`)",
+                    "service": f"juju-{state.model.name}-{charm_name}-service-opencensus",
+                },
+                f"juju-{state.model.name}-{charm_name}-jaeger-grpc": {
+                    "entryPoints": ["jaeger-grpc"],
+                    "rule": "ClientIP(`0.0.0.0/0`)",
+                    "service": f"juju-{state.model.name}-{charm_name}-service-jaeger-grpc",
+                },
             },
             "services": {
                 f"juju-{state.model.name}-{charm_name}-service-jaeger-thrift-http": {
@@ -93,6 +103,12 @@ def test_ingress_relation_set_with_dynamic_config(context, base_state, s3, all_w
                 },
                 f"juju-{state.model.name}-{charm_name}-service-tempo-grpc": {
                     "loadBalancer": {"servers": [{"url": "h2c://1.2.3.4:9096"}]}
+                },
+                f"juju-{state.model.name}-{charm_name}-service-opencensus": {
+                    "loadBalancer": {"servers": [{"url": "h2c://1.2.3.4:55678"}]}
+                },
+                f"juju-{state.model.name}-{charm_name}-service-jaeger-grpc": {
+                    "loadBalancer": {"servers": [{"url": "h2c://1.2.3.4:14250"}]}
                 },
             },
         },

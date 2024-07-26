@@ -7,7 +7,7 @@ import logging
 import socket
 from pathlib import Path
 from subprocess import CalledProcessError, getoutput
-from typing import Dict, Optional, Set, Tuple, get_args
+from typing import Dict, Optional, Set, Tuple, cast, get_args
 
 import ops
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
@@ -16,6 +16,7 @@ from charms.tempo_k8s.v2.tracing import (
     ReceiverProtocol,
     RequestEvent,
     TracingEndpointProvider,
+    TransportProtocolType,
     receiver_protocol_to_transport_protocol,
 )
 from charms.traefik_route_k8s.v0.traefik_route import TraefikRouteRequirer
@@ -318,7 +319,11 @@ class TempoCoordinatorCharm(CharmBase):
                 # TODO better matcher
                 "rule": "ClientIP(`0.0.0.0/0`)",
             }
-            if sanitized_protocol.endswith("grpc") and not self.coordinator.tls_available:
+            if (
+                protocol == "tempo_grpc"
+                or receiver_protocol_to_transport_protocol.get(cast(ReceiverProtocol, protocol))
+                == TransportProtocolType.grpc
+            ) and not self.coordinator.tls_available:
                 # to send traces to unsecured GRPC endpoints, we need h2c
                 # see https://doc.traefik.io/traefik/v2.0/user-guides/grpc/#with-http-h2c
                 http_services[
@@ -352,13 +357,13 @@ class TempoCoordinatorCharm(CharmBase):
         if has_ingress:
             url = (
                 self.ingress.external_host
-                if protocol_type == "grpc"
+                if protocol_type == TransportProtocolType.grpc
                 else f"{self.ingress.scheme}://{self.ingress.external_host}"
             )
         else:
             url = (
                 self.coordinator.hostname
-                if protocol_type == "grpc"
+                if protocol_type == TransportProtocolType.grpc
                 else self.coordinator._internal_url
             )
 

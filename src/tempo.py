@@ -34,18 +34,16 @@ class Tempo:
         "tempo_grpc": 9096,  # default grpc listen port is 9095, but that conflicts with promtail.
     }
 
-    # ports source: https://github.com/grafana/tempo/blob/main/example/docker-compose/local/docker-compose.yaml
+    # ports defined are the default ports specified in
+    # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver
+    # for each of the below receivers.
     receiver_ports: Dict[str, int] = {
         "zipkin": 9411,
         "otlp_grpc": 4317,
         "otlp_http": 4318,
         "jaeger_thrift_http": 14268,
-        # todo if necessary add support for:
-        #  "kafka": 42,
-        #  "jaeger_grpc": 14250,
-        #  "opencensus": 43,
-        #  "jaeger_thrift_compact": 44,
-        #  "jaeger_thrift_binary": 45,
+        "jaeger_grpc": 14250,
+        "opencensus": 55678,
     }
 
     all_ports = {**server_ports, **receiver_ports}
