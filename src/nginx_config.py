@@ -3,9 +3,14 @@
 """Nginx workload."""
 
 import logging
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, cast
 
 import crossplane
+from charms.tempo_k8s.v2.tracing import (
+    ReceiverProtocol,
+    TransportProtocolType,
+    receiver_protocol_to_transport_protocol,
+)
 from cosl.coordinated_workers.coordinator import Coordinator
 from cosl.coordinated_workers.nginx import CERT_PATH, KEY_PATH
 
@@ -77,7 +82,9 @@ class NginxConfig:
                     },
                     {"directive": "proxy_read_timeout", "args": ["300"]},
                     # server block
-                    *self._servers(addresses_by_role, coordinator.nginx.are_certificates_on_disk),
+                    *self._build_servers_config(
+                        addresses_by_role, coordinator.nginx.are_certificates_on_disk
+                    ),
                 ],
             },
         ]
@@ -189,25 +196,30 @@ class NginxConfig:
             args.append("http2")
         return args
 
-    def _servers(
+    def _build_servers_config(
         self, addresses_by_role: Dict[str, Set[str]], tls: bool = False
     ) -> List[Dict[str, Any]]:
         servers = []
         roles = addresses_by_role.keys()
-
+        # generate a server config for receiver protocols (9411, 4317, 4318, 14268, 14250)
         if TempoRole.distributor.value in roles:
             for protocol, port in Tempo.receiver_ports.items():
                 servers.append(
-                    self._server(port, protocol.replace("_", "-"), "grpc" in protocol, tls)
+                    self._build_server_config(
+                        port, protocol.replace("_", "-"), self._is_protocol_grpc(protocol), tls
+                    )
                 )
+        # generate a server config for the Tempo server protocols (3200, 9096)
         if TempoRole.query_frontend.value in roles:
             for protocol, port in Tempo.server_ports.items():
                 servers.append(
-                    self._server(port, protocol.replace("_", "-"), "grpc" in protocol, tls)
+                    self._build_server_config(
+                        port, protocol.replace("_", "-"), self._is_protocol_grpc(protocol), tls
+                    )
                 )
         return servers
 
-    def _server(
+    def _build_server_config(
         self, port: int, upstream: str, grpc: bool = False, tls: bool = False
     ) -> Dict[str, Any]:
         auth_enabled = False
@@ -247,3 +259,15 @@ class NginxConfig:
                 *self._locations(upstream, grpc, tls),
             ],
         }
+
+    def _is_protocol_grpc(self, protocol: str) -> bool:
+        """
+        Return True if the given protocol is gRPC
+        """
+        if (
+            protocol == "tempo_grpc"
+            or receiver_protocol_to_transport_protocol.get(cast(ReceiverProtocol, protocol))
+            == TransportProtocolType.grpc
+        ):
+            return True
+        return False

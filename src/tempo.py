@@ -75,7 +75,7 @@ class Tempo:
         Only activate the provided receivers.
         """
 
-        config = tempo_config.Tempo(
+        config = tempo_config.TempoConfig(
             auth_enabled=False,
             server=self._build_server_config(coordinator.tls_available),
             distributor=self._build_distributor_config(

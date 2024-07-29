@@ -285,7 +285,7 @@ class Storage(BaseModel):
     trace: TraceStorage
 
 
-class Tempo(BaseModel):
+class TempoConfig(BaseModel):
     """Tempo config schema."""
 
     auth_enabled: bool

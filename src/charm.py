@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 @trace_charm(
     tracing_endpoint="tempo_otlp_http_endpoint",
     server_cert="server_ca_cert",
-    extra_types=(Tempo, TracingEndpointProvider),
+    extra_types=(Tempo, TracingEndpointProvider, Coordinator, TempoRolesConfig),
 )
 class TempoCoordinatorCharm(CharmBase):
     """Charmed Operator for Tempo; a distributed tracing backend."""
@@ -80,9 +80,6 @@ class TempoCoordinatorCharm(CharmBase):
         )
 
         self.tracing = TracingEndpointProvider(self, external_url=self._external_url)
-
-        # We always listen to collect-status
-        self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
 
         # refuse to handle any other event as we can't possibly know what to do.
         if not self.coordinator.can_handle_events:
@@ -221,14 +218,6 @@ class TempoCoordinatorCharm(CharmBase):
         for receiver in self._requested_receivers():
             res[receiver.replace("_", "-")] = self.get_receiver_url(receiver)
         event.set_results(res)
-
-    # keep this event handler at the bottom
-    def _on_collect_unit_status(self, e: ops.CollectStatusEvent):
-        pass
-        # add Tempo charm custom blocking conditions
-        # TODO: avoid waiting for update-status event
-        # if not self.is_workload_ready():
-        #     e.add_status(ops.WaitingStatus("[workload.tempo] Tempo API not ready just yet..."))
 
     ###################
     # UTILITY METHODS #
