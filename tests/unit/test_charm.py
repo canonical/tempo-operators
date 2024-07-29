@@ -31,7 +31,6 @@ class TestTempoCoordinatorCharm(unittest.TestCase):
                 "otlp-http": {"address": ":4318"},
                 "jaeger-thrift-http": {"address": ":14268"},
                 "jaeger-grpc": {"address": ":14250"},
-                "opencensus": {"address": ":55678"},
             }
         }
         self.assertEqual(self.harness.charm._static_ingress_config, expected_entrypoints)

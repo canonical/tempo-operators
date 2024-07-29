@@ -43,7 +43,6 @@ class Tempo:
         "otlp_http": 4318,
         "jaeger_thrift_http": 14268,
         "jaeger_grpc": 14250,
-        "opencensus": 55678,
     }
 
     all_ports = {**server_ports, **receiver_ports}
@@ -223,8 +222,6 @@ class Tempo:
 
         if "zipkin" in receivers_set:
             config["zipkin"] = receiver_config
-        if "opencensus" in receivers_set:
-            config["opencensus"] = receiver_config
 
         otlp_config = {}
         if "otlp_http" in receivers_set:

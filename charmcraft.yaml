@@ -141,10 +141,6 @@ config:
       description: Force-enable the receiver for the 'otlp_http' protocol in Tempo, even if there is no integration currently requesting it.
       type: boolean
       default: false
-    always_enable_opencensus:
-      description: Force-enable the receiver for the 'opencensus' protocol in Tempo, even if there is no integration currently requesting it.
-      type: boolean
-      default: false
     always_enable_jaeger_thrift_http:
       description: Force-enable the receiver for the 'jaeger_thrift_http' protocol in Tempo, even if there is no integration currently requesting it.
       type: boolean
