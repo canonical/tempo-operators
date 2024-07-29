@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from cosl.coordinated_workers.nginx import Nginx
 from scenario import Container, Context, Relation
 
 from charm import TempoCoordinatorCharm
@@ -15,7 +14,7 @@ def coordinator():
 @pytest.fixture
 def tempo_charm():
     with patch("lightkube.core.client.GenericSyncClient"):
-        with patch.object(Nginx, "are_certificates_on_disk", False):
+        with patch("charm.TempoCoordinatorCharm.are_certificates_on_disk", False):
             yield TempoCoordinatorCharm
 
 
