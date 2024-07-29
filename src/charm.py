@@ -84,11 +84,7 @@ class TempoCoordinatorCharm(CharmBase):
         self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
 
         # refuse to handle any other event as we can't possibly know what to do.
-        if (
-            not self.coordinator.cluster.has_workers
-            or not self.coordinator.is_coherent
-            or not self.coordinator.s3_ready
-        ):
+        if not self.coordinator.can_handle_events:
             # logging will be handled by `self.coordinator` for each of the above circumstances.
             return
 
@@ -144,10 +140,22 @@ class TempoCoordinatorCharm(CharmBase):
     def _internal_url(self) -> str:
         """Returns workload's FQDN."""
         scheme = "http"
-        if hasattr(self, "coordinator") and self.coordinator.nginx.are_certificates_on_disk:
+        if self.are_certificates_on_disk:
             scheme = "https"
 
         return f"{scheme}://{self.hostname}"
+
+    @property
+    def are_certificates_on_disk(self) -> bool:
+        """Return True if the certificates files are on disk."""
+        nginx_container = self.unit.get_container("nginx")
+
+        return (
+            nginx_container.can_connect()
+            and nginx_container.exists(CERT_PATH)
+            and nginx_container.exists(KEY_PATH)
+            and nginx_container.exists(CA_CERT_PATH)
+        )
 
     @property
     def enabled_receivers(self) -> Set[str]:
