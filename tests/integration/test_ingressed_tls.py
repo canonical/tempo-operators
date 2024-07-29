@@ -132,10 +132,10 @@ async def test_verify_ingressed_traces_grpc_tls(ops_test: OpsTest, nonce, server
     tempo_host = await get_ingress_proxied_endpoint(ops_test)
 
     await emit_trace(
-        f"{tempo_host}:4317", nonce=nonce, proto="grpc", ops_test=ops_test, use_cert=True
+        f"{tempo_host}:4317", nonce=nonce, proto="otlp_grpc", ops_test=ops_test, use_cert=True
     )
     # THEN we can verify it's been ingested
-    assert await get_traces_patiently(tempo_host, service_name="tracegen-grpc")
+    assert await get_traces_patiently(tempo_host, service_name="tracegen-otlp_grpc")
 
 
 @pytest.mark.teardown

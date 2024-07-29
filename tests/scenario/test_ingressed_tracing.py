@@ -105,7 +105,7 @@ def test_ingress_relation_set_with_dynamic_config(context, base_state, s3, all_w
                     "loadBalancer": {"servers": [{"url": "h2c://1.2.3.4:9096"}]}
                 },
                 f"juju-{state.model.name}-{charm_name}-service-opencensus": {
-                    "loadBalancer": {"servers": [{"url": "h2c://1.2.3.4:55678"}]}
+                    "loadBalancer": {"servers": [{"url": "http://1.2.3.4:55678"}]}
                 },
                 f"juju-{state.model.name}-{charm_name}-service-jaeger-grpc": {
                     "loadBalancer": {"servers": [{"url": "h2c://1.2.3.4:14250"}]}

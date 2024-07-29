@@ -1,11 +1,15 @@
 import os
 import time
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, get_args
+import requests
 
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter as GRPCExporter
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter as HTTPExporter
+from opentelemetry.exporter.zipkin.json import ZipkinExporter
+from opentelemetry.exporter.jaeger.thrift import JaegerExporter as JaegerThriftHttpExporter
+from opentelemetry.exporter.jaeger.proto.grpc import JaegerExporter as JaegerGRPCExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import (
@@ -13,33 +17,68 @@ from opentelemetry.sdk.trace.export import (
     ConsoleSpanExporter,
 )
 
+protocols = Literal[
+    "zipkin",
+    "otlp_grpc",
+    "otlp_http",
+    "jaeger_grpc",
+    "jaeger_thrift_http",
+]
+
 
 def emit_trace(
         endpoint: str,
         log_trace_to_console: bool = False,
         cert: Path = None,
-        protocol: Literal["grpc", "http", "ALL"] = "grpc",
+        protocol: protocols = "otlp_http",
         nonce: Any = None
 ):
     os.environ['OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE'] = str(Path(cert).absolute()) if cert else ""
+    os.environ['OTEL_EXPORTER_JAEGER_CERTIFICATE'] = str(Path(cert).absolute()) if cert else ""
+    # jaeger thrift http exporter does not expose a parameter to set path for CA verification
+    os.environ['SSL_CERT_FILE'] =  str(Path(cert).absolute())  if cert else ""
+    os.environ["REQUESTS_CA_BUNDLE"] =  str(Path(cert).absolute())  if cert else ""
 
-    if protocol == "grpc":
+    # ip:4317
+    if protocol == "otlp_grpc":
         span_exporter = GRPCExporter(
             endpoint=endpoint,
             insecure=not cert,
         )
-    elif protocol == "http":
+    # scheme://ip:4318/v1/traces
+    elif protocol == "otlp_http":
         span_exporter = HTTPExporter(
             endpoint=endpoint,
         )
+    # scheme://ip:9411/v1/traces
+    elif protocol == "zipkin":
+        # zipkin does not expose an arg to pass certificate
+        session = requests.Session() 
+        if cert:
+            session.verify = cert
+        span_exporter = ZipkinExporter(
+            endpoint=endpoint,
+            session=session,
+        )
+    # scheme://ip:14268/api/traces?format=jaeger.thrift
+    elif protocol == "jaeger_thrift_http":
+        span_exporter = JaegerThriftHttpExporter(
+            collector_endpoint=endpoint,
+        )
+    # ip:14250
+    elif protocol == "jaeger_grpc":
+        span_exporter = JaegerGRPCExporter(
+            collector_endpoint = endpoint,
+            insecure=not cert,
+        )
     else:  # ALL
-        return (emit_trace(endpoint, log_trace_to_console, cert, "grpc", nonce=nonce) and
-                emit_trace(endpoint, log_trace_to_console, cert, "http", nonce=nonce))
-
+        for proto in get_args(protocols):
+            emit_trace(endpoint, log_trace_to_console, cert, proto, nonce=nonce)
+        
     return _export_trace(span_exporter, log_trace_to_console=log_trace_to_console, nonce=nonce, protocol = protocol)
 
 
-def _export_trace(span_exporter, log_trace_to_console: bool = False, nonce: Any = None, protocol: Literal["grpc", "http"] = "http"):
+def _export_trace(span_exporter, log_trace_to_console: bool = False, nonce: Any = None, protocol: protocols = "otlp_http"):
     resource = Resource.create(attributes={
         "service.name": f"tracegen-{protocol}",
         "nonce": str(nonce)

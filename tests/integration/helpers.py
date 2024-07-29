@@ -289,7 +289,9 @@ async def deploy_cluster(ops_test: OpsTest, tempo_app=APP_NAME):
     # )
 
     # TODO: deploy from latest edge
-    tempo_worker_charm = "/home/michael/Work/tempo-worker-k8s-operator/charm"
+    tempo_worker_charm = (
+        "/home/michael/Work/tempo-worker-k8s-operator/tempo-worker-k8s_ubuntu-22.04-amd64.charm"
+    )
 
     resources = {
         "tempo-image": "docker.io/ubuntu/tempo:2-22.04",
@@ -313,7 +315,7 @@ async def deploy_cluster(ops_test: OpsTest, tempo_app=APP_NAME):
     )
 
 
-def get_traces(tempo_host: str, service_name="tracegen-http", tls=True):
+def get_traces(tempo_host: str, service_name="tracegen-otlp_http", tls=True):
     url = f"{'https' if tls else 'http'}://{tempo_host}:3200/api/search?tags=service.name={service_name}"
     req = requests.get(
         url,
@@ -325,14 +327,14 @@ def get_traces(tempo_host: str, service_name="tracegen-http", tls=True):
 
 
 @retry(stop=stop_after_attempt(15), wait=wait_exponential(multiplier=1, min=4, max=10))
-async def get_traces_patiently(tempo_host, service_name="tracegen-http", tls=True):
+async def get_traces_patiently(tempo_host, service_name="tracegen-otlp_http", tls=True):
     traces = get_traces(tempo_host, service_name=service_name, tls=tls)
     assert len(traces) > 0
     return traces
 
 
 async def emit_trace(
-    endpoint, ops_test: OpsTest, nonce, proto: str = "http", verbose=0, use_cert=False
+    endpoint, ops_test: OpsTest, nonce, proto: str = "otlp_http", verbose=0, use_cert=False
 ):
     """Use juju ssh to run tracegen from the tempo charm; to avoid any DNS issues."""
     cmd = (
@@ -344,7 +346,6 @@ async def emit_trace(
         f"TRACEGEN_NONCE={nonce} "
         "python3 tracegen.py"
     )
-
     return subprocess.getoutput(cmd)
 
 

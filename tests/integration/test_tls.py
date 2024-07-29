@@ -19,18 +19,23 @@ APP_NAME = "tempo"
 SSC = "self-signed-certificates"
 SSC_APP_NAME = "ssc"
 TRACEGEN_SCRIPT_PATH = Path() / "scripts" / "tracegen.py"
+protocols_endpoints = {
+    "jaeger_thrift_http": "https://{}:14268/api/traces?format=jaeger.thrift",
+    "zipkin": "https://{}:9411/v1/traces",
+    "jaeger_grpc": "{}:14250",
+    "otlp_http": "https://{}:4318/v1/traces",
+    "otlp_grpc": "{}:4317",
+}
+
 logger = logging.getLogger(__name__)
 
 
-async def get_tempo_traces_internal_endpoint(ops_test: OpsTest, proto="http"):
+async def get_tempo_traces_internal_endpoint(ops_test: OpsTest, protocol):
     hostname = f"{APP_NAME}-0.{APP_NAME}-endpoints.{ops_test.model.name}.svc.cluster.local"
-    port = "4317"
-    endpoint_postfix = ""
-    if proto == "http":
-        hostname = f"https://{hostname}"
-        port = "4318"
-        endpoint_postfix = "/v1/traces"
-    return f"{hostname}:{port}{endpoint_postfix}"
+    protocol_endpoint = protocols_endpoints.get(protocol)
+    if protocol_endpoint is None:
+        assert False, f"Invalid {protocol}"
+    return protocol_endpoint.format(hostname)
 
 
 @pytest.mark.setup
@@ -80,14 +85,15 @@ async def test_push_tracegen_script_and_deps(ops_test: OpsTest):
     await ops_test.juju(
         "ssh",
         f"{APP_NAME}/0",
-        "python3 -m pip install opentelemetry-exporter-otlp-proto-grpc opentelemetry-exporter-otlp-proto-http",
+        "python3 -m pip install opentelemetry-exporter-otlp-proto-grpc opentelemetry-exporter-otlp-proto-http"
+        + " opentelemetry-exporter-zipkin opentelemetry-exporter-jaeger",
     )
 
 
 async def test_verify_trace_http_no_tls_fails(ops_test: OpsTest, server_cert, nonce):
     # IF tempo is related to SSC
     # WHEN we emit an http trace, **unsecured**
-    tempo_endpoint = await get_tempo_traces_internal_endpoint(ops_test)
+    tempo_endpoint = await get_tempo_traces_internal_endpoint(ops_test, protocol="otlp_http")
     await emit_trace(tempo_endpoint, ops_test, nonce=nonce)  # this should fail
     # THEN we can verify it's not been ingested
     traces = get_traces(await get_application_ip(ops_test, APP_NAME))
@@ -95,35 +101,35 @@ async def test_verify_trace_http_no_tls_fails(ops_test: OpsTest, server_cert, no
 
 
 @pytest.mark.abort_on_fail
-async def test_verify_trace_http_tls(ops_test: OpsTest, nonce, server_cert):
-    # WHEN we emit a trace secured with TLS
-    tempo_endpoint = await get_tempo_traces_internal_endpoint(ops_test)
-    await emit_trace(tempo_endpoint, ops_test, nonce=nonce, use_cert=True)
-    # THEN we can verify it's eventually ingested
-    await get_traces_patiently(await get_application_ip(ops_test, APP_NAME))
+@pytest.mark.parametrize("protocol", list(protocols_endpoints.keys()))
+async def test_verify_traces_force_enabled_protocols_tls(ops_test: OpsTest, nonce, protocol):
 
-
-@pytest.mark.abort_on_fail
-async def test_verify_traces_grpc_tls(ops_test: OpsTest, nonce, server_cert):
-    # enable otlp grpc receiver
     tempo_app: Application = ops_test.model.applications[APP_NAME]
-    await tempo_app.set_config(
-        {
-            "always_enable_otlp_grpc": "True",
-        }
-    )
-    await ops_test.model.wait_for_idle(
-        apps=[APP_NAME],
-        status="active",
-        timeout=1000,
-    )
 
-    tempo_endpoint = await get_tempo_traces_internal_endpoint(ops_test, proto="grpc")
+    # enable each protocol receiver
+    # for protocol in protocols_endpoints:
+
+    # otlp_http should be enabled by default
+    if protocol != "otlp_http":
+        await tempo_app.set_config(
+            {
+                f"always_enable_{protocol}": "True",
+            }
+        )
+        await ops_test.model.wait_for_idle(
+            apps=[APP_NAME],
+            status="active",
+            timeout=1000,
+        )
+
+    tempo_endpoint = await get_tempo_traces_internal_endpoint(ops_test, protocol=protocol)
     # WHEN we emit a trace secured with TLS
-    await emit_trace(tempo_endpoint, ops_test, nonce=nonce, verbose=1, proto="grpc", use_cert=True)
+    await emit_trace(
+        tempo_endpoint, ops_test, nonce=nonce, verbose=1, proto=protocol, use_cert=True
+    )
     # THEN we can verify it's been ingested
     await get_traces_patiently(
-        await get_application_ip(ops_test, APP_NAME), service_name="tracegen-grpc"
+        await get_application_ip(ops_test, APP_NAME), service_name=f"tracegen-{protocol}"
     )
 
 
