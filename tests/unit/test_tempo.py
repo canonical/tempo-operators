@@ -52,8 +52,8 @@ from tempo import Tempo
                         "thrift_http": {
                             "tls": {
                                 "ca_file": "/usr/local/share/ca-certificates/ca.crt",
-                                "cert_file": "/etc/tempo/tls/server.crt",
-                                "key_file": "/etc/tempo/tls/server.key",
+                                "cert_file": "/etc/worker/server.cert",
+                                "key_file": "/etc/worker/private.key",
                             }
                         },
                     }
@@ -61,8 +61,8 @@ from tempo import Tempo
                 "zipkin": {
                     "tls": {
                         "ca_file": "/usr/local/share/ca-certificates/ca.crt",
-                        "cert_file": "/etc/tempo/tls/server.crt",
-                        "key_file": "/etc/tempo/tls/server.key",
+                        "cert_file": "/etc/worker/server.cert",
+                        "key_file": "/etc/worker/private.key",
                     }
                 },
                 "otlp": {
@@ -70,8 +70,8 @@ from tempo import Tempo
                         "http": {
                             "tls": {
                                 "ca_file": "/usr/local/share/ca-certificates/ca.crt",
-                                "cert_file": "/etc/tempo/tls/server.crt",
-                                "key_file": "/etc/tempo/tls/server.key",
+                                "cert_file": "/etc/worker/server.cert",
+                                "key_file": "/etc/worker/private.key",
                             }
                         },
                     }
@@ -82,10 +82,7 @@ from tempo import Tempo
     ),
 )
 def test_tempo_distributor_config(protocols, use_tls, expected_config):
-    assert (
-        Tempo(None, use_tls=use_tls)._build_distributor_config(protocols).receivers
-        == expected_config
-    )
+    assert Tempo(None)._build_distributor_config(protocols, use_tls).receivers == expected_config
 
 
 @pytest.mark.parametrize(
@@ -108,4 +105,4 @@ def test_tempo_distributor_config(protocols, use_tls, expected_config):
     ),
 )
 def test_tempo_memberlist_config(peers, expected_config):
-    assert Tempo()._build_memberlist_config(peers) == expected_config
+    assert Tempo(None)._build_memberlist_config(peers) == expected_config

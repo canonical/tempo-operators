@@ -1,16 +1,20 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from scenario import Container, Context, Relation
 
 from charm import TempoCoordinatorCharm
-from tempo_cluster import TempoClusterRequirerAppData, TempoRole
+
+
+@pytest.fixture()
+def coordinator():
+    return MagicMock()
 
 
 @pytest.fixture
 def tempo_charm():
     with patch("lightkube.core.client.GenericSyncClient"):
-        with patch("charm.TempoCoordinatorCharm._update_server_cert"):
+        with patch("charm.TempoCoordinatorCharm.are_certificates_on_disk", False):
             yield TempoCoordinatorCharm
 
 
@@ -42,7 +46,7 @@ def s3(s3_config):
 def all_worker():
     return Relation(
         "tempo-cluster",
-        remote_app_data=TempoClusterRequirerAppData(role=TempoRole.all).dump(),
+        remote_app_data={"role": '"all"'},
     )
 
 

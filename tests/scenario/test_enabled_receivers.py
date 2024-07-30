@@ -53,7 +53,7 @@ def test_receivers_with_relations(
     action_out = context.run_action("list-receivers", state)
     assert action_out.results == {
         "otlp-http": f"http://{socket.getfqdn()}:4318",
-        "otlp-grpc": f"http://{socket.getfqdn()}:4317",
+        "otlp-grpc": f"{socket.getfqdn()}:4317",
     }
 
 
@@ -93,5 +93,5 @@ def test_receivers_with_relations_and_config(
     assert action_out.results == {
         "otlp-http": f"http://{socket.getfqdn()}:4318",
         "zipkin": f"http://{socket.getfqdn()}:9411",
-        "otlp-grpc": f"http://{socket.getfqdn()}:4317",
+        "otlp-grpc": f"{socket.getfqdn()}:4317",
     }

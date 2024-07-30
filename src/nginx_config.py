@@ -3,57 +3,37 @@
 """Nginx workload."""
 
 import logging
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, cast
 
 import crossplane
-from ops import CharmBase
-from ops.pebble import Layer, PathError, ProtocolError
+from charms.tempo_k8s.v2.tracing import (
+    ReceiverProtocol,
+    TransportProtocolType,
+    receiver_protocol_to_transport_protocol,
+)
+from cosl.coordinated_workers.coordinator import Coordinator
+from cosl.coordinated_workers.nginx import CERT_PATH, KEY_PATH
 
 from tempo import Tempo
-from tempo_cluster import TempoClusterProvider, TempoRole
+from tempo_config import TempoRole
 
 logger = logging.getLogger(__name__)
 
 
-NGINX_DIR = "/etc/nginx"
-NGINX_CONFIG = f"{NGINX_DIR}/nginx.conf"
-KEY_PATH = f"{NGINX_DIR}/certs/server.key"
-CERT_PATH = f"{NGINX_DIR}/certs/server.cert"
-CA_CERT_PATH = f"{NGINX_DIR}/certs/ca.cert"
-
-
-class Nginx:
+class NginxConfig:
     """Helper class to manage the nginx workload."""
 
-    config_path = NGINX_CONFIG
-
-    def __init__(self, charm: CharmBase, cluster_provider: TempoClusterProvider, server_name: str):
-        self._charm = charm
-        self.cluster_provider = cluster_provider
+    def __init__(self, server_name: str):
         self.server_name = server_name
-        self._container = self._charm.unit.get_container("nginx")
 
-    def configure_pebble_layer(self) -> None:
-        """Configure pebble layer."""
-        new_config: str = self.config()
-        should_restart: bool = self._has_config_changed(new_config)
-        if self._container.can_connect():
-            self._container.push(self.config_path, new_config, make_dirs=True)  # type: ignore
-            self._container.add_layer("nginx", self.layer, combine=True)
-            self._container.autostart()
-
-            if should_restart:
-                logger.info("new nginx config: reloading the service")
-                self.reload()
-
-    def config(self) -> str:
+    def config(self, coordinator: Coordinator) -> str:
         """Build and return the Nginx configuration."""
-        full_config = self._prepare_config()
+        full_config = self._prepare_config(coordinator)
         return crossplane.build(full_config)
 
-    def _prepare_config(self) -> List[dict]:
+    def _prepare_config(self, coordinator: Coordinator) -> List[dict]:
         log_level = "error"
-        addresses_by_role = self.cluster_provider.gather_addresses_by_role()
+        addresses_by_role = coordinator.cluster.gather_addresses_by_role()
         # build the complete configuration
         full_config = [
             {"directive": "worker_processes", "args": ["5"]},
@@ -102,51 +82,13 @@ class Nginx:
                     },
                     {"directive": "proxy_read_timeout", "args": ["300"]},
                     # server block
-                    *self._servers(addresses_by_role),
+                    *self._build_servers_config(
+                        addresses_by_role, coordinator.nginx.are_certificates_on_disk
+                    ),
                 ],
             },
         ]
         return full_config
-
-    def _has_config_changed(self, new_config: str) -> bool:
-        """Return True if the passed config differs from the one on disk."""
-        if not self._container.can_connect():
-            logger.debug("Could not connect to Nginx container")
-            return False
-
-        try:
-            current_config = self._container.pull(self.config_path).read()
-        except (ProtocolError, PathError) as e:
-            logger.warning(
-                "Could not check the current nginx configuration due to "
-                "a failure in retrieving the file: %s",
-                e,
-            )
-            return False
-
-        return current_config != new_config
-
-    def reload(self) -> None:
-        """Reload the nginx config without restarting the service."""
-        self._container.exec(["nginx", "-s", "reload"])
-
-    @property
-    def layer(self) -> Layer:
-        """Return the Pebble layer for Nginx."""
-        return Layer(
-            {
-                "summary": "nginx layer",
-                "description": "pebble config layer for Nginx",
-                "services": {
-                    "nginx": {
-                        "override": "replace",
-                        "summary": "nginx",
-                        "command": "nginx -g 'daemon off;'",
-                        "startup": "enabled",
-                    }
-                },
-            }
-        )
 
     def _log_verbose(self, verbose: bool = True) -> List[Dict[str, Any]]:
         if verbose:
@@ -167,28 +109,6 @@ class Nginx:
         addresses_mapped_to_upstreams = {}
         nginx_upstreams = []
         addresses_mapped_to_upstreams = addresses_by_role.copy()
-        if TempoRole.all in addresses_by_role.keys():
-            # for all, we add addresses to existing upstreams for distributor / query_frontend or create the set
-            if TempoRole.distributor in addresses_mapped_to_upstreams:
-                addresses_mapped_to_upstreams[TempoRole.distributor] = (
-                    addresses_mapped_to_upstreams[TempoRole.distributor].union(
-                        addresses_by_role[TempoRole.all]
-                    )
-                )
-            else:
-                addresses_mapped_to_upstreams[TempoRole.distributor] = addresses_by_role[
-                    TempoRole.all
-                ]
-            if TempoRole.query_frontend in addresses_mapped_to_upstreams:
-                addresses_mapped_to_upstreams[TempoRole.query_frontend] = (
-                    addresses_mapped_to_upstreams[TempoRole.query_frontend].union(
-                        addresses_by_role[TempoRole.all]
-                    )
-                )
-            else:
-                addresses_mapped_to_upstreams[TempoRole.query_frontend] = addresses_by_role[
-                    TempoRole.all
-                ]
         if TempoRole.distributor in addresses_mapped_to_upstreams.keys():
             nginx_upstreams.extend(
                 self._distributor_upstreams(addresses_mapped_to_upstreams[TempoRole.distributor])
@@ -276,22 +196,33 @@ class Nginx:
             args.append("http2")
         return args
 
-    def _servers(self, addresses_by_role: Dict[str, Set[str]]) -> List[Dict[str, Any]]:
+    def _build_servers_config(
+        self, addresses_by_role: Dict[str, Set[str]], tls: bool = False
+    ) -> List[Dict[str, Any]]:
         servers = []
         roles = addresses_by_role.keys()
-
-        if TempoRole.distributor.value in roles or TempoRole.all.value in roles:
+        # generate a server config for receiver protocols (9411, 4317, 4318, 14268, 14250)
+        if TempoRole.distributor.value in roles:
             for protocol, port in Tempo.receiver_ports.items():
-                servers.append(self._server(port, protocol.replace("_", "-"), "grpc" in protocol))
-        if TempoRole.query_frontend.value in roles or TempoRole.all.value in roles:
+                servers.append(
+                    self._build_server_config(
+                        port, protocol.replace("_", "-"), self._is_protocol_grpc(protocol), tls
+                    )
+                )
+        # generate a server config for the Tempo server protocols (3200, 9096)
+        if TempoRole.query_frontend.value in roles:
             for protocol, port in Tempo.server_ports.items():
-                servers.append(self._server(port, protocol.replace("_", "-"), "grpc" in protocol))
+                servers.append(
+                    self._build_server_config(
+                        port, protocol.replace("_", "-"), self._is_protocol_grpc(protocol), tls
+                    )
+                )
         return servers
 
-    def _server(self, port: int, upstream: str, grpc: bool = False) -> Dict[str, Any]:
+    def _build_server_config(
+        self, port: int, upstream: str, grpc: bool = False, tls: bool = False
+    ) -> Dict[str, Any]:
         auth_enabled = False
-
-        tls = self.tls_ready
 
         if tls:
             return {
@@ -329,25 +260,14 @@ class Nginx:
             ],
         }
 
-    @property
-    def tls_ready(self) -> bool:
-        """Whether cert, key, and ca paths are found on disk and Nginx is ready to use tls."""
-        if not self._container.can_connect():
-            return False
-        return all(
-            self._container.exists(tls_path) for tls_path in (KEY_PATH, CERT_PATH, CA_CERT_PATH)
-        )
-
-    def configure_tls(self, private_key: str, server_cert: str, ca_cert: str) -> None:
-        """Save the certificates file to disk and run update-ca-certificates."""
-        if self._container.can_connect():
-            self._container.push(KEY_PATH, private_key, make_dirs=True)
-            self._container.push(CERT_PATH, server_cert, make_dirs=True)
-            self._container.push(CA_CERT_PATH, ca_cert, make_dirs=True)
-
-    def delete_certificates(self) -> None:
-        """Delete the certificate files from disk and run update-ca-certificates."""
-        if self._container.can_connect():
-            self._container.remove_path(CERT_PATH, recursive=True)
-            self._container.remove_path(KEY_PATH, recursive=True)
-            self._container.remove_path(CA_CERT_PATH, recursive=True)
+    def _is_protocol_grpc(self, protocol: str) -> bool:
+        """
+        Return True if the given protocol is gRPC
+        """
+        if (
+            protocol == "tempo_grpc"
+            or receiver_protocol_to_transport_protocol.get(cast(ReceiverProtocol, protocol))
+            == TransportProtocolType.grpc
+        ):
+            return True
+        return False
