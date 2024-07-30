@@ -283,23 +283,7 @@ async def deploy_and_configure_minio(ops_test: OpsTest):
 
 
 async def deploy_cluster(ops_test: OpsTest, tempo_app=APP_NAME):
-    # await ops_test.model.deploy(FACADE, channel="edge")
-    # await ops_test.model.wait_for_idle(
-    #     apps=[FACADE], raise_on_blocked=True, status="active", timeout=2000
-    # )
-
-    # TODO: deploy from latest edge
-    tempo_worker_charm = (
-        "/home/michael/Work/tempo-worker-k8s-operator/tempo-worker-k8s_ubuntu-22.04-amd64.charm"
-    )
-
-    resources = {
-        "tempo-image": "docker.io/ubuntu/tempo:2-22.04",
-    }
-
-    await ops_test.model.deploy(
-        tempo_worker_charm, resources=resources, application_name=WORKER_NAME
-    )
+    await ops_test.model.deploy("tempo-worker-k8s", application_name=WORKER_NAME, channel="edge")
     await ops_test.model.deploy(S3_INTEGRATOR, channel="edge")
 
     await ops_test.model.integrate(tempo_app + ":s3", S3_INTEGRATOR + ":s3-credentials")
