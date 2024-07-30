@@ -10,6 +10,7 @@ from helpers import (
     get_application_ip,
     get_traces,
     get_traces_patiently,
+    protocols_endpoints,
 )
 from juju.application import Application
 from pytest_operator.plugin import OpsTest
@@ -19,13 +20,7 @@ APP_NAME = "tempo"
 SSC = "self-signed-certificates"
 SSC_APP_NAME = "ssc"
 TRACEGEN_SCRIPT_PATH = Path() / "scripts" / "tracegen.py"
-protocols_endpoints = {
-    "jaeger_thrift_http": "https://{}:14268/api/traces?format=jaeger.thrift",
-    "zipkin": "https://{}:9411/v1/traces",
-    "jaeger_grpc": "{}:14250",
-    "otlp_http": "https://{}:4318/v1/traces",
-    "otlp_grpc": "{}:4317",
-}
+
 
 logger = logging.getLogger(__name__)
 
@@ -107,8 +102,6 @@ async def test_verify_traces_force_enabled_protocols_tls(ops_test: OpsTest, nonc
     tempo_app: Application = ops_test.model.applications[APP_NAME]
 
     # enable each protocol receiver
-    # for protocol in protocols_endpoints:
-
     # otlp_http should be enabled by default
     if protocol != "otlp_http":
         await tempo_app.set_config(
