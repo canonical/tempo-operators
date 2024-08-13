@@ -52,7 +52,7 @@ class TempoCoordinatorCharm(CharmBase):
             roles_config=TempoRolesConfig(),
             s3_bucket_name=Tempo.s3_bucket_name,
             external_url=self._external_url,
-            worker_metrics_port=8080,
+            worker_metrics_port=self.tempo.tempo_http_server_port,
             endpoints={
                 "certificates": "certificates",
                 "cluster": "tempo-cluster",
