@@ -77,7 +77,7 @@
   },
   {
    "datasource": {
-    "uid": "$ds"
+    "uid": "${prometheusds}"
    },
    "fieldConfig": {
     "defaults": {
@@ -172,7 +172,7 @@
   },
   {
    "datasource": {
-    "uid": "$ds"
+    "uid": "${prometheusds}"
    },
    "fieldConfig": {
     "defaults": {
@@ -267,7 +267,7 @@
   },
   {
    "datasource": {
-    "uid": "$ds"
+    "uid": "${prometheusds}"
    },
    "fieldConfig": {
     "defaults": {
@@ -361,7 +361,7 @@
   },
   {
    "datasource": {
-    "uid": "$ds"
+    "uid": "${prometheusds}"
    },
    "fieldConfig": {
     "defaults": {
@@ -453,7 +453,7 @@
   },
   {
    "datasource": {
-    "uid": "$ds"
+    "uid": "${prometheusds}"
    },
    "fieldConfig": {
     "defaults": {
@@ -548,7 +548,7 @@
   },
   {
    "datasource": {
-    "uid": "$ds"
+    "uid": "${prometheusds}"
    },
    "fieldConfig": {
     "defaults": {
@@ -651,7 +651,7 @@
   },
   {
    "datasource": {
-    "uid": "$ds"
+    "uid": "${prometheusds}"
    },
    "fieldConfig": {
     "defaults": {
@@ -745,7 +745,7 @@
   },
   {
    "datasource": {
-    "uid": "$ds"
+    "uid": "${prometheusds}"
    },
    "fieldConfig": {
     "defaults": {
@@ -854,7 +854,7 @@
    "panels": [
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -948,7 +948,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -1052,7 +1052,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -1158,7 +1158,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -1255,7 +1255,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -1362,7 +1362,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -1463,7 +1463,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -1577,7 +1577,7 @@
    "panels": [
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -1672,7 +1672,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -1778,7 +1778,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -1875,7 +1875,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -1989,7 +1989,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -2084,7 +2084,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -2190,7 +2190,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -2287,7 +2287,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -2399,7 +2399,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -2494,7 +2494,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -2600,7 +2600,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -2697,7 +2697,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -2809,7 +2809,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -2904,7 +2904,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -3010,7 +3010,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -3107,7 +3107,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -3220,7 +3220,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -3322,7 +3322,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -3447,7 +3447,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -3551,7 +3551,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -3682,7 +3682,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -3784,7 +3784,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -3909,7 +3909,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -4011,7 +4011,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -4154,7 +4154,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -4256,7 +4256,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -4357,7 +4357,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -4452,7 +4452,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -4547,7 +4547,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -4642,7 +4642,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -4750,7 +4750,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -4851,7 +4851,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -4946,7 +4946,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -5047,7 +5047,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -5154,7 +5154,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -5262,7 +5262,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -5376,7 +5376,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -5519,7 +5519,7 @@
    "panels": [
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -5613,7 +5613,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -5737,7 +5737,7 @@
    "panels": [
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -5831,7 +5831,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -5953,7 +5953,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -6051,7 +6051,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -6145,7 +6145,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -6246,7 +6246,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -6372,7 +6372,7 @@
    "panels": [
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -6460,7 +6460,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -6542,7 +6542,7 @@
    "panels": [
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -6633,7 +6633,7 @@
     },
     {
      "datasource": {
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "description": "",
      "fieldConfig": {
@@ -6726,7 +6726,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -6820,7 +6820,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "$ds"
+      "uid": "${prometheusds}"
      },
      "fieldConfig": {
       "defaults": {
@@ -6971,7 +6971,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "$ds"
+     "uid": "${prometheusds}"
     },
     "definition": "label_values(tempo_build_info, cluster)",
     "hide": 0,
@@ -7002,7 +7002,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "$ds"
+     "uid": "${prometheusds}"
     },
     "definition": "label_values(tempo_build_info{cluster=~'$cluster'}, namespace)",
     "hide": 0,

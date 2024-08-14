@@ -35,7 +35,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 1,
      "legend": {
@@ -143,7 +143,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 2,
      "legend": {
@@ -251,7 +251,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 3,
      "legend": {
@@ -348,7 +348,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 4,
      "legend": {
@@ -456,7 +456,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 5,
      "legend": {
@@ -564,7 +564,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 6,
      "legend": {
@@ -661,7 +661,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 7,
      "legend": {
@@ -769,7 +769,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 8,
      "legend": {
@@ -877,7 +877,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 9,
      "legend": {
@@ -974,7 +974,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 10,
      "legend": {
@@ -1082,7 +1082,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 11,
      "legend": {
@@ -1190,7 +1190,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 12,
      "legend": {
@@ -1287,7 +1287,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 13,
      "legend": {
@@ -1395,7 +1395,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 14,
      "legend": {
@@ -1503,7 +1503,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 15,
      "legend": {
@@ -1600,7 +1600,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 16,
      "legend": {
@@ -1708,7 +1708,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 17,
      "legend": {
@@ -1816,7 +1816,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 18,
      "legend": {
@@ -1913,7 +1913,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 19,
      "legend": {
@@ -2021,7 +2021,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 20,
      "legend": {
@@ -2129,7 +2129,7 @@
      "bars": false,
      "dashLength": 10,
      "dashes": false,
-     "datasource": "$datasource",
+     "datasource": "${prometheusds}",
      "fill": 1,
      "id": 21,
      "legend": {
@@ -2246,7 +2246,7 @@
      "text": "All",
      "value": "$__all"
     },
-    "datasource": "$datasource",
+    "datasource": "${prometheusds}",
     "hide": 0,
     "includeAll": true,
     "label": "cluster",
@@ -2274,7 +2274,7 @@
      "text": "All",
      "value": "$__all"
     },
-    "datasource": "$datasource",
+    "datasource": "${prometheusds}",
     "hide": 0,
     "includeAll": true,
     "label": "namespace",

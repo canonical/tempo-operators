@@ -30,7 +30,7 @@
    "bars": false,
    "dashLength": 10,
    "dashes": false,
-   "datasource": "$datasource",
+   "datasource": "${prometheusds}",
    "fieldConfig": {
     "defaults": {
      "color": {
@@ -171,7 +171,7 @@
    "bars": false,
    "dashLength": 10,
    "dashes": false,
-   "datasource": "$datasource",
+   "datasource": "${prometheusds}",
    "fieldConfig": {
     "defaults": {
      "color": {
@@ -287,7 +287,7 @@
    "bars": false,
    "dashLength": 10,
    "dashes": false,
-   "datasource": "$datasource",
+   "datasource": "${prometheusds}",
    "fieldConfig": {
     "defaults": {
      "color": {
@@ -411,7 +411,7 @@
    "bars": false,
    "dashLength": 10,
    "dashes": false,
-   "datasource": "$datasource",
+   "datasource": "${prometheusds}",
    "fieldConfig": {
     "defaults": {
      "color": {
@@ -531,7 +531,7 @@
    "bars": false,
    "dashLength": 10,
    "dashes": false,
-   "datasource": "$datasource",
+   "datasource": "${prometheusds}",
    "fieldConfig": {
     "defaults": {
      "color": {
@@ -655,7 +655,7 @@
    "bars": false,
    "dashLength": 10,
    "dashes": false,
-   "datasource": "$datasource",
+   "datasource": "${prometheusds}",
    "fieldConfig": {
     "defaults": {
      "color": {
@@ -771,7 +771,7 @@
    "bars": false,
    "dashLength": 10,
    "dashes": false,
-   "datasource": "$datasource",
+   "datasource": "${prometheusds}",
    "fieldConfig": {
     "defaults": {
      "color": {
@@ -895,7 +895,7 @@
    "bars": false,
    "dashLength": 10,
    "dashes": false,
-   "datasource": "$datasource",
+   "datasource": "${prometheusds}",
    "fieldConfig": {
     "defaults": {
      "color": {
@@ -1015,7 +1015,7 @@
    "bars": false,
    "dashLength": 10,
    "dashes": false,
-   "datasource": "$datasource",
+   "datasource": "${prometheusds}",
    "fieldConfig": {
     "defaults": {
      "color": {
@@ -1139,7 +1139,7 @@
    "bars": false,
    "dashLength": 10,
    "dashes": false,
-   "datasource": "$datasource",
+   "datasource": "${prometheusds}",
    "fieldConfig": {
     "defaults": {
      "color": {
@@ -1273,7 +1273,7 @@
    ]
   },
   {
-   "datasource": "$datasource",
+   "datasource": "${prometheusds}",
    "fieldConfig": {
     "overrides": [
      {
@@ -1344,7 +1344,7 @@
    "bars": false,
    "dashLength": 10,
    "dashes": false,
-   "datasource": "$datasource",
+   "datasource": "${prometheusds}",
    "fill": 1,
    "gridPos": {
     "h": 8,
@@ -1468,7 +1468,7 @@
      "text": "All",
      "value": "$__all"
     },
-    "datasource": "$datasource",
+    "datasource": "${prometheusds}",
     "hide": 0,
     "includeAll": false,
     "label": "cluster",
@@ -1496,7 +1496,7 @@
      "text": "All",
      "value": "$__all"
     },
-    "datasource": "$datasource",
+    "datasource": "${prometheusds}",
     "hide": 0,
     "includeAll": false,
     "label": "namespace",
