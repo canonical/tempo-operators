@@ -108,7 +108,7 @@
    "steppedLine": false,
    "targets": [
     {
-     "expr": "(\n  sum by(tempo_service) (\n    label_replace(\n      kube_statefulset_status_replicas_updated{cluster=~\"$cluster\", namespace=~\"$namespace\",statefulset=~\".*(cortex-gw|distributor|ingester|query-frontend|querier|compactor|metrics-generator).*\"},\n      \"tempo_service\", \"$1\", \"statefulset\", \"(.*?)(?:-zone-[a-z])?\"\n    )\n  )\n  /\n  sum by(tempo_service) (\n    label_replace(\n      kube_statefulset_replicas{cluster=~\"$cluster\", namespace=~\"$namespace\"},\n      \"tempo_service\", \"$1\", \"statefulset\", \"(.*?)(?:-zone-[a-z])?\"\n    )\n  )\n) and (\n  sum by(tempo_service) (\n    label_replace(\n      kube_statefulset_replicas{cluster=~\"$cluster\", namespace=~\"$namespace\"},\n      \"tempo_service\", \"$1\", \"statefulset\", \"(.*?)(?:-zone-[a-z])?\"\n    )\n  )\n  > 0\n)\n",
+     "expr": "(\n  sum by(tempo_service) (\n    label_replace(\n      kube_statefulset_status_replicas_updated{namespace=~'$namespace',statefulset=~'.*(cortex-gw|distributor|ingester|query-frontend|querier|compactor|metrics-generator).*'},\n      'tempo_service', '$1', 'statefulset', '(.*?)(?:-zone-[a-z])?'\n    )\n  )\n  /\n  sum by(tempo_service) (\n    label_replace(\n      kube_statefulset_replicas{namespace=~'$namespace'},\n      'tempo_service', '$1', 'statefulset', '(.*?)(?:-zone-[a-z])?'\n    )\n  )\n) and (\n  sum by(tempo_service) (\n    label_replace(\n      kube_statefulset_replicas{namespace=~'$namespace'},\n      'tempo_service', '$1', 'statefulset', '(.*?)(?:-zone-[a-z])?'\n    )\n  )\n  > 0\n)\n",
      "format": null,
      "intervalFactor": null,
      "legendFormat": "{{tempo_service}}",
@@ -116,7 +116,7 @@
      "step": null
     },
     {
-     "expr": "(\n  sum by(tempo_service) (\n    label_replace(\n      kube_deployment_status_replicas_updated{cluster=~\"$cluster\", namespace=~\"$namespace\",deployment=~\".*(cortex-gw|distributor|ingester|query-frontend|querier|compactor|metrics-generator).*\"},\n      \"tempo_service\", \"$1\", \"deployment\", \"(.*?)(?:-zone-[a-z])?\"\n    )\n  )\n  /\n  sum by(tempo_service) (\n    label_replace(\n      kube_deployment_spec_replicas{cluster=~\"$cluster\", namespace=~\"$namespace\"},\n      \"tempo_service\", \"$1\", \"deployment\", \"(.*?)(?:-zone-[a-z])?\"\n    )\n  )\n) and (\n  sum by(tempo_service) (\n    label_replace(\n      kube_deployment_spec_replicas{cluster=~\"$cluster\", namespace=~\"$namespace\"},\n      \"tempo_service\", \"$1\", \"deployment\", \"(.*?)(?:-zone-[a-z])?\"\n    )\n  )\n  > 0\n)\n",
+     "expr": "(\n  sum by(tempo_service) (\n    label_replace(\n      kube_deployment_status_replicas_updated{namespace=~'$namespace',deployment=~'.*(cortex-gw|distributor|ingester|query-frontend|querier|compactor|metrics-generator).*'},\n      'tempo_service', '$1', 'deployment', '(.*?)(?:-zone-[a-z])?'\n    )\n  )\n  /\n  sum by(tempo_service) (\n    label_replace(\n      kube_deployment_spec_replicas{namespace=~'$namespace'},\n      'tempo_service', '$1', 'deployment', '(.*?)(?:-zone-[a-z])?'\n    )\n  )\n) and (\n  sum by(tempo_service) (\n    label_replace(\n      kube_deployment_spec_replicas{namespace=~'$namespace'},\n      'tempo_service', '$1', 'deployment', '(.*?)(?:-zone-[a-z])?'\n    )\n  )\n  > 0\n)\n",
      "format": null,
      "intervalFactor": null,
      "legendFormat": "{{tempo_service}}",
@@ -230,7 +230,7 @@
    "steppedLine": false,
    "targets": [
     {
-     "expr": "sum(rate(tempo_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"($namespace)/cortex-gw(-internal)?\", route=~\"opentelemetry_proto_collector_trace_v1_traceservice_export\",status_code=~\"2.+\"}[$__rate_interval])) /\nsum(rate(tempo_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"($namespace)/cortex-gw(-internal)?\", route=~\"opentelemetry_proto_collector_trace_v1_traceservice_export\"}[$__rate_interval]))\n",
+     "expr": "sum(rate(tempo_request_duration_seconds_count{job=~'($namespace)/cortex-gw(-internal)?', route=~'opentelemetry_proto_collector_trace_v1_traceservice_export',status_code=~'2.+'}[$__rate_interval])) /\nsum(rate(tempo_request_duration_seconds_count{job=~'($namespace)/cortex-gw(-internal)?', route=~'opentelemetry_proto_collector_trace_v1_traceservice_export'}[$__rate_interval]))\n",
      "format": null,
      "instant": false,
      "interval": "",
@@ -354,7 +354,7 @@
    "steppedLine": false,
    "targets": [
     {
-     "expr": "sum(rate(tempo_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"($namespace)/cortex-gw(-internal)?\", route=~\"opentelemetry_proto_collector_trace_v1_traceservice_export\",status_code=~\"4.+\"}[$__rate_interval])) /\nsum(rate(tempo_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"($namespace)/cortex-gw(-internal)?\", route=~\"opentelemetry_proto_collector_trace_v1_traceservice_export\"}[$__rate_interval]))\n",
+     "expr": "sum(rate(tempo_request_duration_seconds_count{job=~'($namespace)/cortex-gw(-internal)?', route=~'opentelemetry_proto_collector_trace_v1_traceservice_export',status_code=~'4.+'}[$__rate_interval])) /\nsum(rate(tempo_request_duration_seconds_count{job=~'($namespace)/cortex-gw(-internal)?', route=~'opentelemetry_proto_collector_trace_v1_traceservice_export'}[$__rate_interval]))\n",
      "format": null,
      "instant": false,
      "interval": "",
@@ -474,7 +474,7 @@
    "steppedLine": false,
    "targets": [
     {
-     "expr": "sum(rate(tempo_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"($namespace)/cortex-gw(-internal)?\", route=~\"opentelemetry_proto_collector_trace_v1_traceservice_export\",status_code=~\"5.+\"}[$__rate_interval])) /\nsum(rate(tempo_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"($namespace)/cortex-gw(-internal)?\", route=~\"opentelemetry_proto_collector_trace_v1_traceservice_export\"}[$__rate_interval]))\n",
+     "expr": "sum(rate(tempo_request_duration_seconds_count{job=~'($namespace)/cortex-gw(-internal)?', route=~'opentelemetry_proto_collector_trace_v1_traceservice_export',status_code=~'5.+'}[$__rate_interval])) /\nsum(rate(tempo_request_duration_seconds_count{job=~'($namespace)/cortex-gw(-internal)?', route=~'opentelemetry_proto_collector_trace_v1_traceservice_export'}[$__rate_interval]))\n",
      "format": null,
      "instant": false,
      "interval": "",
@@ -598,7 +598,7 @@
    "steppedLine": false,
    "targets": [
     {
-     "expr": "histogram_quantile(0.99, sum by (le) (tempo_request_duration_seconds_bucket{cluster=~\"$cluster\", job=~\"($namespace)/cortex-gw(-internal)?\", route=~\"opentelemetry_proto_collector_trace_v1_traceservice_export\"}))\n",
+     "expr": "histogram_quantile(0.99, sum by (le) (tempo_request_duration_seconds_bucket{job=~'($namespace)/cortex-gw(-internal)?', route=~'opentelemetry_proto_collector_trace_v1_traceservice_export'}))\n",
      "format": null,
      "instant": false,
      "interval": "",
@@ -714,7 +714,7 @@
    "steppedLine": false,
    "targets": [
     {
-     "expr": "sum(rate(tempo_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"($namespace)/cortex-gw(-internal)?\", route=~\"tempo_api_.*\",status_code=~\"2.+\"}[$__rate_interval])) /\nsum(rate(tempo_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"($namespace)/cortex-gw(-internal)?\", route=~\"tempo_api_.*\"}[$__rate_interval]))\n",
+     "expr": "sum(rate(tempo_request_duration_seconds_count{job=~'($namespace)/cortex-gw(-internal)?', route=~'tempo_api_.*',status_code=~'2.+'}[$__rate_interval])) /\nsum(rate(tempo_request_duration_seconds_count{job=~'($namespace)/cortex-gw(-internal)?', route=~'tempo_api_.*'}[$__rate_interval]))\n",
      "format": null,
      "instant": false,
      "interval": "",
@@ -838,7 +838,7 @@
    "steppedLine": false,
    "targets": [
     {
-     "expr": "sum(rate(tempo_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"($namespace)/cortex-gw(-internal)?\", route=~\"tempo_api_.*\",status_code=~\"4.+\"}[$__rate_interval])) /\nsum(rate(tempo_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"($namespace)/cortex-gw(-internal)?\", route=~\"tempo_api_.*\"}[$__rate_interval]))\n",
+     "expr": "sum(rate(tempo_request_duration_seconds_count{job=~'($namespace)/cortex-gw(-internal)?', route=~'tempo_api_.*',status_code=~'4.+'}[$__rate_interval])) /\nsum(rate(tempo_request_duration_seconds_count{job=~'($namespace)/cortex-gw(-internal)?', route=~'tempo_api_.*'}[$__rate_interval]))\n",
      "format": null,
      "instant": false,
      "interval": "",
@@ -958,7 +958,7 @@
    "steppedLine": false,
    "targets": [
     {
-     "expr": "sum(rate(tempo_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"($namespace)/cortex-gw(-internal)?\", route=~\"tempo_api_.*\",status_code=~\"5.+\"}[$__rate_interval])) /\nsum(rate(tempo_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"($namespace)/cortex-gw(-internal)?\", route=~\"tempo_api_.*\"}[$__rate_interval]))\n",
+     "expr": "sum(rate(tempo_request_duration_seconds_count{job=~'($namespace)/cortex-gw(-internal)?', route=~'tempo_api_.*',status_code=~'5.+'}[$__rate_interval])) /\nsum(rate(tempo_request_duration_seconds_count{job=~'($namespace)/cortex-gw(-internal)?', route=~'tempo_api_.*'}[$__rate_interval]))\n",
      "format": null,
      "instant": false,
      "interval": "",
@@ -1082,7 +1082,7 @@
    "steppedLine": false,
    "targets": [
     {
-     "expr": "histogram_quantile(0.99, sum by (le) (tempo_request_duration_seconds_bucket{cluster=~\"$cluster\", job=~\"($namespace)/cortex-gw(-internal)?\", route=~\"tempo_api_.*\"}))\n",
+     "expr": "histogram_quantile(0.99, sum by (le) (tempo_request_duration_seconds_bucket{job=~'($namespace)/cortex-gw(-internal)?', route=~'tempo_api_.*'}))\n",
      "format": null,
      "instant": false,
      "interval": "",
@@ -1212,7 +1212,7 @@
    "steppedLine": false,
    "targets": [
     {
-     "expr": "kube_deployment_status_replicas_unavailable{cluster=~\"$cluster\", namespace=~\"$namespace\", deployment=~\".*(cortex-gw|distributor|ingester|query-frontend|querier|compactor|metrics-generator).*\"}\n> 0\n",
+     "expr": "kube_deployment_status_replicas_unavailable{namespace=~'$namespace', deployment=~'.*(cortex-gw|distributor|ingester|query-frontend|querier|compactor|metrics-generator).*'}\n> 0\n",
      "format": null,
      "instant": true,
      "interval": "",
@@ -1222,7 +1222,7 @@
      "step": null
     },
     {
-     "expr": "kube_statefulset_status_replicas_current{cluster=~\"$cluster\", namespace=~\"$namespace\", statefulset=~\".*(cortex-gw|distributor|ingester|query-frontend|querier|compactor|metrics-generator).*\"} -\nkube_statefulset_status_replicas_ready {cluster=~\"$cluster\", namespace=~\"$namespace\", statefulset=~\".*(cortex-gw|distributor|ingester|query-frontend|querier|compactor|metrics-generator).*\"}\n> 0\n",
+     "expr": "kube_statefulset_status_replicas_current{namespace=~'$namespace', statefulset=~'.*(cortex-gw|distributor|ingester|query-frontend|querier|compactor|metrics-generator).*'} -\nkube_statefulset_status_replicas_ready {namespace=~'$namespace', statefulset=~'.*(cortex-gw|distributor|ingester|query-frontend|querier|compactor|metrics-generator).*'}\n> 0\n",
      "format": null,
      "instant": true,
      "interval": "",
@@ -1299,7 +1299,7 @@
    "id": 11,
    "targets": [
     {
-     "expr": "count by(container, version) (\n  label_replace(\n    kube_pod_container_info{cluster=~\"$cluster\", namespace=~\"$namespace\",container=~\".*(cortex-gw|distributor|ingester|query-frontend|querier|compactor|metrics-generator).*\"},\n    \"version\", \"$1\", \"image\", \".*:(.+)-.*\"\n  )\n)\n",
+     "expr": "count by(container, version) (\n  label_replace(\n    kube_pod_container_info{namespace=~'$namespace',container=~'.*(cortex-gw|distributor|ingester|query-frontend|querier|compactor|metrics-generator).*'},\n    'version', '$1', 'image', '.*:(.+)-.*'\n  )\n)\n",
      "instant": true,
      "legendFormat": "",
      "refId": "A"
@@ -1381,14 +1381,14 @@
    "steppedLine": false,
    "targets": [
     {
-     "expr": "1 - (\n  avg_over_time(histogram_quantile(0.99, sum by (le) (tempo_request_duration_seconds_bucket{cluster=~\"$cluster\", job=~\"($namespace)/cortex-gw(-internal)?\", route=~\"opentelemetry_proto_collector_trace_v1_traceservice_export\"} offset 24h))[1h:])\n  /\n  avg_over_time(histogram_quantile(0.99, sum by (le) (tempo_request_duration_seconds_bucket{cluster=~\"$cluster\", job=~\"($namespace)/cortex-gw(-internal)?\", route=~\"opentelemetry_proto_collector_trace_v1_traceservice_export\"}))[1h:])\n)\n",
+     "expr": "1 - (\n  avg_over_time(histogram_quantile(0.99, sum by (le) (tempo_request_duration_seconds_bucket{job=~'($namespace)/cortex-gw(-internal)?', route=~'opentelemetry_proto_collector_trace_v1_traceservice_export'} offset 24h))[1h:])\n  /\n  avg_over_time(histogram_quantile(0.99, sum by (le) (tempo_request_duration_seconds_bucket{job=~'($namespace)/cortex-gw(-internal)?', route=~'opentelemetry_proto_collector_trace_v1_traceservice_export'}))[1h:])\n)\n",
      "format": "time_series",
      "interval": "1m",
      "legendFormat": "writes",
      "legendLink": null
     },
     {
-     "expr": "1 - (\n  avg_over_time(histogram_quantile(0.99, sum by (le) (tempo_request_duration_seconds_bucket{cluster=~\"$cluster\", job=~\"($namespace)/cortex-gw(-internal)?\", route=~\"tempo_api_.*\"} offset 24h))[1h:])\n  /\n  avg_over_time(histogram_quantile(0.99, sum by (le) (tempo_request_duration_seconds_bucket{cluster=~\"$cluster\", job=~\"($namespace)/cortex-gw(-internal)?\", route=~\"tempo_api_.*\"}))[1h:])\n)\n",
+     "expr": "1 - (\n  avg_over_time(histogram_quantile(0.99, sum by (le) (tempo_request_duration_seconds_bucket{job=~'($namespace)/cortex-gw(-internal)?', route=~'tempo_api_.*'} offset 24h))[1h:])\n  /\n  avg_over_time(histogram_quantile(0.99, sum by (le) (tempo_request_duration_seconds_bucket{job=~'($namespace)/cortex-gw(-internal)?', route=~'tempo_api_.*'}))[1h:])\n)\n",
      "format": "time_series",
      "interval": "1m",
      "legendFormat": "reads",
