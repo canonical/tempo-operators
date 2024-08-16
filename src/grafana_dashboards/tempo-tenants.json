@@ -89,7 +89,7 @@
      ],
      "targets": [
       {
-       "expr": "max(\n  max by (cluster, namespace, limit_name) (tempo_limits_overrides{job=~'($namespace)/compactor',user='$tenant'})\n  or max by (cluster, namespace, limit_name) (tempo_limits_defaults{job=~'($namespace)/compactor'})\n) by (limit_name)\n",
+       "expr": "max(\n  max by (cluster, namespace, limit_name) (tempo_limits_overrides{user='$tenant'})\n  or max by (cluster, namespace, limit_name) (tempo_limits_defaults{})\n) by (limit_name)\n",
        "format": "table",
        "instant": true,
        "legendFormat": "",
@@ -196,21 +196,21 @@
      "steppedLine": false,
      "targets": [
       {
-       "expr": "sum(rate(tempo_distributor_bytes_received_total{job=~'($namespace)/distributor',tenant='$tenant'}[$__rate_interval]))",
+       "expr": "sum(rate(tempo_distributor_bytes_received_total{tenant='$tenant'}[$__rate_interval]))",
        "format": "time_series",
        "interval": "1m",
        "legendFormat": "received",
        "legendLink": null
       },
       {
-       "expr": "max(\n  max by (cluster, namespace, limit_name) (tempo_limits_overrides{job=~'($namespace)/compactor',user='$tenant',limit_name='ingestion_rate_limit_bytes'})\n  or max by (cluster, namespace, limit_name) (tempo_limits_defaults{job=~'($namespace)/compactor',limit_name='ingestion_rate_limit_bytes'})\n) by (ingestion_rate_limit_bytes)\n",
+       "expr": "max(\n  max by (cluster, namespace, limit_name) (tempo_limits_overrides{user='$tenant',limit_name='ingestion_rate_limit_bytes'})\n  or max by (cluster, namespace, limit_name) (tempo_limits_defaults{limit_name='ingestion_rate_limit_bytes'})\n) by (ingestion_rate_limit_bytes)\n",
        "format": "time_series",
        "interval": "1m",
        "legendFormat": "limit",
        "legendLink": null
       },
       {
-       "expr": "max(\n  max by (cluster, namespace, limit_name) (tempo_limits_overrides{job=~'($namespace)/compactor',user='$tenant',limit_name='ingestion_burst_size_bytes'})\n  or max by (cluster, namespace, limit_name) (tempo_limits_defaults{job=~'($namespace)/compactor',limit_name='ingestion_burst_size_bytes'})\n) by (ingestion_burst_size_bytes)\n",
+       "expr": "max(\n  max by (cluster, namespace, limit_name) (tempo_limits_overrides{user='$tenant',limit_name='ingestion_burst_size_bytes'})\n  or max by (cluster, namespace, limit_name) (tempo_limits_defaults{limit_name='ingestion_burst_size_bytes'})\n) by (ingestion_burst_size_bytes)\n",
        "format": "time_series",
        "interval": "1m",
        "legendFormat": "burst limit",
@@ -295,14 +295,14 @@
      "steppedLine": false,
      "targets": [
       {
-       "expr": "sum(rate(tempo_distributor_spans_received_total{job=~'($namespace)/distributor',tenant='$tenant'}[$__rate_interval]))",
+       "expr": "sum(rate(tempo_distributor_spans_received_total{tenant='$tenant'}[$__rate_interval]))",
        "format": "time_series",
        "interval": "1m",
        "legendFormat": "accepted",
        "legendLink": null
       },
       {
-       "expr": "sum(rate(tempo_discarded_spans_total{job=~'($namespace)/distributor',tenant='$tenant'}[$__rate_interval])) by (reason)",
+       "expr": "sum(rate(tempo_discarded_spans_total{tenant='$tenant'}[$__rate_interval])) by (reason)",
        "format": "time_series",
        "interval": "1m",
        "legendFormat": "refused {{ reason }}",
@@ -396,21 +396,21 @@
      "steppedLine": false,
      "targets": [
       {
-       "expr": "max(tempo_ingester_live_traces{job=~'($namespace)/ingester',tenant='$tenant'})",
+       "expr": "max(tempo_ingester_live_traces{tenant='$tenant'})",
        "format": "time_series",
        "interval": "1m",
        "legendFormat": "live traces",
        "legendLink": null
       },
       {
-       "expr": "max(\n  max by (cluster, namespace, limit_name) (tempo_limits_overrides{job=~'($namespace)/compactor',user='$tenant',limit_name='max_global_traces_per_user'})\n  or max by (cluster, namespace, limit_name) (tempo_limits_defaults{job=~'($namespace)/compactor',limit_name='max_global_traces_per_user'})\n) by (max_global_traces_per_user)\n",
+       "expr": "max(\n  max by (cluster, namespace, limit_name) (tempo_limits_overrides{user='$tenant',limit_name='max_global_traces_per_user'})\n  or max by (cluster, namespace, limit_name) (tempo_limits_defaults{limit_name='max_global_traces_per_user'})\n) by (max_global_traces_per_user)\n",
        "format": "time_series",
        "interval": "1m",
        "legendFormat": "global limit",
        "legendLink": null
       },
       {
-       "expr": "max(\n  max by (cluster, namespace, limit_name) (tempo_limits_overrides{job=~'($namespace)/compactor',user='$tenant',limit_name='max_local_traces_per_user'})\n  or max by (cluster, namespace, limit_name) (tempo_limits_defaults{job=~'($namespace)/compactor',limit_name='max_local_traces_per_user'})\n) by (max_local_traces_per_user)\n",
+       "expr": "max(\n  max by (cluster, namespace, limit_name) (tempo_limits_overrides{user='$tenant',limit_name='max_local_traces_per_user'})\n  or max by (cluster, namespace, limit_name) (tempo_limits_defaults{limit_name='max_local_traces_per_user'})\n) by (max_local_traces_per_user)\n",
        "format": "time_series",
        "interval": "1m",
        "legendFormat": "local limit",
@@ -507,7 +507,7 @@
      "steppedLine": false,
      "targets": [
       {
-       "expr": "sum(rate(tempo_query_frontend_queries_total{job=~'($namespace)/query-frontend',tenant='$tenant',op='traces'}[$__rate_interval])) by (status)",
+       "expr": "sum(rate(tempo_query_frontend_queries_total{tenant='$tenant',op='traces'}[$__rate_interval])) by (status)",
        "format": "time_series",
        "interval": "1m",
        "legendFormat": "{{ status }}",
@@ -592,7 +592,7 @@
      "steppedLine": false,
      "targets": [
       {
-       "expr": "sum(rate(tempo_query_frontend_queries_total{job=~'($namespace)/query-frontend',tenant='$tenant',op='search'}[$__rate_interval])) by (status)",
+       "expr": "sum(rate(tempo_query_frontend_queries_total{tenant='$tenant',op='search'}[$__rate_interval])) by (status)",
        "format": "time_series",
        "interval": "1m",
        "legendFormat": "{{ status }}",
@@ -683,7 +683,7 @@
      "steppedLine": false,
      "targets": [
       {
-       "expr": "avg(tempodb_blocklist_length{job=~'($namespace)/compactor',tenant='$tenant'})",
+       "expr": "avg(tempodb_blocklist_length{tenant='$tenant'})",
        "format": "time_series",
        "interval": "1m",
        "legendFormat": "length",
@@ -762,7 +762,7 @@
      "steppedLine": false,
      "targets": [
       {
-       "expr": "sum(tempodb_compaction_outstanding_blocks{job=~'($namespace)/compactor',tenant='$tenant'})\n/\ncount(tempo_build_info{job=~'($namespace)/compactor'})\n",
+       "expr": "sum(tempodb_compaction_outstanding_blocks{tenant='$tenant'})\n/\ncount(tempo_build_info{})\n",
        "format": "time_series",
        "interval": "1m",
        "legendFormat": "blocks",
@@ -853,7 +853,7 @@
      "steppedLine": false,
      "targets": [
       {
-       "expr": "sum(rate(tempo_metrics_generator_bytes_received_total{job=~'($namespace)/metrics-generator',tenant='$tenant'}[$__rate_interval]))",
+       "expr": "sum(rate(tempo_metrics_generator_bytes_received_total{tenant='$tenant'}[$__rate_interval]))",
        "format": "time_series",
        "interval": "1m",
        "legendFormat": "rate",
@@ -942,14 +942,14 @@
      "steppedLine": false,
      "targets": [
       {
-       "expr": "sum(tempo_metrics_generator_registry_active_series{job=~'($namespace)/metrics-generator',tenant='$tenant'})",
+       "expr": "sum(tempo_metrics_generator_registry_active_series{tenant='$tenant'})",
        "format": "time_series",
        "interval": "1m",
        "legendFormat": "{{ tenant }}",
        "legendLink": null
       },
       {
-       "expr": "max(\n  max by (cluster, namespace, limit_name) (tempo_limits_overrides{job=~'($namespace)/compactor',user='$tenant',limit_name='metrics_generator_max_active_series'})\n  or max by (cluster, namespace, limit_name) (tempo_limits_defaults{job=~'($namespace)/compactor',limit_name='metrics_generator_max_active_series'})\n) by (metrics_generator_max_active_series)\n",
+       "expr": "max(\n  max by (cluster, namespace, limit_name) (tempo_limits_overrides{user='$tenant',limit_name='metrics_generator_max_active_series'})\n  or max by (cluster, namespace, limit_name) (tempo_limits_defaults{limit_name='metrics_generator_max_active_series'})\n) by (metrics_generator_max_active_series)\n",
        "format": "time_series",
        "interval": "1m",
        "legendFormat": "limit",
@@ -1072,7 +1072,7 @@
     "options": [
 
     ],
-    "query": "label_values(tempo_build_info{cluster=~'$cluster'}, namespace)",
+    "query": "label_values(tempo_build_info{}, namespace)",
     "refresh": 1,
     "regex": "",
     "sort": 2,
@@ -1099,7 +1099,7 @@
     "options": [
 
     ],
-    "query": "label_values(tempodb_blocklist_length{job=~'($namespace)/compactor'}, tenant)",
+    "query": "label_values(tempodb_blocklist_length{}, tenant)",
     "refresh": 1,
     "regex": "",
     "sort": 2,
