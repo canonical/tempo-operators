@@ -760,7 +760,7 @@
             "uid": "${prometheusds}"
           },
           "editorMode": "builder",
-          "expr": "rate(tempo_receiver_accepted_spans{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])",
+          "expr": "sum(rate(tempo_receiver_accepted_spans{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m]))",
           "legendFormat": "accepted spans",
           "range": true,
           "refId": "A"
@@ -771,7 +771,7 @@
             "uid": "${prometheusds}"
           },
           "editorMode": "code",
-          "expr": "rate(tempo_receiver_refused_spans{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])",
+          "expr": "sum(rate(tempo_receiver_refused_spans{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m]))",
           "hide": false,
           "legendFormat": "refused spans",
           "range": true,
