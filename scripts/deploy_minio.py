@@ -61,7 +61,10 @@ def deploy(s3_app_name: str,
     if model:
         _run(f"juju switch {model}")
 
-    _run(f"juju deploy minio --channel edge --trust --config access-key={user} --config secret-key={password} {minio_app_name}")
+    print("deploying minio and s3 integrator...")
+
+    _run(
+        f"juju deploy minio --channel edge --trust --config access-key={user} --config secret-key={password} {minio_app_name}")
     _run(f"juju deploy s3-integrator --channel edge --trust {s3_app_name}")
 
     print(f"waiting for minio ({minio_app_name}) to become active...", end='')
@@ -88,15 +91,21 @@ def deploy(s3_app_name: str,
         secure=False,
     )
 
-    # create tempo bucket
     found = mc_client.bucket_exists(bucket_name)
-    if not found:
+    if found:
+        print(f"bucket {bucket_name} already exists!")
+    else:
+        print("making bucket...")
         mc_client.make_bucket(bucket_name)
 
+    print("syncing s3 credentials...")
     # configure s3-integrator
     model_name = get_model_name(status)
-    _run(f"juju config {s3_app_name} endpoint={minio_app_name}-0.minio-endpoints.{model_name}.svc.cluster.local:9000 bucket={bucket_name}")
+    _run(
+        f"juju config {s3_app_name} endpoint={minio_app_name}-0.minio-endpoints.{model_name}.svc.cluster.local:9000 bucket={bucket_name}")
     _run(f"juju run {s3_app_name}/leader sync-s3-credentials access-key={user} secret-key={password}")
+
+    print("all done! have fun.")
 
 
 if __name__ == '__main__':
