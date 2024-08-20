@@ -41,22 +41,30 @@ def get_minio_status(status):
 def _run(cmd: str):
     return subprocess.check_call(shlex.split(cmd))
 
+
 def _check_juju_status(status, name):
     return status and (status['juju-status']['current'] == name)
+
 
 def _check_workload_status(status, name):
     return status and (status['workload-status']['current'] == name)
 
 
-def deploy(bucket_name: str,
+def deploy(s3_app_name: str,
+           minio_app_name: str,
+           user: str,
+           password: str,
+           bucket_name: str,
            model: str = None):
+    """Deploy minio and s3 integrator."""
+
     if model:
         _run(f"juju switch {model}")
 
-    _run(f"juju deploy minio --channel edge --trust --config access-key=accesskey --config secret-key=secretkey")
-    _run("juju deploy s3-integrator --channel edge --trust s3")
+    _run(f"juju deploy minio --channel edge --trust --config access-key={user} --config secret-key={password} {minio_app_name}")
+    _run(f"juju deploy s3-integrator --channel edge --trust {s3_app_name}")
 
-    print("waiting for minio to become active...", end='')
+    print(f"waiting for minio ({minio_app_name}) to become active...", end='')
     while True:
         status = get_status()
         minio = get_minio_status(status)
@@ -75,8 +83,8 @@ def deploy(bucket_name: str,
 
     mc_client = Minio(
         f"{minio_addr}:9000",
-        access_key="accesskey",
-        secret_key="secretkey",
+        access_key=user,
+        secret_key=password,
         secure=False,
     )
 
@@ -87,12 +95,16 @@ def deploy(bucket_name: str,
 
     # configure s3-integrator
     model_name = get_model_name(status)
-    _run(f"juju config s3 endpoint=minio-0.minio-endpoints.{model_name}.svc.cluster.local:9000 bucket={bucket_name}")
-    _run(f"juju run s3/0 sync-s3-credentials access-key=accesskey secret-key=secretkey")
+    _run(f"juju config {s3_app_name} endpoint={minio_app_name}-0.minio-endpoints.{model_name}.svc.cluster.local:9000 bucket={bucket_name}")
+    _run(f"juju run {s3_app_name}/leader sync-s3-credentials access-key={user} secret-key={password}")
 
 
 if __name__ == '__main__':
     deploy(
-        bucket_name=os.getenv("MINIO_ENDPOINT", "tempo"),
+        s3_app_name=os.getenv("MINIO_S3_APP", "s3"),
+        minio_app_name=os.getenv("MINIO_APP", "minio"),
+        user=os.getenv("MINIO_USER", "accesskey"),
+        password=os.getenv("MINIO_PASSWORD", "secretkey"),
+        bucket_name=os.getenv("MINIO_BUCKET", "tempo"),
         model=os.getenv("MINIO_MODEL", None),
     )
