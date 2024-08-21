@@ -354,7 +354,7 @@
             "uid": "${prometheusds}"
           },
           "editorMode": "builder",
-          "expr": "tempo_receiver_accepted_spans{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}",
+          "expr": "sum(tempo_receiver_accepted_spans{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"})",
           "interval": "",
           "legendFormat": "",
           "range": true,
