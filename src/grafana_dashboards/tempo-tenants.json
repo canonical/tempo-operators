@@ -1144,6 +1144,6 @@
  },
  "timezone": "utc",
  "title": "Tempo / Tenants",
- "uid": "",
+ "uid": "tempo-coordinator-tenants",
  "version": 0
 }

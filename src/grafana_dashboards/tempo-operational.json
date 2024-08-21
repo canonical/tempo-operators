@@ -5574,7 +5574,7 @@
  },
  "timezone": "",
  "title": "Tempo Operational",
- "uid": "a6175b9cc7ec20591890117c39580030",
+ "uid": "tempo-coordinator-operational",
  "version": 1,
  "weekStart": ""
 }

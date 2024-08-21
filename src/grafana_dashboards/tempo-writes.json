@@ -976,6 +976,6 @@
  },
  "timezone": "utc",
  "title": "Tempo / Writes",
- "uid": "",
+ "uid": "tempo-coordinator-writes",
  "version": 0
 }

@@ -1187,6 +1187,6 @@
  },
  "timezone": "utc",
  "title": "Tempo / Reads",
- "uid": "",
+ "uid": "tempo-coordinator-reads",
  "version": 0
 }
