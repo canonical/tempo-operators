@@ -65,7 +65,7 @@ class TempoCoordinatorCharm(CharmBase):
             nginx_config=NginxConfig(server_name=self.hostname).config,
             workers_config=self.tempo.config,
             tracing_receivers=self.requested_receivers_urls,
-            resources_requests={"cpu": "50m", "memory": "100Mi"},
+            resources_requests=self.get_resources_requests,
             container_name="charm",
         )
 
@@ -386,6 +386,10 @@ class TempoCoordinatorCharm(CharmBase):
         except (CalledProcessError, IndexError):
             return False
         return out == "ready"
+
+    def get_resources_requests(self, _) -> Dict[str, str]:
+        """Returns a dictionary for the "requests" portion of the resources requirements."""
+        return {"cpu": "50m", "memory": "100Mi"}
 
 
 if __name__ == "__main__":  # pragma: nocover
