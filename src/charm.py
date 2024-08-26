@@ -65,6 +65,8 @@ class TempoCoordinatorCharm(CharmBase):
             nginx_config=NginxConfig(server_name=self.hostname).config,
             workers_config=self.tempo.config,
             tracing_receivers=self.requested_receivers_urls,
+            resources_requests={"cpu": "50m", "memory": "100Mi"},
+            container_name="charm",
         )
 
         # configure this tempo as a datasource in grafana

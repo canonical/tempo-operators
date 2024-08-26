@@ -2,6 +2,7 @@
 # See LICENSE file for licensing details.
 
 import unittest
+from unittest.mock import patch
 
 from ops.testing import Harness
 
@@ -9,9 +10,17 @@ from charm import TempoCoordinatorCharm
 
 CONTAINER_NAME = "nginx"
 
+k8s_resource_multipatch = patch.multiple(
+    "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
+    _namespace="test-namespace",
+    _patch=lambda _: None,
+)
+
 
 class TestTempoCoordinatorCharm(unittest.TestCase):
-    def setUp(self):
+
+    @k8s_resource_multipatch
+    def setUp(self, *_):
         self.harness = Harness(TempoCoordinatorCharm)
         self.harness.set_model_name("testmodel")
         self.addCleanup(self.harness.cleanup)
