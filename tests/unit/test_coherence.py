@@ -7,7 +7,7 @@ from tempo_config import (
     MINIMAL_DEPLOYMENT,
     RECOMMENDED_DEPLOYMENT,
     TempoRole,
-    TempoRolesConfig,
+    TEMPO_ROLES_CONFIG,
 )
 
 
@@ -29,7 +29,7 @@ def test_coherent(mock_coordinator, roles, expected):
     cluster_mock.gather_roles = MagicMock(return_value=roles)
     mc.cluster = cluster_mock
     mc._is_coherent = None
-    mc.roles_config = TempoRolesConfig()
+    mc.roles_config = TEMPO_ROLES_CONFIG
 
     assert mc.is_coherent is expected
 
@@ -51,6 +51,6 @@ def test_recommended(mock_coordinator, roles, expected):
     cluster_mock.gather_roles = MagicMock(return_value=roles)
     mc.cluster = cluster_mock
     mc._is_recommended = None
-    mc.roles_config = TempoRolesConfig()
+    mc.roles_config = TEMPO_ROLES_CONFIG
 
     assert mc.is_recommended is expected
