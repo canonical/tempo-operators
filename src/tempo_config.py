@@ -2,14 +2,15 @@
 # See LICENSE file for licensing details.
 
 """Helper module for interacting with the Tempo configuration."""
+
 import enum
 import logging
 import re
 from enum import Enum, unique
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
-
+from cosl.coordinated_workers.coordinator import ClusterRolesConfig
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 logger = logging.getLogger(__name__)
@@ -80,14 +81,13 @@ Helm chart configurations.
 https://github.com/grafana/helm-charts/blob/main/charts/tempo-distributed/
 """
 
-
-class TempoRolesConfig:
-    """Define the configuration for Tempo roles."""
-
-    roles: Iterable[str] = {role for role in TempoRole}
-    meta_roles: Mapping[str, Iterable[str]] = META_ROLES
-    minimal_deployment: Iterable[str] = MINIMAL_DEPLOYMENT
-    recommended_deployment: Dict[str, int] = RECOMMENDED_DEPLOYMENT
+TEMPO_ROLES_CONFIG = ClusterRolesConfig(
+    roles={role for role in TempoRole},
+    meta_roles=META_ROLES,
+    minimal_deployment=MINIMAL_DEPLOYMENT,
+    recommended_deployment=RECOMMENDED_DEPLOYMENT,
+)
+"""Define the configuration for Tempo roles."""
 
 
 class ClientAuthTypeEnum(str, enum.Enum):

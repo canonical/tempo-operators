@@ -20,14 +20,14 @@ from charms.tempo_k8s.v2.tracing import (
     receiver_protocol_to_transport_protocol,
 )
 from charms.traefik_route_k8s.v0.traefik_route import TraefikRouteRequirer
-from cosl.coordinated_workers.coordinator import Coordinator
+from cosl.coordinated_workers.coordinator import Coordinator, ClusterRolesConfig
 from cosl.coordinated_workers.nginx import CA_CERT_PATH, CERT_PATH, KEY_PATH
 from ops.charm import CharmBase, RelationEvent
 from ops.main import main
 
 from nginx_config import NginxConfig
 from tempo import Tempo
-from tempo_config import TempoRolesConfig
+from tempo_config import TEMPO_ROLES_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 @trace_charm(
     tracing_endpoint="tempo_otlp_http_endpoint",
     server_cert="server_ca_cert",
-    extra_types=(Tempo, TracingEndpointProvider, Coordinator, TempoRolesConfig),
+    extra_types=(Tempo, TracingEndpointProvider, Coordinator, ClusterRolesConfig),
 )
 class TempoCoordinatorCharm(CharmBase):
     """Charmed Operator for Tempo; a distributed tracing backend."""
@@ -49,7 +49,7 @@ class TempoCoordinatorCharm(CharmBase):
         self.unit.set_ports(*self.tempo.all_ports.values())
         self.coordinator = Coordinator(
             charm=self,
-            roles_config=TempoRolesConfig(),
+            roles_config=TEMPO_ROLES_CONFIG,
             s3_bucket_name=Tempo.s3_bucket_name,
             external_url=self._external_url,
             worker_metrics_port=self.tempo.tempo_http_server_port,
