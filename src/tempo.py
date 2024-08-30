@@ -85,7 +85,7 @@ class Tempo:
             querier=self._build_querier_config(coordinator.cluster.gather_addresses_by_role()),
             storage=self._build_storage_config(coordinator._s3_config),
             metrics_generator=self._build_metrics_generator_config(
-                coordinator.remote_write_endpoints_getter(), coordinator.tls_available
+                coordinator.remote_write_endpoints_getter(), coordinator.tls_available  # type: ignore
             ),
         )
 

@@ -247,7 +247,7 @@ class TempoCoordinatorCharm(CharmBase):
         if not self.remote_write_endpoints():
             e.add_status(
                 ops.ActiveStatus(
-                    "`metrics-generator` disabled. Add a relation over `send-remote-write`"
+                    "metrics-generator disabled. Add a relation over send-remote-write"
                 )
             )
 
