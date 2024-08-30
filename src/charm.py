@@ -7,7 +7,7 @@ import logging
 import socket
 from pathlib import Path
 from subprocess import CalledProcessError, getoutput
-from typing import Dict, List, Optional, Set, Tuple, cast, get_args
+from typing import Dict, Optional, Set, Tuple, cast, get_args
 
 import ops
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
@@ -73,9 +73,7 @@ class TempoCoordinatorCharm(CharmBase):
             nginx_config=NginxConfig(server_name=self.hostname).config,
             workers_config=self.tempo.config,
             tracing_receivers=self.requested_receivers_urls,
-            resources_requests=self.get_resources_requests,
-            container_name="charm",
-            remote_write_endpoints=self.remote_write_endpoints,
+            remote_write_endpoints=self.remote_write_endpoints,  # type: ignore
         )
 
         # configure this tempo as a datasource in grafana
