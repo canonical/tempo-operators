@@ -93,6 +93,10 @@ requires:
     description: |
       Certificate and key files for securing Tempo internal and external 
       communications with TLS.
+  send-remote-write:
+    interface: prometheus_remote_write
+    description: |
+      Prometheus-like remote write endpoints to push traces' metrics generated from `metrics-generator`.
 
 storage:
   data:

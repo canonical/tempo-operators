@@ -102,6 +102,17 @@ class ClientAuthTypeEnum(str, enum.Enum):
     REQUIRE_AND_VERIFY_CLIENT_CERT = "RequireAndVerifyClientCert"
 
 
+class MetricsGeneratorProcessor(str, enum.Enum):
+    """Metrics generator processors supported values.
+
+    Supported values: https://grafana.com/docs/tempo/latest/configuration/#standard-overrides
+    """
+
+    SERVICE_GRAPHS = "service-graphs"
+    SPAN_METRICS = "span-metrics"
+    LOCAL_BLOCKS = "local-blocks"
+
+
 class InvalidConfigurationError(Exception):
     """Invalid configuration."""
 
@@ -286,6 +297,57 @@ class Storage(BaseModel):
     trace: TraceStorage
 
 
+class RemoteWriteTLS(BaseModel):
+    """Remote write TLS schema."""
+
+    ca_file: str
+    insecure_skip_verify: bool = False
+
+
+class RemoteWrite(BaseModel):
+    """Remote write schema."""
+
+    url: str
+    tls_config: Optional[RemoteWriteTLS] = None
+
+
+class MetricsGeneratorStorage(BaseModel):
+    """Metrics Generator storage schema."""
+
+    path: str
+    remote_write: List[RemoteWrite]
+
+
+class MetricsGenerator(BaseModel):
+    """Metrics Generator schema."""
+
+    ring: Optional[Ring] = None
+    storage: MetricsGeneratorStorage
+
+
+class MetricsGeneratorDefaults(BaseModel):
+    """Metrics generator defaults schema."""
+
+    model_config = ConfigDict(
+        # Allow serializing enum values.
+        use_enum_values=True
+    )
+    """Pydantic config."""
+    processors: List[MetricsGeneratorProcessor]
+
+
+class Defaults(BaseModel):
+    """Defaults schema."""
+
+    metrics_generator: MetricsGeneratorDefaults
+
+
+class Overrides(BaseModel):
+    """Overrides schema."""
+
+    defaults: Defaults
+
+
 class TempoConfig(BaseModel):
     """Tempo config schema."""
 
@@ -299,3 +361,5 @@ class TempoConfig(BaseModel):
     storage: Storage
     ingester_client: Optional[Client] = None
     metrics_generator_client: Optional[Client] = None
+    metrics_generator: Optional[MetricsGenerator] = None
+    overrides: Optional[Overrides] = None
