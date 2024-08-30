@@ -15,11 +15,13 @@ k8s_resource_multipatch = patch.multiple(
     _namespace="test-namespace",
     _patch=lambda _: None,
 )
+lightkube_client_patch = patch("lightkube.core.client.GenericSyncClient")
 
 
 class TestTempoCoordinatorCharm(unittest.TestCase):
 
     @k8s_resource_multipatch
+    @lightkube_client_patch
     def setUp(self, *_):
         self.harness = Harness(TempoCoordinatorCharm)
         self.harness.set_model_name("testmodel")

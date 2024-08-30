@@ -10,6 +10,7 @@ from enum import Enum, unique
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
+
 from cosl.coordinated_workers.coordinator import ClusterRolesConfig
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
