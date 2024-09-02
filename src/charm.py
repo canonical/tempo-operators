@@ -20,7 +20,7 @@ from charms.tempo_k8s.v2.tracing import (
     receiver_protocol_to_transport_protocol,
 )
 from charms.traefik_route_k8s.v0.traefik_route import TraefikRouteRequirer
-from cosl.coordinated_workers.coordinator import Coordinator, ClusterRolesConfig
+from cosl.coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
 from cosl.coordinated_workers.nginx import CA_CERT_PATH, CERT_PATH, KEY_PATH
 from ops.charm import CharmBase, RelationEvent
 from ops.main import main
@@ -65,6 +65,8 @@ class TempoCoordinatorCharm(CharmBase):
             nginx_config=NginxConfig(server_name=self.hostname).config,
             workers_config=self.tempo.config,
             tracing_receivers=self.requested_receivers_urls,
+            resources_requests=self.get_resources_requests,
+            container_name="charm",
         )
 
         # configure this tempo as a datasource in grafana
@@ -384,6 +386,10 @@ class TempoCoordinatorCharm(CharmBase):
         except (CalledProcessError, IndexError):
             return False
         return out == "ready"
+
+    def get_resources_requests(self, _) -> Dict[str, str]:
+        """Returns a dictionary for the "requests" portion of the resources requirements."""
+        return {"cpu": "50m", "memory": "100Mi"}
 
 
 if __name__ == "__main__":  # pragma: nocover

@@ -6,8 +6,8 @@ from cosl.coordinated_workers.coordinator import Coordinator
 from tempo_config import (
     MINIMAL_DEPLOYMENT,
     RECOMMENDED_DEPLOYMENT,
-    TempoRole,
     TEMPO_ROLES_CONFIG,
+    TempoRole,
 )
 
 
