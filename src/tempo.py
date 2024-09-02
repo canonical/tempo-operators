@@ -50,8 +50,10 @@ class Tempo:
     def __init__(
         self,
         requested_receivers: Callable[[], "Tuple[ReceiverProtocol, ...]"],
+        retention_period_hours: int,
     ):
         self._receivers_getter = requested_receivers
+        self._retention_period_hours = retention_period_hours
 
     @property
     def tempo_http_server_port(self) -> int:
@@ -171,7 +173,7 @@ class Tempo:
                 # maximum size of compacted blocks
                 max_compaction_objects=1000000,
                 # total trace retention
-                block_retention="720h",
+                block_retention=f"{self._retention_period_hours}h",
                 compacted_block_retention="1h",
             )
         )

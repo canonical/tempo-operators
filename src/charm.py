@@ -20,7 +20,7 @@ from charms.tempo_k8s.v2.tracing import (
     receiver_protocol_to_transport_protocol,
 )
 from charms.traefik_route_k8s.v0.traefik_route import TraefikRouteRequirer
-from cosl.coordinated_workers.coordinator import Coordinator, ClusterRolesConfig
+from cosl.coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
 from cosl.coordinated_workers.nginx import CA_CERT_PATH, CERT_PATH, KEY_PATH
 from ops.charm import CharmBase, RelationEvent
 from ops.main import main
@@ -44,7 +44,10 @@ class TempoCoordinatorCharm(CharmBase):
         super().__init__(*args)
 
         self.ingress = TraefikRouteRequirer(self, self.model.get_relation("ingress"), "ingress")  # type: ignore
-        self.tempo = Tempo(requested_receivers=self._requested_receivers)
+        self.tempo = Tempo(
+            requested_receivers=self._requested_receivers,
+            retention_period_hours=self.trace_retention_period_hours,
+        )
         # set the open ports for this unit
         self.unit.set_ports(*self.tempo.all_ports.values())
         self.coordinator = Coordinator(
@@ -265,6 +268,13 @@ class TempoCoordinatorCharm(CharmBase):
         # and publish only those we support
         requested_receivers = requested_protocols.intersection(set(self.tempo.receiver_ports))
         return tuple(requested_receivers)
+
+    @property
+    def trace_retention_period_hours(self) -> int:
+        """Trace retention period for the compactor."""
+        # if unset, default to 30 days
+        trace_retention_period_hours = cast(int, self.config.get("retention_period_hours", 720))
+        return trace_retention_period_hours
 
     def server_ca_cert(self) -> str:
         """For charm tracing."""
