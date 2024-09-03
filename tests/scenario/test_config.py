@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 
 from scenario import State
 
@@ -9,7 +10,8 @@ def test_memberlist_multiple_members(
     context, all_worker, s3, nginx_container, nginx_prometheus_exporter_container
 ):
     workers_no = 3
-    all_worker = all_worker.replace(
+    all_worker = replace(
+        all_worker,
         remote_units_data={
             worker_idx: {
                 "address": json.dumps(f"worker-{worker_idx}.test.svc.cluster.local:7946"),
@@ -31,7 +33,7 @@ def test_memberlist_multiple_members(
         relations=[all_worker, s3],
         containers=[nginx_container, nginx_prometheus_exporter_container],
     )
-    with context.manager(all_worker.changed_event, state) as mgr:
+    with context(context.on.relation_changed(all_worker), state) as mgr:
         charm: TempoCoordinatorCharm = mgr.charm
         assert charm.coordinator.cluster.gather_addresses() == set(
             [

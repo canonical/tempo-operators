@@ -21,8 +21,8 @@ def test_receivers_with_no_relations_or_config(
         relations=[s3, all_worker],
         containers=[nginx_container, nginx_prometheus_exporter_container],
     )
-    state_out = context.run_action("list-receivers", state)
-    assert state_out.results == {"otlp-http": f"http://{socket.getfqdn()}:4318"}
+    context.run(context.on.action("list-receivers"), state)
+    assert context.action_results == {"otlp-http": f"http://{socket.getfqdn()}:4318"}
 
 
 def test_receivers_with_relations(
@@ -37,7 +37,7 @@ def test_receivers_with_relations(
         relations=[s3, all_worker, tracing],
         containers=[nginx_container, nginx_prometheus_exporter_container],
     )
-    with context.manager(tracing.changed_event, state) as mgr:
+    with context(context.on.relation_changed(tracing), state) as mgr:
         charm: TempoCoordinatorCharm = mgr.charm
         # extra receivers should only include default otlp_http
         assert charm.enabled_receivers == {"otlp_http"}
@@ -50,8 +50,8 @@ def test_receivers_with_relations(
     assert len(provider_data) == 2
 
     # run action
-    action_out = context.run_action("list-receivers", state)
-    assert action_out.results == {
+    context.run(context.on.action("list-receivers"), state)
+    assert context.action_results == {
         "otlp-http": f"http://{socket.getfqdn()}:4318",
         "otlp-grpc": f"{socket.getfqdn()}:4317",
     }
@@ -83,14 +83,14 @@ def test_receivers_with_relations_and_config(
         relations=[s3, all_worker, tracing],
         containers=[nginx_container, nginx_prometheus_exporter_container],
     )
-    with context.manager("config-changed", state) as mgr:
+    with context(context.on.config_changed(), state) as mgr:
         charm: TempoCoordinatorCharm = mgr.charm
         # extra receivers should only include default otlp_http
         assert charm.enabled_receivers == {"otlp_http", "zipkin"}
 
     # run action
-    action_out = context.run_action("list-receivers", state)
-    assert action_out.results == {
+    context.run(context.on.action("list-receivers"), state)
+    assert context.action_results == {
         "otlp-http": f"http://{socket.getfqdn()}:4318",
         "zipkin": f"http://{socket.getfqdn()}:9411",
         "otlp-grpc": f"{socket.getfqdn()}:4317",

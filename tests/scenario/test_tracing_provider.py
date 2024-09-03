@@ -30,12 +30,12 @@ def test_receivers_removed_on_relation_broken(
     )
 
     with charm_tracing_disabled():
-        with context.manager(tracing_grpc.broken_event, state) as mgr:
+        with context(context.on.relation_broken(tracing_grpc), state) as mgr:
             charm = mgr.charm
             assert charm._requested_receivers() == ("otlp_http",)
+            state_out = mgr.run()
 
-    state_out = mgr.output
-    r_out = [r for r in state_out.relations if r.relation_id == tracing_http.relation_id][0]
+    r_out = [r for r in state_out.relations if r.id == tracing_http.id][0]
     # "otlp_grpc" is gone from the databag
     assert [r.protocol for r in TracingProviderAppData.load(r_out.local_app_data).receivers] == [
         ProtocolType(name="otlp_http", type="http")
