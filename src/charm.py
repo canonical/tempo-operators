@@ -85,6 +85,15 @@ class TempoCoordinatorCharm(CharmBase):
 
         self.tracing = TracingEndpointProvider(self, external_url=self._external_url)
 
+        # ingress
+        # handle ingress regardless of the coordinator's status. reason is, if we miss these events now, we need to
+        # 'remember' to publish ingress data as soon as our coordinator is ready to handle events
+        # (and that point is hard to catch)
+        ingress = self.on["ingress"]
+        self.framework.observe(ingress.relation_created, self._on_ingress_relation_created)
+        self.framework.observe(ingress.relation_joined, self._on_ingress_relation_joined)
+        self.framework.observe(self.ingress.on.ready, self._on_ingress_ready)
+
         # refuse to handle any other event as we can't possibly know what to do.
         if not self.coordinator.can_handle_events:
             # logging will be handled by `self.coordinator` for each of the above circumstances.
@@ -93,12 +102,6 @@ class TempoCoordinatorCharm(CharmBase):
         # lifecycle
         self.framework.observe(self.on.leader_elected, self._on_leader_elected)
         self.framework.observe(self.on.list_receivers_action, self._on_list_receivers_action)
-
-        # ingress
-        ingress = self.on["ingress"]
-        self.framework.observe(ingress.relation_created, self._on_ingress_relation_created)
-        self.framework.observe(ingress.relation_joined, self._on_ingress_relation_joined)
-        self.framework.observe(self.ingress.on.ready, self._on_ingress_ready)
 
         # tracing
         self.framework.observe(self.tracing.on.request, self._on_tracing_request)
@@ -182,7 +185,6 @@ class TempoCoordinatorCharm(CharmBase):
         self._update_tracing_relations()
 
     def _on_cert_handler_changed(self, e: ops.RelationChangedEvent):
-
         # tls readiness change means config change.
         # sync scheme change with traefik and related consumers
         self._configure_ingress()
