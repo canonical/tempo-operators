@@ -72,7 +72,14 @@ def test_happy_status(
     MagicMock(return_value=ops.BlockedStatus("`juju trust` this application")),
 )
 @patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
-def test_k8s_patch_failed():
+def test_k8s_patch_failed(
+    workload_ready_mock,
+    context,
+    s3,
+    all_worker,
+    nginx_container,
+    nginx_prometheus_exporter_container,
+):
     state_out = context.run(
         "update_status",
         State(
@@ -108,6 +115,8 @@ def test_k8s_patch_waiting(
         ),
     )
     assert state_out.unit_status == ops.WaitingStatus("waiting")
+
+
 @patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
 def test_metrics_generator(
     workload_ready_mock,
@@ -116,7 +125,6 @@ def test_metrics_generator(
     all_worker,
     nginx_container,
     nginx_prometheus_exporter_container,
-
     remote_write,
 ):
     state = State(

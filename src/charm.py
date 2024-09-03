@@ -418,7 +418,7 @@ class TempoCoordinatorCharm(CharmBase):
         """Returns a dictionary for the "requests" portion of the resources requirements."""
         return {"cpu": "50m", "memory": "100Mi"}
 
-    def remote_write_endpoints(self) -> List[Dict[str, str]]:
+    def remote_write_endpoints(self):
         """Return remote-write endpoints."""
         return self._remote_write.endpoints
 
