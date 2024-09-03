@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import ops
-from scenario import PeerRelation, State
+from scenario import PeerRelation, Relation, State
 
 
 def test_monolithic_status_no_s3_no_workers(context):
@@ -122,23 +122,38 @@ def test_metrics_generator(
     workload_ready_mock,
     context,
     s3,
-    all_worker,
     nginx_container,
     nginx_prometheus_exporter_container,
+    all_worker,
     remote_write,
 ):
+    metrics_gen_worker = Relation(
+        "tempo-cluster",
+        remote_app_data={"role": '"metrics-generator"'},
+    )
     state = State(
-        relations=[PeerRelation("peers", peers_data={1: {}, 2: {}}), s3, all_worker],
+        relations=[
+            PeerRelation("peers", peers_data={1: {}, 2: {}}),
+            s3,
+            all_worker,
+            metrics_gen_worker,
+        ],
         containers=[nginx_container, nginx_prometheus_exporter_container],
         unit_status=ops.ActiveStatus(),
         leader=True,
     )
-    state_out = context.run(all_worker.changed_event, state)
+    state_out = context.run(metrics_gen_worker.changed_event, state)
     assert state_out.unit_status.name == "active"
     assert "metrics-generator disabled" in state_out.unit_status.message
 
     state = state.replace(
-        relations=[PeerRelation("peers", peers_data={1: {}, 2: {}}), s3, all_worker, remote_write]
+        relations=[
+            PeerRelation("peers", peers_data={1: {}, 2: {}}),
+            s3,
+            all_worker,
+            metrics_gen_worker,
+            remote_write,
+        ]
     )
     state_out = context.run(remote_write.changed_event, state)
     assert state_out.unit_status.name == "active"

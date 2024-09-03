@@ -48,6 +48,8 @@ class TempoCoordinatorCharm(CharmBase):
         super().__init__(*args)
 
         self.ingress = TraefikRouteRequirer(self, self.model.get_relation("ingress"), "ingress")  # type: ignore
+        # set alert_rules_path="", as we don't want to populate alert rules into the relation databag
+        # we only need `self._remote_write.endpoints`
         self._remote_write = PrometheusRemoteWriteConsumer(self, alert_rules_path="")
         self.tempo = Tempo(requested_receivers=self._requested_receivers)
         # set the open ports for this unit
@@ -73,6 +75,8 @@ class TempoCoordinatorCharm(CharmBase):
             nginx_config=NginxConfig(server_name=self.hostname).config,
             workers_config=self.tempo.config,
             tracing_receivers=self.requested_receivers_urls,
+            resources_requests=self.get_resources_requests,
+            container_name="charm",
             remote_write_endpoints=self.remote_write_endpoints,  # type: ignore
         )
 
@@ -242,7 +246,10 @@ class TempoCoordinatorCharm(CharmBase):
 
     def _on_collect_status(self, e: CollectStatusEvent):
         # add Tempo coordinator-specific statuses
-        if not self.remote_write_endpoints():
+        if (
+            "metrics-generator" in self.coordinator.cluster.gather_roles()
+            and not self.remote_write_endpoints()
+        ):
             e.add_status(
                 ops.ActiveStatus(
                     "metrics-generator disabled. Add a relation over send-remote-write"
