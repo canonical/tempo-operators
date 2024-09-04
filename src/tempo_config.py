@@ -48,6 +48,7 @@ class TempoRole(str, Enum):
             TempoRole.ingester,
             TempoRole.distributor,
             TempoRole.compactor,
+            TempoRole.metrics_generator,
         }
 
 
