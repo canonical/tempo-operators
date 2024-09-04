@@ -8,7 +8,12 @@ from pathlib import Path
 
 import pytest
 import yaml
-from helpers import deploy_cluster, get_application_ip, get_traces_patiently
+from helpers import (
+    WORKER_NAME,
+    deploy_cluster,
+    get_application_ip,
+    get_traces_patiently,
+)
 from pytest_operator.plugin import OpsTest
 
 logger = logging.getLogger(__name__)
@@ -51,7 +56,7 @@ async def test_build_and_deploy(ops_test: OpsTest):
 async def test_relate(ops_test: OpsTest):
     await ops_test.model.integrate(APP_NAME + ":tracing", APP_REMOTE_NAME + ":self-tracing")
     await ops_test.model.wait_for_idle(
-        apps=[APP_NAME],
+        apps=[APP_NAME, WORKER_NAME],
         status="active",
         timeout=1000,
     )

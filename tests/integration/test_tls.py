@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 import yaml
 from helpers import (
+    WORKER_NAME,
     deploy_cluster,
     emit_trace,
     get_application_ip,
@@ -69,7 +70,7 @@ async def test_build_and_deploy(ops_test: OpsTest):
 async def test_relate(ops_test: OpsTest):
     await ops_test.model.integrate(APP_NAME + ":certificates", SSC_APP_NAME + ":certificates")
     await ops_test.model.wait_for_idle(
-        apps=[APP_NAME, SSC_APP_NAME],
+        apps=[APP_NAME, SSC_APP_NAME, WORKER_NAME],
         status="active",
         timeout=1000,
     )
@@ -112,7 +113,7 @@ async def test_verify_traces_force_enabled_protocols_tls(ops_test: OpsTest, nonc
             }
         )
         await ops_test.model.wait_for_idle(
-            apps=[APP_NAME],
+            apps=[APP_NAME, WORKER_NAME],
             status="active",
             timeout=1000,
         )

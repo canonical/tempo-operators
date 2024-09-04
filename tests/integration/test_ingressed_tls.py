@@ -135,7 +135,7 @@ async def test_verify_traces_force_enabled_protocols_tls(ops_test: OpsTest, nonc
             }
         )
         await ops_test.model.wait_for_idle(
-            apps=[APP_NAME],
+            apps=[APP_NAME, WORKER_NAME],
             status="active",
             timeout=1000,
         )
