@@ -14,7 +14,6 @@ from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
 from charms.tempo_k8s.v1.charm_tracing import trace_charm
 from charms.tempo_k8s.v2.tracing import (
     ReceiverProtocol,
-    RequestEvent,
     TracingEndpointProvider,
     TransportProtocolType,
     receiver_protocol_to_transport_protocol,
@@ -22,7 +21,7 @@ from charms.tempo_k8s.v2.tracing import (
 from charms.traefik_route_k8s.v0.traefik_route import TraefikRouteRequirer
 from cosl.coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
 from cosl.coordinated_workers.nginx import CA_CERT_PATH, CERT_PATH, KEY_PATH
-from ops.charm import CharmBase, RelationEvent
+from ops.charm import CharmBase
 from ops.main import main
 
 from nginx_config import NginxConfig
