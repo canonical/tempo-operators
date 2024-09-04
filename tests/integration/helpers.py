@@ -305,6 +305,7 @@ async def deploy_cluster(ops_test: OpsTest, tempo_app=APP_NAME):
         status="active",
         timeout=1000,
         idle_period=30,
+        raise_on_error=False,
     )
 
 
