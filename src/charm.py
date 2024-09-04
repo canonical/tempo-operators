@@ -87,27 +87,16 @@ class TempoCoordinatorCharm(CharmBase):
 
         self.tracing = TracingEndpointProvider(self, external_url=self._external_url)
 
-        # ingress
-        # handle ingress regardless of the coordinator's status. reason is, if we miss these events now, we need to
-        # 'remember' to publish ingress data as soon as our coordinator is ready to handle events
-        # (and that point is hard to catch)
-        ingress = self.on["ingress"]
-        self.framework.observe(ingress.relation_created, self._on_ingress_relation_created)
-        self.framework.observe(ingress.relation_joined, self._on_ingress_relation_joined)
-        self.framework.observe(self.ingress.on.ready, self._on_ingress_ready)
-
         # refuse to handle any other event as we can't possibly know what to do.
         if not self.coordinator.can_handle_events:
-            # logging will be handled by `self.coordinator` for each of the above circumstances.
+            # logging is handled by the Coordinator object
             return
 
-        # lifecycle
-        self.framework.observe(self.on.leader_elected, self._on_leader_elected)
-        self.framework.observe(self.on.list_receivers_action, self._on_list_receivers_action)
+        # do this regardless of what event we are processing
+        self._update_outgoing_relations()
 
-        # tracing
-        self.framework.observe(self.tracing.on.request, self._on_tracing_request)
-        self.framework.observe(self.tracing.on.broken, self._on_tracing_broken)
+        # actions
+        self.framework.observe(self.on.list_receivers_action, self._on_list_receivers_action)
 
         # tls
         self.framework.observe(
@@ -182,44 +171,11 @@ class TempoCoordinatorCharm(CharmBase):
     ##################
     # EVENT HANDLERS #
     ##################
-    def _on_tracing_broken(self, _):
-        """Update tracing relations' databags once one relation is removed."""
-        self._update_tracing_relations()
 
-    def _on_cert_handler_changed(self, e: ops.RelationChangedEvent):
-        # tls readiness change means config change.
-        # sync scheme change with traefik and related consumers
-        self._configure_ingress()
-
+    def _on_cert_handler_changed(self, _: ops.RelationChangedEvent):
         # sync the server CA cert with the charm container.
         # technically, because of charm tracing, this will be called first thing on each event
         self._update_server_ca_cert()
-
-        # update relations to reflect the new certificate
-        self._update_tracing_relations()
-
-    def _on_tracing_request(self, e: RequestEvent):
-        """Handle a remote requesting a tracing endpoint."""
-        logger.debug(f"received tracing request from {e.relation.app}: {e.requested_receivers}")
-        self._update_tracing_relations()
-
-    def _on_ingress_relation_created(self, _: RelationEvent):
-        self._configure_ingress()
-
-    def _on_ingress_relation_joined(self, _: RelationEvent):
-        self._configure_ingress()
-
-    def _on_leader_elected(self, _: ops.LeaderElectedEvent):
-        # as traefik_route goes through app data, we need to take lead of traefik_route if our leader dies.
-        self._configure_ingress()
-
-    def _on_ingress_ready(self, _event):
-        # whenever there's a change in ingress, we need to update all tracing relations
-        self._update_tracing_relations()
-
-    def _on_ingress_revoked(self, _event):
-        # whenever there's a change in ingress, we need to update all tracing relations
-        self._update_tracing_relations()
 
     def _on_list_receivers_action(self, event: ops.ActionEvent):
         res = {}
@@ -239,8 +195,6 @@ class TempoCoordinatorCharm(CharmBase):
             self.ingress.submit_to_traefik(
                 self._ingress_config, static=self._static_ingress_config
             )
-            if self.ingress.external_host:
-                self._update_tracing_relations()
 
         # notify the cluster
         self.coordinator.update_cluster()
@@ -259,8 +213,6 @@ class TempoCoordinatorCharm(CharmBase):
             self.tracing.publish_receivers(
                 [(p, self.get_receiver_url(p)) for p in requested_receivers]
             )
-
-        self.coordinator.update_cluster()
 
     def _requested_receivers(self) -> Tuple[ReceiverProtocol, ...]:
         """List what receivers we should activate, based on the active tracing relations and config-enabled extra receivers."""
@@ -282,6 +234,7 @@ class TempoCoordinatorCharm(CharmBase):
 
     def server_ca_cert(self) -> str:
         """For charm tracing."""
+        # Fixme: we do this once too many times if we're handling cert_handler.changed
         self._update_server_ca_cert()
         return self.tempo.tls_ca_path
 
@@ -402,6 +355,15 @@ class TempoCoordinatorCharm(CharmBase):
     def get_resources_requests(self, _) -> Dict[str, str]:
         """Returns a dictionary for the "requests" portion of the resources requirements."""
         return {"cpu": "50m", "memory": "100Mi"}
+
+    def _update_outgoing_relations(self):
+        # This method contains unconditional update logic, i.e. logic that should be executed
+        # regardless of the event we are processing.
+        # reason is, if we miss these events because our coordinator cannot process events (inconsistent status),
+        # we need to 'remember' to run this logic as soon as we become ready, which is hard and error-prone
+        self._configure_ingress()
+        self._update_tracing_relations()
+        self.coordinator.update_cluster()
 
 
 if __name__ == "__main__":  # pragma: nocover
