@@ -25,7 +25,7 @@ from charms.traefik_route_k8s.v0.traefik_route import TraefikRouteRequirer
 from cosl.coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
 from cosl.coordinated_workers.nginx import CA_CERT_PATH, CERT_PATH, KEY_PATH
 from ops import CollectStatusEvent
-from ops.charm import CharmBase, RelationEvent
+from ops.charm import CharmBase
 from ops.main import main
 
 from nginx_config import NginxConfig
