@@ -1,3 +1,4 @@
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -54,6 +55,16 @@ def all_worker():
     return Relation(
         "tempo-cluster",
         remote_app_data={"role": '"all"'},
+    )
+
+
+@pytest.fixture(scope="function")
+def remote_write():
+    return Relation(
+        "send-remote-write",
+        remote_units_data={
+            0: {"remote_write": json.dumps({"url": "http://prometheus:3000/api/write"})}
+        },
     )
 
 

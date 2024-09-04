@@ -4,7 +4,7 @@
 
 """Tempo workload configuration and client."""
 import logging
-from typing import Callable, Dict, Optional, Sequence, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 import yaml
 from charms.tempo_k8s.v2.tracing import ReceiverProtocol
@@ -24,6 +24,7 @@ class Tempo:
     tls_ca_path = "/usr/local/share/ca-certificates/ca.crt"
 
     wal_path = "/etc/tempo/tempo_wal"
+    metrics_generator_wal_path = "/etc/tempo/metrics_generator_wal"
 
     s3_bucket_name = "tempo"
 
@@ -85,7 +86,13 @@ class Tempo:
             compactor=self._build_compactor_config(),
             querier=self._build_querier_config(coordinator.cluster.gather_addresses_by_role()),
             storage=self._build_storage_config(coordinator._s3_config),
+            metrics_generator=self._build_metrics_generator_config(
+                coordinator.remote_write_endpoints_getter(), coordinator.tls_available  # type: ignore
+            ),
         )
+
+        if config.metrics_generator:
+            config.overrides = self._build_overrides_config()
 
         if coordinator.tls_available:
             # cfr:
@@ -110,6 +117,46 @@ class Tempo:
             config.memberlist = config.memberlist.model_copy(update=tls_config)
 
         return yaml.dump(config.model_dump(mode="json", by_alias=True, exclude_none=True))
+
+    def _build_overrides_config(self):
+        return tempo_config.Overrides(
+            defaults=tempo_config.Defaults(
+                metrics_generator=tempo_config.MetricsGeneratorDefaults(
+                    processors=[tempo_config.MetricsGeneratorProcessor.SPAN_METRICS],
+                )
+            )
+        )
+
+    def _build_metrics_generator_config(
+        self, remote_write_endpoints: List[Dict[str, Any]], use_tls=False
+    ):
+        if len(remote_write_endpoints) == 0:
+            return None
+
+        # Assumptions:
+        #  1) Same CA is used for Prometheus and ingressed Tempo and whatever running in the same cos-lite model.
+        #  2) To send those metrics over TLS, Prometheus and ingressed Tempo both should have TLS enabled.
+        #  Enabling TLS on Prometheus only will result in failure to send those metrics.
+        if use_tls:
+            for endpoint in remote_write_endpoints:
+                endpoint["tls_config"] = {
+                    "ca_file": self.tls_ca_path,
+                }
+
+        remote_write_instances = [
+            tempo_config.RemoteWrite(**endpoint) for endpoint in remote_write_endpoints
+        ]
+
+        config = tempo_config.MetricsGenerator(
+            storage=tempo_config.MetricsGeneratorStorage(
+                path=self.metrics_generator_wal_path,
+                remote_write=remote_write_instances,
+            )
+            # Adding juju topology will be done on the worker's side
+            # to populate the correct unit label.
+        )
+
+        return config
 
     def _build_server_config(self, use_tls=False):
         server_config = tempo_config.Server(
