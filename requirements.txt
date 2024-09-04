@@ -19,4 +19,4 @@ cryptography
 # lib/charms/tempo_k8s/v1/tracing.py
 pydantic>=2
 # lib/charms/prometheus_k8s/v0/prometheus_scrape.py
-cosl==0.0.26
+cosl>=0.0.26
