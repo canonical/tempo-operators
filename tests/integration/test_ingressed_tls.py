@@ -54,9 +54,13 @@ async def test_build_and_deploy(ops_test: OpsTest):
         ]["upstream-source"],
     }
     await asyncio.gather(
-        ops_test.model.deploy(tempo_charm, resources=resources, application_name=APP_NAME),
+        ops_test.model.deploy(
+            tempo_charm, resources=resources, application_name=APP_NAME, trust=True
+        ),
         ops_test.model.deploy(SSC, application_name=SSC_APP_NAME),
-        ops_test.model.deploy(TRAEFIK, application_name=TRAEFIK_APP_NAME, channel="edge"),
+        ops_test.model.deploy(
+            TRAEFIK, application_name=TRAEFIK_APP_NAME, channel="edge", trust=True
+        ),
     )
 
     # deploy cluster
@@ -131,7 +135,7 @@ async def test_verify_traces_force_enabled_protocols_tls(ops_test: OpsTest, nonc
             }
         )
         await ops_test.model.wait_for_idle(
-            apps=[APP_NAME],
+            apps=[APP_NAME, WORKER_NAME],
             status="active",
             timeout=1000,
         )
