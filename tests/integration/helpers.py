@@ -290,7 +290,9 @@ async def deploy_and_configure_minio(ops_test: OpsTest):
 
 
 async def deploy_cluster(ops_test: OpsTest, tempo_app=APP_NAME):
-    await ops_test.model.deploy("tempo-worker-k8s", application_name=WORKER_NAME, channel="edge")
+    await ops_test.model.deploy(
+        "tempo-worker-k8s", application_name=WORKER_NAME, channel="edge", trust=True
+    )
     await ops_test.model.deploy(S3_INTEGRATOR, channel="edge")
 
     await ops_test.model.integrate(tempo_app + ":s3", S3_INTEGRATOR + ":s3-credentials")

@@ -28,7 +28,9 @@ async def test_build_and_deploy(ops_test: OpsTest):
     }
 
     await asyncio.gather(
-        ops_test.model.deploy(tempo_charm, resources=resources, application_name=APP_NAME),
+        ops_test.model.deploy(
+            tempo_charm, resources=resources, application_name=APP_NAME, trust=True
+        ),
     )
 
     # deploy cluster
