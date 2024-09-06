@@ -26,8 +26,6 @@ class Tempo:
     wal_path = "/etc/tempo/tempo_wal"
     metrics_generator_wal_path = "/etc/tempo/metrics_generator_wal"
 
-    s3_bucket_name = "tempo"
-
     memberlist_port = 7946
 
     server_ports: Dict[str, int] = {
