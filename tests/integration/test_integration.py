@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 import yaml
-from helpers import deploy_cluster
+from helpers import WORKER_NAME, deploy_cluster
 from pytest_operator.plugin import OpsTest
 
 METADATA = yaml.safe_load(Path("./charmcraft.yaml").read_text())
@@ -81,7 +81,7 @@ async def test_relate(ops_test: OpsTest):
     await ops_test.model.add_relation(APP_NAME + ":tracing", TESTER_APP_NAME + ":tracing")
     await ops_test.model.add_relation(APP_NAME + ":tracing", TESTER_GRPC_APP_NAME + ":tracing")
     await ops_test.model.wait_for_idle(
-        apps=[APP_NAME, TESTER_APP_NAME, TESTER_GRPC_APP_NAME],
+        apps=[APP_NAME, WORKER_NAME, TESTER_APP_NAME, TESTER_GRPC_APP_NAME],
         status="active",
         timeout=1000,
     )

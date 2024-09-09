@@ -11,6 +11,9 @@ from typing import Dict, Optional, Set, Tuple, cast, get_args
 
 import ops
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
+from charms.prometheus_k8s.v1.prometheus_remote_write import (
+    PrometheusRemoteWriteConsumer,
+)
 from charms.tempo_k8s.v1.charm_tracing import trace_charm
 from charms.tempo_k8s.v2.tracing import (
     ReceiverProtocol,
@@ -22,6 +25,7 @@ from charms.tempo_k8s.v2.tracing import (
 from charms.traefik_route_k8s.v0.traefik_route import TraefikRouteRequirer
 from cosl.coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
 from cosl.coordinated_workers.nginx import CA_CERT_PATH, CERT_PATH, KEY_PATH
+from ops import CollectStatusEvent
 from ops.charm import CharmBase, RelationEvent
 from ops.main import main
 
@@ -44,16 +48,21 @@ class TempoCoordinatorCharm(CharmBase):
         super().__init__(*args)
 
         self.ingress = TraefikRouteRequirer(self, self.model.get_relation("ingress"), "ingress")  # type: ignore
+        # set alert_rules_path="", as we don't want to populate alert rules into the relation databag
+        # we only need `self._remote_write.endpoints`
+        self._remote_write = PrometheusRemoteWriteConsumer(self, alert_rules_path="")
         self.tempo = Tempo(
             requested_receivers=self._requested_receivers,
             retention_period_hours=self.trace_retention_period_hours,
         )
         # set the open ports for this unit
         self.unit.set_ports(*self.tempo.all_ports.values())
+
+        self.framework.observe(self.on.collect_unit_status, self._on_collect_status)
+
         self.coordinator = Coordinator(
             charm=self,
             roles_config=TEMPO_ROLES_CONFIG,
-            s3_bucket_name=Tempo.s3_bucket_name,
             external_url=self._external_url,
             worker_metrics_port=self.tempo.tempo_http_server_port,
             endpoints={
@@ -68,6 +77,9 @@ class TempoCoordinatorCharm(CharmBase):
             nginx_config=NginxConfig(server_name=self.hostname).config,
             workers_config=self.tempo.config,
             tracing_receivers=self.requested_receivers_urls,
+            resources_requests=self.get_resources_requests,
+            container_name="charm",
+            remote_write_endpoints=self.remote_write_endpoints,  # type: ignore
         )
 
         # configure this tempo as a datasource in grafana
@@ -109,6 +121,12 @@ class TempoCoordinatorCharm(CharmBase):
             self.coordinator.cert_handler.on.cert_changed, self._on_cert_handler_changed
         )
 
+        # remote-write
+        self.framework.observe(
+            self._remote_write.on.endpoints_changed,  # pyright: ignore
+            self._on_remote_write_changed,
+        )
+
     ######################
     # UTILITY PROPERTIES #
     ######################
@@ -125,7 +143,7 @@ class TempoCoordinatorCharm(CharmBase):
     @property
     def _external_url(self) -> str:
         """Return the external url."""
-        if self.ingress.is_ready():
+        if self.ingress.is_ready() and self.ingress.scheme and self.ingress.external_host:
             ingress_url = f"{self.ingress.scheme}://{self.ingress.external_host}"
             logger.debug("This unit's ingress URL: %s", ingress_url)
             return ingress_url
@@ -222,6 +240,23 @@ class TempoCoordinatorCharm(CharmBase):
         for receiver in self._requested_receivers():
             res[receiver.replace("_", "-")] = self.get_receiver_url(receiver)
         event.set_results(res)
+
+    def _on_remote_write_changed(self, _event):
+        """Event handler for the remote write changed event."""
+        # notify the cluster
+        self.coordinator.update_cluster()
+
+    def _on_collect_status(self, e: CollectStatusEvent):
+        # add Tempo coordinator-specific statuses
+        if (
+            "metrics-generator" in self.coordinator.cluster.gather_roles()
+            and not self.remote_write_endpoints()
+        ):
+            e.add_status(
+                ops.ActiveStatus(
+                    "metrics-generator disabled. Add a relation over send-remote-write"
+                )
+            )
 
     ###################
     # UTILITY METHODS #
@@ -394,6 +429,14 @@ class TempoCoordinatorCharm(CharmBase):
         except (CalledProcessError, IndexError):
             return False
         return out == "ready"
+
+    def get_resources_requests(self, _) -> Dict[str, str]:
+        """Returns a dictionary for the "requests" portion of the resources requirements."""
+        return {"cpu": "50m", "memory": "100Mi"}
+
+    def remote_write_endpoints(self):
+        """Return remote-write endpoints."""
+        return self._remote_write.endpoints
 
 
 if __name__ == "__main__":  # pragma: nocover

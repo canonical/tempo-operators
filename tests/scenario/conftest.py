@@ -1,6 +1,8 @@
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
+from ops import ActiveStatus
 from scenario import Container, Context, Relation
 
 from charm import TempoCoordinatorCharm
@@ -15,7 +17,13 @@ def coordinator():
 def tempo_charm():
     with patch("lightkube.core.client.GenericSyncClient"):
         with patch("charm.TempoCoordinatorCharm.are_certificates_on_disk", False):
-            yield TempoCoordinatorCharm
+            with patch.multiple(
+                "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
+                _namespace="test-namespace",
+                _patch=lambda _: None,
+                get_status=lambda _: ActiveStatus(""),
+            ):
+                yield TempoCoordinatorCharm
 
 
 @pytest.fixture(scope="function")
@@ -47,6 +55,16 @@ def all_worker():
     return Relation(
         "tempo-cluster",
         remote_app_data={"role": '"all"'},
+    )
+
+
+@pytest.fixture(scope="function")
+def remote_write():
+    return Relation(
+        "send-remote-write",
+        remote_units_data={
+            0: {"remote_write": json.dumps({"url": "http://prometheus:3000/api/write"})}
+        },
     )
 
 

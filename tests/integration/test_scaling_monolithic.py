@@ -26,7 +26,9 @@ async def test_deploy_tempo(ops_test: OpsTest):
             "nginx-prometheus-exporter-image"
         ]["upstream-source"],
     }
-    await ops_test.model.deploy(tempo_charm, resources=resources, application_name=APP_NAME)
+    await ops_test.model.deploy(
+        tempo_charm, resources=resources, application_name=APP_NAME, trust=True
+    )
 
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME],
