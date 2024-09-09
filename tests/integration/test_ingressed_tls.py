@@ -8,14 +8,13 @@ from helpers import (
     deploy_cluster,
     emit_trace,
     get_traces_patiently,
-    protocols_endpoints,
+    protocols_endpoints, WORKER_NAME,
 )
 from juju.application import Application
 from pytest_operator.plugin import OpsTest
 
 METADATA = yaml.safe_load(Path("./charmcraft.yaml").read_text())
 APP_NAME = "tempo"
-WORKER_NAME = "tempo-worker"
 SSC = "self-signed-certificates"
 SSC_APP_NAME = "ssc"
 TRAEFIK = "traefik-k8s"

@@ -102,7 +102,7 @@ class TempoCoordinatorCharm(CharmBase):
             return
 
         # do this regardless of what event we are processing
-        self._update_outgoing_relations()
+        self._reconcile()
 
         # actions
         self.framework.observe(self.on.list_receivers_action, self._on_list_receivers_action)
@@ -110,12 +110,6 @@ class TempoCoordinatorCharm(CharmBase):
         # tls
         self.framework.observe(
             self.coordinator.cert_handler.on.cert_changed, self._on_cert_handler_changed
-        )
-
-        # remote-write
-        self.framework.observe(
-            self._remote_write.on.endpoints_changed,  # pyright: ignore
-            self._on_remote_write_changed,
         )
 
     ######################
@@ -198,10 +192,6 @@ class TempoCoordinatorCharm(CharmBase):
             res[receiver.replace("_", "-")] = self.get_receiver_url(receiver)
         event.set_results(res)
 
-    def _on_remote_write_changed(self, _event):
-        """Event handler for the remote write changed event."""
-        # notify the cluster
-        self.coordinator.update_cluster()
 
     def _on_collect_status(self, e: CollectStatusEvent):
         # add Tempo coordinator-specific statuses
@@ -218,8 +208,8 @@ class TempoCoordinatorCharm(CharmBase):
     ###################
     # UTILITY METHODS #
     ###################
-    def _configure_ingress(self) -> None:
-        """Make sure the traefik route and tracing relation data are up-to-date."""
+    def _update_ingress_relation(self) -> None:
+        """Make sure the traefik route is up-to-date."""
         if not self.unit.is_leader():
             return
 
@@ -227,9 +217,6 @@ class TempoCoordinatorCharm(CharmBase):
             self.ingress.submit_to_traefik(
                 self._ingress_config, static=self._static_ingress_config
             )
-
-        # notify the cluster
-        self.coordinator.update_cluster()
 
     def _update_tracing_relations(self) -> None:
         tracing_relations = self.model.relations["tracing"]
@@ -392,12 +379,12 @@ class TempoCoordinatorCharm(CharmBase):
         """Return remote-write endpoints."""
         return self._remote_write.endpoints
 
-    def _update_outgoing_relations(self):
+    def _reconcile(self):
         # This method contains unconditional update logic, i.e. logic that should be executed
         # regardless of the event we are processing.
         # reason is, if we miss these events because our coordinator cannot process events (inconsistent status),
         # we need to 'remember' to run this logic as soon as we become ready, which is hard and error-prone
-        self._configure_ingress()
+        self._update_ingress_relation()
         self._update_tracing_relations()
         self.coordinator.update_cluster()
 
