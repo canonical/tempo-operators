@@ -82,7 +82,9 @@ from tempo import Tempo
     ),
 )
 def test_tempo_distributor_config(protocols, use_tls, expected_config):
-    assert Tempo(None)._build_distributor_config(protocols, use_tls).receivers == expected_config
+    assert (
+        Tempo(None, 720)._build_distributor_config(protocols, use_tls).receivers == expected_config
+    )
 
 
 @pytest.mark.parametrize(
@@ -105,4 +107,4 @@ def test_tempo_distributor_config(protocols, use_tls, expected_config):
     ),
 )
 def test_tempo_memberlist_config(peers, expected_config):
-    assert Tempo(None)._build_memberlist_config(peers) == expected_config
+    assert Tempo(None, 720)._build_memberlist_config(peers) == expected_config

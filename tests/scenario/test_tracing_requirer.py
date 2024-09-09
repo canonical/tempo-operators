@@ -45,7 +45,7 @@ def test_requirer_api(context):
     state = State(leader=True, relations=[tracing])
 
     with charm_tracing_disabled():
-        with context.manager(tracing.changed_event, state) as mgr:
+        with context(context.on.relation_changed(tracing), state) as mgr:
             charm = mgr.charm
             assert charm.tracing.get_endpoint("otlp_grpc") == f"{host}:4317"
             assert charm.tracing.get_endpoint("otlp_http") == f"http://{host}:4318"
@@ -74,7 +74,7 @@ def test_requirer_api_with_internal_scheme(context):
     state = State(leader=True, relations=[tracing])
 
     with charm_tracing_disabled():
-        with context.manager(tracing.changed_event, state) as mgr:
+        with context(context.on.relation_changed(tracing), state) as mgr:
             charm = mgr.charm
             assert charm.tracing.get_endpoint("otlp_grpc") == f"{host}:4317"
             assert charm.tracing.get_endpoint("otlp_http") == f"https://{host}:4318"
@@ -103,7 +103,7 @@ def test_ingressed_requirer_api(context):
 
     # THEN get_endpoint uses external URL instead of the host
     with charm_tracing_disabled():
-        with context.manager(tracing.changed_event, state) as mgr:
+        with context(context.on.relation_changed(tracing), state) as mgr:
             charm = mgr.charm
             assert (
                 charm.tracing.get_endpoint("otlp_grpc")
@@ -151,12 +151,12 @@ def test_invalid_data(context, data):
     )
     state = State(leader=True, relations=[tracing])
 
-    def post_event(charm: MyCharm):
-        rel = charm.model.get_relation("tracing")
-        assert not charm.tracing.is_ready(rel)
-
     with charm_tracing_disabled():
-        context.run(tracing.changed_event, state, post_event=post_event)
+        with context(context.on.relation_changed(tracing), state) as mgr:
+            charm = mgr.charm
+            mgr.run()
+            rel = charm.model.get_relation("tracing")
+            assert not charm.tracing.is_ready(rel)
 
     emitted_events = context.emitted_events
     assert len(emitted_events) == 2
@@ -170,7 +170,7 @@ def test_broken(context):
     state = State(leader=True, relations=[tracing])
 
     with charm_tracing_disabled():
-        context.run(tracing.broken_event, state)
+        context.run(context.on.relation_broken(tracing), state)
 
     emitted_events = context.emitted_events
     assert len(emitted_events) == 2
@@ -184,7 +184,7 @@ def test_requested_not_yet_replied(context):
     state = State(leader=True, relations=[tracing])
 
     with charm_tracing_disabled():
-        with context.manager(tracing.created_event, state) as mgr:
+        with context(context.on.relation_created(tracing), state) as mgr:
             charm = mgr.charm
             charm.tracing.request_protocols(["otlp_http"])
             charm.tracing.get_endpoint("otlp_http")
@@ -195,7 +195,7 @@ def test_not_requested_raises(context):
     state = State(leader=True, relations=[tracing])
 
     with charm_tracing_disabled():
-        with context.manager(tracing.created_event, state) as mgr:
+        with context(context.on.relation_created(tracing), state) as mgr:
             charm = mgr.charm
             with pytest.raises(ProtocolNotRequestedError):
                 charm.tracing.get_endpoint("otlp_http")

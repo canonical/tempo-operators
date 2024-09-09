@@ -1,4 +1,5 @@
 import socket
+from dataclasses import replace
 
 import pytest
 from charms.tempo_k8s.v1.charm_tracing import charm_tracing_disabled
@@ -16,10 +17,10 @@ def base_state(nginx_container, nginx_prometheus_exporter_container):
 @pytest.mark.parametrize("evt_name", ("changed", "created", "joined"))
 def test_tracing_v2_endpoint_published(context, s3, all_worker, evt_name, base_state):
     tracing = Relation("tracing", remote_app_data={"receivers": "[]"})
-    state = base_state.replace(relations=[tracing, s3, all_worker])
+    state = replace(base_state, relations=[tracing, s3, all_worker])
 
     with charm_tracing_disabled():
-        with context.manager(getattr(tracing, f"{evt_name}_event"), state) as mgr:
+        with context(getattr(context.on, f"relation_{evt_name}")(tracing), state) as mgr:
             assert len(mgr.charm._requested_receivers()) == 1
             out = mgr.run()
 

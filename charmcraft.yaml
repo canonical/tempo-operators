@@ -129,6 +129,12 @@ parts:
 
 config:
   options:
+    retention_period_hours:
+      description: |
+        Maximum trace retention period, in hours. This will be used to configure the compactor to clean up trace data after this time. 
+        Defaults to 720 hours, which is equivalent to 30 days.
+      type: int
+      default: 720
     always_enable_zipkin:
       description: Force-enable the receiver for the 'zipkin' protocol in Tempo, even if there is no integration currently requesting it.
       type: boolean

@@ -1,5 +1,6 @@
 import datetime
 import json
+from dataclasses import replace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -37,7 +38,7 @@ def coordinator_with_initial_config():
 @pytest.fixture
 def all_worker_with_initial_config(all_worker: Relation, coordinator_with_initial_config):
 
-    initial_config = Tempo(lambda: ("otlp_http",)).config(
+    initial_config = Tempo(lambda: ("otlp_http",), 42).config(
         coordinator_with_initial_config.return_value
     )
 
@@ -49,7 +50,7 @@ def all_worker_with_initial_config(all_worker: Relation, coordinator_with_initia
         "tracing_receivers": json.dumps({"otlp_http": "https://foo.com/fake_receiver"}),
     }
 
-    return all_worker.replace(local_app_data=new_local_app_data)
+    return replace(all_worker, local_app_data=new_local_app_data)
 
 
 @pytest.fixture
@@ -84,7 +85,7 @@ def state_with_certs(
     context, s3, certs_relation, nginx_container, nginx_prometheus_exporter_container
 ):
     return context.run(
-        certs_relation.joined_event,
+        context.on.relation_joined(certs_relation),
         scenario.State(
             leader=True,
             relations=[s3, certs_relation],
@@ -94,7 +95,7 @@ def state_with_certs(
 
 
 def test_certs_ready(context, state_with_certs):
-    with context.manager("update-status", state_with_certs) as mgr:
+    with context(context.on.update_status(), state_with_certs) as mgr:
         charm: TempoCoordinatorCharm = mgr.charm
         assert charm.coordinator.cert_handler.server_cert == MOCK_SERVER_CERT
         assert charm.coordinator.cert_handler.ca_cert == MOCK_CA_CERT
@@ -102,8 +103,10 @@ def test_certs_ready(context, state_with_certs):
 
 
 def test_cluster_relation(context, state_with_certs, all_worker):
-    clustered_state = state_with_certs.replace(relations=state_with_certs.relations + [all_worker])
-    state_out = context.run(all_worker.joined_event, clustered_state)
+    clustered_state = replace(
+        state_with_certs, relations=state_with_certs.relations.union([all_worker])
+    )
+    state_out = context.run(context.on.relation_joined(all_worker), clustered_state)
     cluster_out = state_out.get_relations(all_worker.endpoint)[0]
     local_app_data = ClusterProviderAppData.load(cluster_out.local_app_data)
 
@@ -112,7 +115,7 @@ def test_cluster_relation(context, state_with_certs, all_worker):
     secret = [s for s in state_out.secrets if s.id == local_app_data.privkey_secret_id][0]
 
     # certhandler's vault uses revision 0 to store an uninitialized-vault marker
-    assert secret.contents[1]["private-key"]
+    assert secret.latest_content["private-key"]
 
     assert local_app_data.worker_config
 
@@ -147,12 +150,12 @@ def test_tempo_restart_on_ingress_v2_changed(
         containers=[nginx_container, nginx_prometheus_exporter_container],
     )
 
-    state_out = context.run(tracing.changed_event, state)
+    state_out = context.run(context.on.relation_changed(tracing), state)
 
     # THEN
     # Tempo pushes a new config to the all_worker
     new_config = get_tempo_config(state_out)
-    expected_config = Tempo(lambda: ["otlp_http", requested_protocol]).config(
+    expected_config = Tempo(lambda: ["otlp_http", requested_protocol], 720).config(
         coordinator_with_initial_config.return_value
     )
     assert new_config == expected_config

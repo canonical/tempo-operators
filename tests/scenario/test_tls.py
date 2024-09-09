@@ -1,4 +1,5 @@
 import socket
+from dataclasses import replace
 from unittest.mock import patch
 
 import pytest
@@ -19,7 +20,7 @@ def base_state(nginx_container, nginx_prometheus_exporter_container):
                 "secret:chpv-test",
                 label="cert-handler-private-vault",
                 owner="app",
-                contents={0: {"foo": "bar"}},
+                latest_content={"foo": "bar"},
             )
         ],
         containers=[nginx_container, nginx_prometheus_exporter_container],
@@ -36,9 +37,9 @@ def update_relations_tls_and_verify(
     remote_scheme,
     tracing,
 ):
-    state = base_state.replace(relations=relations)
+    state = replace(base_state, relations=relations)
     with charm_tracing_disabled(), patch.object(Coordinator, "tls_available", local_has_tls):
-        out = context.run(tracing.changed_event, state)
+        out = context.run(context.on.relation_changed(tracing), state)
     tracing_provider_app_data = TracingProviderAppData.load(
         out.get_relations(tracing.endpoint)[0].local_app_data
     )
