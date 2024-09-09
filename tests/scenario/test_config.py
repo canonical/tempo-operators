@@ -58,7 +58,7 @@ def test_metrics_generator(
         relations=[all_worker, s3],
         containers=[nginx_container, nginx_prometheus_exporter_container],
     )
-    with context.manager(all_worker.changed_event, state) as mgr:
+    with context(context.on.relation_changed(all_worker), state) as mgr:
         charm: TempoCoordinatorCharm = mgr.charm
         config_raw = charm.tempo.config(charm.coordinator)
         config = yaml.safe_load(config_raw)
@@ -72,7 +72,7 @@ def test_metrics_generator(
         containers=[nginx_container, nginx_prometheus_exporter_container],
     )
 
-    with context.manager(remote_write.changed_event, state) as mgr:
+    with context(context.on.relation_changed(remote_write), state) as mgr:
         charm: TempoCoordinatorCharm = mgr.charm
         # assert charm.coordinator.cert_handler.server_cert
         config_raw = charm.tempo.config(charm.coordinator)

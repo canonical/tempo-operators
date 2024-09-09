@@ -1,3 +1,4 @@
+from dataclasses import replace
 from unittest.mock import MagicMock, patch
 
 import ops
@@ -81,7 +82,7 @@ def test_k8s_patch_failed(
     nginx_prometheus_exporter_container,
 ):
     state_out = context.run(
-        "update_status",
+        context.on.update_status(),
         State(
             relations=[PeerRelation("peers", peers_data={1: {}, 2: {}}), s3, all_worker],
             containers=[nginx_container, nginx_prometheus_exporter_container],
@@ -106,7 +107,7 @@ def test_k8s_patch_waiting(
     nginx_prometheus_exporter_container,
 ):
     state_out = context.run(
-        "config_changed",
+        context.on.config_changed(),
         State(
             relations=[PeerRelation("peers", peers_data={1: {}, 2: {}}), s3, all_worker],
             containers=[nginx_container, nginx_prometheus_exporter_container],
@@ -142,19 +143,20 @@ def test_metrics_generator(
         unit_status=ops.ActiveStatus(),
         leader=True,
     )
-    state_out = context.run(metrics_gen_worker.changed_event, state)
+    state_out = context.run(context.on.relation_changed(metrics_gen_worker), state)
     assert state_out.unit_status.name == "active"
     assert "metrics-generator disabled" in state_out.unit_status.message
 
-    state = state.replace(
+    state = replace(
+        state,
         relations=[
             PeerRelation("peers", peers_data={1: {}, 2: {}}),
             s3,
             all_worker,
             metrics_gen_worker,
             remote_write,
-        ]
+        ],
     )
-    state_out = context.run(remote_write.changed_event, state)
+    state_out = context.run(context.on.relation_changed(remote_write), state)
     assert state_out.unit_status.name == "active"
     assert "metrics-generator disabled" not in state_out.unit_status.message
