@@ -1,14 +1,12 @@
 # Copyright 2021 Canonical Ltd.
 # See LICENSE file for licensing details.
-import functools
 import json
 import logging
 import os
 import random
 import shutil
+import subprocess
 import tempfile
-from collections import defaultdict
-from datetime import datetime
 from pathlib import Path
 
 from pytest import fixture
@@ -23,58 +21,24 @@ SSC_APP_NAME = "ssc"
 logger = logging.getLogger(__name__)
 
 
-class Store(defaultdict):
-    def __init__(self):
-        super(Store, self).__init__(Store)
-
-    def __getattr__(self, key):
-        """Override __getattr__ so dot syntax works on keys."""
-        try:
-            return self[key]
-        except KeyError:
-            raise AttributeError(key)
-
-    def __setattr__(self, key, value):
-        """Override __setattr__ so dot syntax works on keys."""
-        self[key] = value
-
-
-store = Store()
-
-
-def timed_memoizer(func):
-    @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
-        fname = func.__qualname__
-        logger.info("Started: %s" % fname)
-        start_time = datetime.now()
-        if fname in store.keys():
-            ret = store[fname]
-        else:
-            logger.info("Return for {} not cached".format(fname))
-            ret = await func(*args, **kwargs)
-            store[fname] = ret
-        logger.info("Finished: {} in: {} seconds".format(fname, datetime.now() - start_time))
-        return ret
-
-    return wrapper
-
-
-@fixture(scope="module")
-@timed_memoizer
-async def tempo_charm(ops_test: OpsTest):
+@fixture(scope="session")
+def tempo_charm():
     """Tempo charm used for integration testing.
 
-    @timed_memoizer is used to cache the built charm and reuse it in all integration tests to save some minutes/hours.
+    Build once per session and reuse it in all integration tests to save some minutes/hours.
+    You can also set `TEMPO_CHARM` env variable to use an already existing built charm.
     """
+    if tempo_charm := os.getenv("TEMPO_CHARM"):
+        return tempo_charm
+
     count = 0
     # Intermittent issue where charmcraft fails to build the charm for an unknown reason.
     # Retry building the charm
     while True:
         try:
-            charm = await ops_test.build_charm(".")
-            return charm
-        except RuntimeError:
+            subprocess.check_call(["charmcraft", "pack", "-v"])
+            return Path("./tempo-coordinator-k8s_ubuntu-22.04-amd64.charm").absolute()
+        except subprocess.CalledProcessError:
             logger.warning("Failed to build Tempo coordinator. Trying again!")
             count += 1
 
