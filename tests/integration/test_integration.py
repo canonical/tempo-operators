@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 @pytest.mark.setup
 @pytest.mark.abort_on_fail
-async def test_build_and_deploy(ops_test: OpsTest, tempo_charm):
+async def test_build_and_deploy(ops_test: OpsTest, tempo_charm: Path):
     # Given a fresh build of the charm
     # When deploying it together with testers
     # Then applications should eventually be created
