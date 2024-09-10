@@ -20,7 +20,7 @@ SSC_APP_NAME = "ssc"
 logger = logging.getLogger(__name__)
 
 
-@fixture(scope="module")
+@fixture(scope="session")
 async def tempo_charm(ops_test: OpsTest):
     """Zinc charm used for integration testing."""
     charm = await ops_test.build_charm(".")

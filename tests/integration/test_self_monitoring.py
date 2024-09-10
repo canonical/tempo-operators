@@ -6,7 +6,6 @@ import json
 import logging
 from pathlib import Path
 from textwrap import dedent
-from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -16,14 +15,14 @@ from pytest_operator.plugin import OpsTest
 logger = logging.getLogger(__name__)
 
 METADATA = yaml.safe_load(Path("./charmcraft.yaml").read_text())
-coord = SimpleNamespace(name="coord")
-apps = ["coord", "prom"]
+TEMPO = "tempo"
+PROM = "prom"
+apps = [TEMPO, PROM]
 
 
 @pytest.mark.abort_on_fail
-async def test_build_and_deploy(ops_test: OpsTest):
+async def test_build_and_deploy(ops_test: OpsTest, tempo_charm: Path):
     """Build the charm-under-test and deploy it together with related charms."""
-    charm = await ops_test.build_charm(".")
 
     test_bundle = dedent(
         f"""
@@ -31,28 +30,28 @@ async def test_build_and_deploy(ops_test: OpsTest):
         bundle: kubernetes
         name: test-charm
         applications:
-          {coord.name}:
-            charm: {charm}
+          {TEMPO}:
+            charm: {tempo_charm}
             trust: true
             scale: 1
             resources:
               nginx-image: {METADATA["resources"]["nginx-image"]["upstream-source"]}
               nginx-prometheus-exporter-image: {METADATA["resources"]["nginx-prometheus-exporter-image"]["upstream-source"]}
-          prom:
+          {PROM}:
             charm: prometheus-k8s
             channel: edge
             scale: 1
             trust: true
         relations:
-        - - prom:metrics-endpoint
-          - coord:metrics-endpoint
+        - - {PROM}:metrics-endpoint
+          - {TEMPO}:metrics-endpoint
         """
     )
 
     # Deploy the charm and wait for active/idle status
     await deploy_literal_bundle(ops_test, test_bundle)  # See appendix below
     await ops_test.model.wait_for_idle(
-        apps=["prom"],
+        apps=[PROM],
         status="active",
         raise_on_error=False,
         timeout=600,
@@ -60,7 +59,7 @@ async def test_build_and_deploy(ops_test: OpsTest):
     )
 
     await ops_test.model.wait_for_idle(
-        apps=[coord.name], status="blocked", raise_on_error=False, timeout=600, idle_period=30
+        apps=[TEMPO], status="blocked", raise_on_error=False, timeout=600, idle_period=30
     )
 
 
@@ -68,7 +67,7 @@ async def test_build_and_deploy(ops_test: OpsTest):
 async def test_scrape_jobs(ops_test: OpsTest):
     # Check scrape jobs
     cmd = ["curl", "-sS", "http://localhost:9090/api/v1/targets"]
-    result = await run_command(ops_test.model_name, "prom", 0, command=cmd)
+    result = await run_command(ops_test.model_name, PROM, 0, command=cmd)
     logger.info(result)
     result_json = json.loads(result.decode("utf-8"))
 
@@ -82,7 +81,7 @@ async def test_scrape_jobs(ops_test: OpsTest):
 async def test_rules(ops_test: OpsTest):
     # Check Rules
     cmd = ["curl", "-sS", "http://localhost:9090/api/v1/rules"]
-    result = await run_command(ops_test.model_name, "prom", 0, command=cmd)
+    result = await run_command(ops_test.model_name, PROM, 0, command=cmd)
     logger.info(result)
     result_json = json.loads(result.decode("utf-8"))
     groups = result_json["data"]["groups"]
