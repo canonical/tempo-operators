@@ -128,7 +128,7 @@ class TempoCoordinatorCharm(CharmBase):
     @property
     def _external_url(self) -> str:
         """Return the external url."""
-        if self.ingress.is_ready():
+        if self.ingress.is_ready() and self.ingress.scheme and self.ingress.external_host:
             ingress_url = f"{self.ingress.scheme}://{self.ingress.external_host}"
             logger.debug("This unit's ingress URL: %s", ingress_url)
             return ingress_url

@@ -1,3 +1,4 @@
+from dataclasses import replace
 from unittest.mock import MagicMock, patch
 
 import ops
@@ -5,13 +6,13 @@ from scenario import PeerRelation, Relation, State
 
 
 def test_monolithic_status_no_s3_no_workers(context):
-    state_out = context.run("start", State(unit_status=ops.ActiveStatus(), leader=True))
+    state_out = context.run(context.on.start(), State(unit_status=ops.ActiveStatus(), leader=True))
     assert state_out.unit_status.name == "blocked"
 
 
 def test_scaled_status_no_s3(context, all_worker):
     state_out = context.run(
-        "start",
+        context.on.start(),
         State(
             relations=[PeerRelation("peers", peers_data={1: {}, 2: {}})],
             unit_status=ops.ActiveStatus(),
@@ -22,7 +23,7 @@ def test_scaled_status_no_s3(context, all_worker):
 
 def test_scaled_status_no_workers(context, all_worker):
     state_out = context.run(
-        "start",
+        context.on.start(),
         State(
             relations=[PeerRelation("peers", peers_data={1: {}, 2: {}})],
             unit_status=ops.ActiveStatus(),
@@ -35,7 +36,7 @@ def test_scaled_status_with_s3_and_workers(
     context, s3, all_worker, nginx_container, nginx_prometheus_exporter_container
 ):
     state_out = context.run(
-        "start",
+        context.on.start(),
         State(
             relations=[PeerRelation("peers", peers_data={1: {}, 2: {}}), s3, all_worker],
             containers=[nginx_container, nginx_prometheus_exporter_container],
@@ -56,7 +57,7 @@ def test_happy_status(
     nginx_prometheus_exporter_container,
 ):
     state_out = context.run(
-        "start",
+        context.on.start(),
         State(
             relations=[PeerRelation("peers", peers_data={1: {}, 2: {}}), s3, all_worker],
             containers=[nginx_container, nginx_prometheus_exporter_container],
@@ -81,7 +82,7 @@ def test_k8s_patch_failed(
     nginx_prometheus_exporter_container,
 ):
     state_out = context.run(
-        "update_status",
+        context.on.update_status(),
         State(
             relations=[PeerRelation("peers", peers_data={1: {}, 2: {}}), s3, all_worker],
             containers=[nginx_container, nginx_prometheus_exporter_container],
@@ -106,7 +107,7 @@ def test_k8s_patch_waiting(
     nginx_prometheus_exporter_container,
 ):
     state_out = context.run(
-        "config_changed",
+        context.on.config_changed(),
         State(
             relations=[PeerRelation("peers", peers_data={1: {}, 2: {}}), s3, all_worker],
             containers=[nginx_container, nginx_prometheus_exporter_container],
@@ -142,19 +143,20 @@ def test_metrics_generator(
         unit_status=ops.ActiveStatus(),
         leader=True,
     )
-    state_out = context.run(metrics_gen_worker.changed_event, state)
+    state_out = context.run(context.on.relation_changed(metrics_gen_worker), state)
     assert state_out.unit_status.name == "active"
     assert "metrics-generator disabled" in state_out.unit_status.message
 
-    state = state.replace(
+    state = replace(
+        state,
         relations=[
             PeerRelation("peers", peers_data={1: {}, 2: {}}),
             s3,
             all_worker,
             metrics_gen_worker,
             remote_write,
-        ]
+        ],
     )
-    state_out = context.run(remote_write.changed_event, state)
+    state_out = context.run(context.on.relation_changed(remote_write), state)
     assert state_out.unit_status.name == "active"
     assert "metrics-generator disabled" not in state_out.unit_status.message

@@ -1,3 +1,4 @@
+from dataclasses import replace
 from unittest.mock import patch
 
 import pytest
@@ -18,10 +19,10 @@ def test_external_url_present(context, base_state, s3, all_worker):
     # WHEN ingress is related with external_host
     tracing = Relation("tracing", remote_app_data={"receivers": "[]"})
     ingress = Relation("ingress", remote_app_data={"external_host": "1.2.3.4", "scheme": "http"})
-    state = base_state.replace(relations=[tracing, ingress, s3, all_worker])
+    state = replace(base_state, relations=[tracing, ingress, s3, all_worker])
 
     with charm_tracing_disabled():
-        out = context.run(getattr(tracing, "created_event"), state)
+        out = context.run(context.on.relation_created(tracing), state)
 
     # THEN external_url is present in tracing relation databag
     tracing_out = out.get_relations(tracing.endpoint)[0]
@@ -34,10 +35,10 @@ def test_external_url_present(context, base_state, s3, all_worker):
 def test_ingress_relation_set_with_dynamic_config(context, base_state, s3, all_worker):
     # WHEN ingress is related with external_host
     ingress = Relation("ingress", remote_app_data={"external_host": "1.2.3.4", "scheme": "http"})
-    state = base_state.replace(relations=[ingress, s3, all_worker])
+    state = replace(base_state, relations=[ingress, s3, all_worker])
 
     with patch("charm.TempoCoordinatorCharm.is_workload_ready", lambda _: False):
-        out = context.run(ingress.joined_event, state)
+        out = context.run(context.on.relation_joined(ingress), state)
 
     charm_name = "tempo-coordinator-k8s"
 

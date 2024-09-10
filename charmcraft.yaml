@@ -33,14 +33,10 @@ resources:
     upstream-source: nginx/nginx-prometheus-exporter:1.1.0
 
 links:
-  # FIXME: create docs tree root
-  documentation: https://discourse.charmhub.io/t/tempo-coordinator-k8s-docs-index
-  website:
-    - https://charmhub.io/tempo-coordinator-k8s
-  source:
-    - https://github.com/canonical/tempo-coordinator-k8s-operator
-  issues:
-    - https://github.com/canonical/tempo-coordinator-k8s-operator/issues
+  documentation: https://discourse.charmhub.io/t/tempo-coordinator-k8s-docs-index/15419
+  website: https://charmhub.io/tempo-coordinator-k8s
+  source: https://github.com/canonical/tempo-coordinator-k8s-operator
+  issues: https://github.com/canonical/tempo-coordinator-k8s-operator/issues
 
 provides:
   tempo-cluster:
