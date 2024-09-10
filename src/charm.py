@@ -49,7 +49,7 @@ class TempoCoordinatorCharm(CharmBase):
         self.ingress = TraefikRouteRequirer(self, self.model.get_relation("ingress"), "ingress")  # type: ignore
         self.tempo = Tempo(
             requested_receivers=self._requested_receivers,
-            retention_period_hours=self.trace_retention_period_hours,
+            retention_period_hours=self._trace_retention_period_hours,
         )
         # set alert_rules_path="", as we don't want to populate alert rules into the relation databag
         # we only need `self._remote_write.endpoints`
@@ -245,11 +245,10 @@ class TempoCoordinatorCharm(CharmBase):
         return tuple(requested_receivers)
 
     @property
-    def trace_retention_period_hours(self) -> int:
+    def _trace_retention_period_hours(self) -> int:
         """Trace retention period for the compactor."""
-        # if unset, default to 30 days
-        trace_retention_period_hours = cast(int, self.config.get("retention_period_hours", 720))
-        return trace_retention_period_hours
+        # if unset, defaults to 30 days
+        return cast(int, self.config["retention-period"])
 
     def server_ca_cert(self) -> str:
         """For charm tracing."""
