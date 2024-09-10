@@ -65,7 +65,7 @@ async def test_build_and_deploy(ops_test: OpsTest, tempo_charm):
     # deploy cluster
     await deploy_cluster(ops_test)
 
-    with ops_test.fast_forward():  # worker will take a little to report active
+    async with ops_test.fast_forward():  # worker will take a little to report active
         await asyncio.gather(
             ops_test.model.wait_for_idle(
                 apps=[APP_NAME, SSC_APP_NAME, TRAEFIK_APP_NAME],
@@ -97,7 +97,7 @@ async def test_relate(ops_test: OpsTest):
         SSC_APP_NAME + ":certificates", TRAEFIK_APP_NAME + ":certificates"
     )
     await ops_test.model.integrate(APP_NAME + ":ingress", TRAEFIK_APP_NAME + ":traefik-route")
-    with ops_test.fast_forward():  # worker will take a little to report active
+    async with ops_test.fast_forward():  # worker will take a little to report active
         await ops_test.model.wait_for_idle(
             apps=[APP_NAME, SSC_APP_NAME, TRAEFIK_APP_NAME, WORKER_NAME],
             status="active",
@@ -135,7 +135,7 @@ async def test_verify_traces_force_enabled_protocols_tls(ops_test: OpsTest, nonc
                 f"always_enable_{protocol}": "True",
             }
         )
-        with ops_test.fast_forward():  # worker will take a little to report active
+        async with ops_test.fast_forward():  # worker will take a little to report active
             await ops_test.model.wait_for_idle(
                 apps=[APP_NAME, WORKER_NAME],
                 status="active",

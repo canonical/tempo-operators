@@ -79,7 +79,7 @@ async def test_relate(ops_test: OpsTest):
     # then relation should appear
     await ops_test.model.add_relation(APP_NAME + ":tracing", TESTER_APP_NAME + ":tracing")
     await ops_test.model.add_relation(APP_NAME + ":tracing", TESTER_GRPC_APP_NAME + ":tracing")
-    with ops_test.fast_forward():
+    async with ops_test.fast_forward():
         await ops_test.model.wait_for_idle(
             apps=[APP_NAME, WORKER_NAME, TESTER_APP_NAME, TESTER_GRPC_APP_NAME],
             status="active",

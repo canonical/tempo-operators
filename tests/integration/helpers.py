@@ -299,7 +299,7 @@ async def deploy_cluster(ops_test: OpsTest, tempo_app=APP_NAME):
     await ops_test.model.integrate(tempo_app + ":tempo-cluster", WORKER_NAME + ":tempo-cluster")
 
     await deploy_and_configure_minio(ops_test)
-    with ops_test.fast_forward():
+    async with ops_test.fast_forward():
         await ops_test.model.wait_for_idle(
             apps=[tempo_app, WORKER_NAME, S3_INTEGRATOR],
             status="active",
