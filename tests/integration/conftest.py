@@ -22,7 +22,10 @@ logger = logging.getLogger(__name__)
 
 @fixture(scope="session")
 async def tempo_charm(ops_test: OpsTest):
-    """Zinc charm used for integration testing."""
+    """Tempo charm used for integration testing.
+
+    Build once per session and reuse it in all integration tests to save some minutes/hours.
+    """
     charm = await ops_test.build_charm(".")
     return charm
 
