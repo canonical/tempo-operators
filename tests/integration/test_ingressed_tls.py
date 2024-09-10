@@ -5,10 +5,11 @@ from pathlib import Path
 import pytest
 import yaml
 from helpers import (
+    WORKER_NAME,
     deploy_cluster,
     emit_trace,
     get_traces_patiently,
-    protocols_endpoints, WORKER_NAME,
+    protocols_endpoints,
 )
 from juju.application import Application
 from pytest_operator.plugin import OpsTest

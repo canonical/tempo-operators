@@ -192,7 +192,6 @@ class TempoCoordinatorCharm(CharmBase):
             res[receiver.replace("_", "-")] = self.get_receiver_url(receiver)
         event.set_results(res)
 
-
     def _on_collect_status(self, e: CollectStatusEvent):
         # add Tempo coordinator-specific statuses
         if (
