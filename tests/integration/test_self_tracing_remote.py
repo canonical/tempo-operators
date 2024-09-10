@@ -24,8 +24,7 @@ APP_REMOTE_NAME = "tempo-source"
 
 
 @pytest.mark.abort_on_fail
-async def test_build_and_deploy(ops_test: OpsTest):
-    tempo_charm = await ops_test.build_charm(".")
+async def test_build_and_deploy(ops_test: OpsTest, tempo_charm):
     resources = {
         "nginx-image": METADATA["resources"]["nginx-image"]["upstream-source"],
         "nginx-prometheus-exporter-image": METADATA["resources"][

@@ -21,9 +21,8 @@ apps = ["coord", "prom"]
 
 
 @pytest.mark.abort_on_fail
-async def test_build_and_deploy(ops_test: OpsTest):
+async def test_build_and_deploy(ops_test: OpsTest, tempo_charm):
     """Build the charm-under-test and deploy it together with related charms."""
-    charm = await ops_test.build_charm(".")
 
     test_bundle = dedent(
         f"""
@@ -32,7 +31,7 @@ async def test_build_and_deploy(ops_test: OpsTest):
         name: test-charm
         applications:
           {coord.name}:
-            charm: {charm}
+            charm: {tempo_charm}
             trust: true
             scale: 1
             resources:

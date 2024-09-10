@@ -7,7 +7,9 @@ import random
 import shutil
 import tempfile
 from pathlib import Path
+from subprocess import check_call
 
+from paramiko.proxy import subprocess
 from pytest import fixture
 from pytest_operator.plugin import OpsTest
 
@@ -20,11 +22,13 @@ SSC_APP_NAME = "ssc"
 logger = logging.getLogger(__name__)
 
 
-@fixture(scope="module")
-async def tempo_charm(ops_test: OpsTest):
-    """Zinc charm used for integration testing."""
-    charm = await ops_test.build_charm(".")
-    return charm
+@fixture(scope="session")
+def tempo_charm():
+    """Tempo charm used for integration testing."""
+    if tempo_charm:=os.getenv("TEMPO_CHARM"):
+        return tempo_charm
+    check_call(["charmcraft", "pack", "-v"])
+    return "./tempo-coordinator-k8s_ubuntu-22.04-amd64.charm"
 
 
 @fixture(scope="module", autouse=True)

@@ -45,8 +45,7 @@ async def get_tempo_ingressed_endpoint(hostname, protocol):
 
 @pytest.mark.setup
 @pytest.mark.abort_on_fail
-async def test_build_and_deploy(ops_test: OpsTest):
-    tempo_charm = await ops_test.build_charm(".")
+async def test_build_and_deploy(ops_test: OpsTest, tempo_charm):
     resources = {
         "nginx-image": METADATA["resources"]["nginx-image"]["upstream-source"],
         "nginx-prometheus-exporter-image": METADATA["resources"][
@@ -66,15 +65,16 @@ async def test_build_and_deploy(ops_test: OpsTest):
     # deploy cluster
     await deploy_cluster(ops_test)
 
-    await asyncio.gather(
-        ops_test.model.wait_for_idle(
-            apps=[APP_NAME, SSC_APP_NAME, TRAEFIK_APP_NAME],
-            status="active",
-            raise_on_blocked=True,
-            timeout=10000,
-            raise_on_error=False,
-        ),
-    )
+    with ops_test.fast_forward():  # worker will take a little to report active
+        await asyncio.gather(
+            ops_test.model.wait_for_idle(
+                apps=[APP_NAME, SSC_APP_NAME, TRAEFIK_APP_NAME],
+                status="active",
+                raise_on_blocked=True,
+                timeout=10000,
+                raise_on_error=False,
+            ),
+        )
 
 
 @pytest.mark.setup
@@ -97,13 +97,14 @@ async def test_relate(ops_test: OpsTest):
         SSC_APP_NAME + ":certificates", TRAEFIK_APP_NAME + ":certificates"
     )
     await ops_test.model.integrate(APP_NAME + ":ingress", TRAEFIK_APP_NAME + ":traefik-route")
-    await ops_test.model.wait_for_idle(
-        apps=[APP_NAME, SSC_APP_NAME, TRAEFIK_APP_NAME, WORKER_NAME],
-        status="active",
-        timeout=1000,
-        # make idle period 1 minute, as Tempo workload might not be up yet
-        idle_period=60,
-    )
+    with ops_test.fast_forward():  # worker will take a little to report active
+        await ops_test.model.wait_for_idle(
+            apps=[APP_NAME, SSC_APP_NAME, TRAEFIK_APP_NAME, WORKER_NAME],
+            status="active",
+            timeout=1000,
+            # make idle period 1 minute, as Tempo workload might not be up yet
+            idle_period=60,
+        )
 
 
 # TODO: Uncomment and fix once below issue is fixed
@@ -134,11 +135,12 @@ async def test_verify_traces_force_enabled_protocols_tls(ops_test: OpsTest, nonc
                 f"always_enable_{protocol}": "True",
             }
         )
-        await ops_test.model.wait_for_idle(
-            apps=[APP_NAME, WORKER_NAME],
-            status="active",
-            timeout=1000,
-        )
+        with ops_test.fast_forward():  # worker will take a little to report active
+            await ops_test.model.wait_for_idle(
+                apps=[APP_NAME, WORKER_NAME],
+                status="active",
+                timeout=1000,
+            )
 
     tempo_host = await get_ingress_proxied_hostname(ops_test)
     tempo_endpoint = await get_tempo_ingressed_endpoint(tempo_host, protocol=protocol)

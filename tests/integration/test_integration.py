@@ -22,11 +22,10 @@ logger = logging.getLogger(__name__)
 
 @pytest.mark.setup
 @pytest.mark.abort_on_fail
-async def test_build_and_deploy(ops_test: OpsTest):
+async def test_build_and_deploy(ops_test: OpsTest, tempo_charm):
     # Given a fresh build of the charm
     # When deploying it together with testers
     # Then applications should eventually be created
-    tempo_charm = await ops_test.build_charm(".")
     tester_charm = await ops_test.build_charm("./tests/integration/tester/")
     tester_grpc_charm = await ops_test.build_charm("./tests/integration/tester-grpc/")
     resources = {
@@ -80,11 +79,12 @@ async def test_relate(ops_test: OpsTest):
     # then relation should appear
     await ops_test.model.add_relation(APP_NAME + ":tracing", TESTER_APP_NAME + ":tracing")
     await ops_test.model.add_relation(APP_NAME + ":tracing", TESTER_GRPC_APP_NAME + ":tracing")
-    await ops_test.model.wait_for_idle(
-        apps=[APP_NAME, WORKER_NAME, TESTER_APP_NAME, TESTER_GRPC_APP_NAME],
-        status="active",
-        timeout=1000,
-    )
+    with ops_test.fast_forward():
+        await ops_test.model.wait_for_idle(
+            apps=[APP_NAME, WORKER_NAME, TESTER_APP_NAME, TESTER_GRPC_APP_NAME],
+            status="active",
+            timeout=1000,
+        )
 
 
 async def test_verify_traces_http(ops_test: OpsTest):
