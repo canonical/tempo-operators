@@ -183,6 +183,7 @@ async def test_verify_traces_force_enabled_protocols_tls(ops_test: OpsTest, nonc
     tempo_host = await get_ingress_proxied_hostname(ops_test)
 
     for protocol in list(protocols_endpoints.keys()):
+        logger.info(f"emitting & verifying trace using {protocol} protocol.")
         tempo_endpoint = await get_tempo_ingressed_endpoint(tempo_host, protocol=protocol)
         # emit a trace secured with TLS
         await emit_trace(
