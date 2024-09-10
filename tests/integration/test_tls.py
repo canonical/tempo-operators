@@ -68,14 +68,21 @@ async def test_build_and_deploy(ops_test: OpsTest, tempo_charm: Path):
             tempo_charm, resources=resources, application_name=APP_NAME, trust=True
         ),
         ops_test.model.deploy(SSC, application_name=SSC_APP_NAME),
+        ops_test.model.deploy(
+            TRAEFIK, application_name=TRAEFIK_APP_NAME, channel="edge", trust=True
+        ),
     )
 
+    await ops_test.model.integrate(APP_NAME + ":certificates", SSC_APP_NAME + ":certificates")
+    await ops_test.model.integrate(
+        SSC_APP_NAME + ":certificates", TRAEFIK_APP_NAME + ":certificates"
+    )
     # deploy cluster
     await deploy_cluster(ops_test)
 
     await asyncio.gather(
         ops_test.model.wait_for_idle(
-            apps=[APP_NAME, SSC_APP_NAME],
+            apps=[APP_NAME, SSC_APP_NAME, TRAEFIK_APP_NAME, WORKER_NAME],
             status="active",
             raise_on_blocked=True,
             timeout=1000,
@@ -83,18 +90,6 @@ async def test_build_and_deploy(ops_test: OpsTest, tempo_charm: Path):
     )
 
 
-@pytest.mark.setup
-@pytest.mark.abort_on_fail
-async def test_relate(ops_test: OpsTest):
-    await ops_test.model.integrate(APP_NAME + ":certificates", SSC_APP_NAME + ":certificates")
-    await ops_test.model.wait_for_idle(
-        apps=[APP_NAME, SSC_APP_NAME, WORKER_NAME],
-        status="active",
-        timeout=1000,
-    )
-
-
-@pytest.mark.setup
 @pytest.mark.abort_on_fail
 async def test_push_tracegen_script_and_deps(ops_test: OpsTest):
     await ops_test.juju("scp", TRACEGEN_SCRIPT_PATH, f"{APP_NAME}/0:tracegen.py")
@@ -131,27 +126,7 @@ async def test_verify_traces_otlp_http_tls(ops_test: OpsTest, nonce):
 
 
 @pytest.mark.abort_on_fail
-async def test_deploy_ingress(ops_test: OpsTest):
-    await asyncio.gather(
-        ops_test.model.deploy(
-            TRAEFIK, application_name=TRAEFIK_APP_NAME, channel="edge", trust=True
-        ),
-    )
-    await asyncio.gather(
-        ops_test.model.wait_for_idle(
-            apps=[TRAEFIK_APP_NAME],
-            status="active",
-            raise_on_blocked=True,
-            timeout=600,
-        ),
-    )
-
-
-@pytest.mark.abort_on_fail
 async def test_relate_ingress(ops_test: OpsTest):
-    await ops_test.model.integrate(
-        SSC_APP_NAME + ":certificates", TRAEFIK_APP_NAME + ":certificates"
-    )
     await ops_test.model.integrate(APP_NAME + ":ingress", TRAEFIK_APP_NAME + ":traefik-route")
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME, SSC_APP_NAME, TRAEFIK_APP_NAME, WORKER_NAME],
@@ -165,8 +140,7 @@ async def test_force_enable_protocols(ops_test: OpsTest):
     tempo_app: Application = ops_test.model.applications[APP_NAME]
     config = {}
     for protocol in list(protocols_endpoints.keys()):
-        if protocol != "otlp_http":
-            config[f"always_enable_{protocol}"] = "True"
+        config[f"always_enable_{protocol}"] = "True"
 
     await tempo_app.set_config(config)
     await ops_test.model.wait_for_idle(
