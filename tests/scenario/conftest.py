@@ -22,6 +22,7 @@ def tempo_charm():
                 _namespace="test-namespace",
                 _patch=lambda _: None,
                 get_status=lambda _: ActiveStatus(""),
+                is_ready=lambda _: True
             ):
                 yield TempoCoordinatorCharm
 

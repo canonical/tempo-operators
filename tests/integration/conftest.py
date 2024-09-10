@@ -9,7 +9,6 @@ import tempfile
 from pathlib import Path
 from subprocess import check_call
 
-from paramiko.proxy import subprocess
 from pytest import fixture
 from pytest_operator.plugin import OpsTest
 
@@ -25,7 +24,7 @@ logger = logging.getLogger(__name__)
 @fixture(scope="session")
 def tempo_charm():
     """Tempo charm used for integration testing."""
-    if tempo_charm:=os.getenv("TEMPO_CHARM"):
+    if tempo_charm := os.getenv("TEMPO_CHARM"):
         return tempo_charm
     check_call(["charmcraft", "pack", "-v"])
     return "./tempo-coordinator-k8s_ubuntu-22.04-amd64.charm"
