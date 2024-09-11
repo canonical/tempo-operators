@@ -5,6 +5,7 @@ import logging
 import os
 import random
 import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 from subprocess import check_call
@@ -23,11 +24,27 @@ logger = logging.getLogger(__name__)
 
 @fixture(scope="session")
 def tempo_charm():
-    """Tempo charm used for integration testing."""
+    """Tempo charm used for integration testing.
+
+    Build once per session and reuse it in all integration tests to save some minutes/hours.
+    You can also set `TEMPO_CHARM` env variable to use an already existing built charm.
+    """
     if tempo_charm := os.getenv("TEMPO_CHARM"):
         return tempo_charm
-    check_call(["charmcraft", "pack", "-v"])
-    return "./tempo-coordinator-k8s_ubuntu-22.04-amd64.charm"
+
+    count = 0
+    # Intermittent issue where charmcraft fails to build the charm for an unknown reason.
+    # Retry building the charm
+    while True:
+        try:
+            subprocess.check_call(["charmcraft", "pack", "-v"])
+            return Path("./tempo-coordinator-k8s_ubuntu-22.04-amd64.charm").absolute()
+        except subprocess.CalledProcessError:
+            logger.warning("Failed to build Tempo coordinator. Trying again!")
+            count += 1
+
+            if count == 3:
+                raise
 
 
 @fixture(scope="module", autouse=True)
