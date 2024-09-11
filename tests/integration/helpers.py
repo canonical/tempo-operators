@@ -98,10 +98,10 @@ def get_relation_by_endpoint(relations, local_endpoint, remote_endpoint, remote_
         r
         for r in relations
         if (
-                   (r["endpoint"] == local_endpoint and r["related-endpoint"] == remote_endpoint)
-                   or (r["endpoint"] == remote_endpoint and r["related-endpoint"] == local_endpoint)
-           )
-           and remote_obj in r["related-units"]
+            (r["endpoint"] == local_endpoint and r["related-endpoint"] == remote_endpoint)
+            or (r["endpoint"] == remote_endpoint and r["related-endpoint"] == local_endpoint)
+        )
+        and remote_obj in r["related-units"]
     ]
     if not matches:
         raise ValueError(
@@ -128,7 +128,7 @@ class UnitRelationData:
 
 
 def get_content(
-        obj: str, other_obj, include_default_juju_keys: bool = False, model: str = None
+    obj: str, other_obj, include_default_juju_keys: bool = False, model: str = None
 ) -> UnitRelationData:
     """Get the content of the databag of `obj`, as seen from `other_obj`."""
     unit_name, endpoint = obj.split(":")
@@ -170,11 +170,11 @@ class RelationData:
 
 
 def get_relation_data(
-        *,
-        provider_endpoint: str,
-        requirer_endpoint: str,
-        include_default_juju_keys: bool = False,
-        model: str = None,
+    *,
+    provider_endpoint: str,
+    requirer_endpoint: str,
+    include_default_juju_keys: bool = False,
+    model: str = None,
 ):
     """Get relation databags for a juju relation.
 
@@ -216,12 +216,12 @@ async def run_command(model_name: str, app_name: str, unit_num: int, command: li
 
 
 def present_facade(
-        interface: str,
-        app_data: Dict = None,
-        unit_data: Dict = None,
-        role: Literal["provide", "require"] = "provide",
-        model: str = None,
-        app: str = "facade",
+    interface: str,
+    app_data: Dict = None,
+    unit_data: Dict = None,
+    role: Literal["provide", "require"] = "provide",
+    model: str = None,
+    app: str = "facade",
 ):
     """Set up the facade charm to present this data over the interface ``interface``."""
     data = {
@@ -339,7 +339,7 @@ async def get_traces_patiently(tempo_host, service_name="tracegen-otlp_http", tl
 
 
 async def emit_trace(
-        endpoint, ops_test: OpsTest, nonce, proto: str = "otlp_http", verbose=0, use_cert=False
+    endpoint, ops_test: OpsTest, nonce, proto: str = "otlp_http", verbose=0, use_cert=False
 ):
     """Use juju ssh to run tracegen from the tempo charm; to avoid any DNS issues."""
     cmd = (
