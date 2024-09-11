@@ -55,7 +55,7 @@ def all_worker_with_initial_config(all_worker: Relation, coordinator_with_initia
 
 @pytest.fixture
 def certs_relation():
-    return scenario.Relation("certificates")
+    return scenario.Relation("certificates", remote_app_data={})
 
 
 MOCK_SERVER_CERT = "SERVER_CERT-foo"

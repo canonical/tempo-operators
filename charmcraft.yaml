@@ -129,10 +129,10 @@ parts:
 
 config:
   options:
-    retention_period_hours:
+    retention-period:
       description: |
         Maximum trace retention period, in hours. This will be used to configure the compactor to clean up trace data after this time. 
-        Defaults to 720 hours, which is equivalent to 30 days.
+        Defaults to 720 hours, which is equivalent to 30 days. Per-stream retention limits are currently not supported.
       type: int
       default: 720
     always_enable_zipkin:

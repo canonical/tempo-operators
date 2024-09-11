@@ -17,7 +17,6 @@ from charms.prometheus_k8s.v1.prometheus_remote_write import (
 from charms.tempo_k8s.v1.charm_tracing import trace_charm
 from charms.tempo_k8s.v2.tracing import (
     ReceiverProtocol,
-    RequestEvent,
     TracingEndpointProvider,
     TransportProtocolType,
     receiver_protocol_to_transport_protocol,
@@ -26,7 +25,7 @@ from charms.traefik_route_k8s.v0.traefik_route import TraefikRouteRequirer
 from cosl.coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
 from cosl.coordinated_workers.nginx import CA_CERT_PATH, CERT_PATH, KEY_PATH
 from ops import CollectStatusEvent
-from ops.charm import CharmBase, RelationEvent
+from ops.charm import CharmBase
 from ops.main import main
 
 from nginx_config import NginxConfig
@@ -48,13 +47,13 @@ class TempoCoordinatorCharm(CharmBase):
         super().__init__(*args)
 
         self.ingress = TraefikRouteRequirer(self, self.model.get_relation("ingress"), "ingress")  # type: ignore
+        self.tempo = Tempo(
+            requested_receivers=self._requested_receivers,
+            retention_period_hours=self._trace_retention_period_hours,
+        )
         # set alert_rules_path="", as we don't want to populate alert rules into the relation databag
         # we only need `self._remote_write.endpoints`
         self._remote_write = PrometheusRemoteWriteConsumer(self, alert_rules_path="")
-        self.tempo = Tempo(
-            requested_receivers=self._requested_receivers,
-            retention_period_hours=self.trace_retention_period_hours,
-        )
         # set the open ports for this unit
         self.unit.set_ports(*self.tempo.all_ports.values())
 
@@ -99,32 +98,18 @@ class TempoCoordinatorCharm(CharmBase):
 
         # refuse to handle any other event as we can't possibly know what to do.
         if not self.coordinator.can_handle_events:
-            # logging will be handled by `self.coordinator` for each of the above circumstances.
+            # logging is handled by the Coordinator object
             return
 
-        # lifecycle
-        self.framework.observe(self.on.leader_elected, self._on_leader_elected)
+        # do this regardless of what event we are processing
+        self._reconcile()
+
+        # actions
         self.framework.observe(self.on.list_receivers_action, self._on_list_receivers_action)
-
-        # ingress
-        ingress = self.on["ingress"]
-        self.framework.observe(ingress.relation_created, self._on_ingress_relation_created)
-        self.framework.observe(ingress.relation_joined, self._on_ingress_relation_joined)
-        self.framework.observe(self.ingress.on.ready, self._on_ingress_ready)
-
-        # tracing
-        self.framework.observe(self.tracing.on.request, self._on_tracing_request)
-        self.framework.observe(self.tracing.on.broken, self._on_tracing_broken)
 
         # tls
         self.framework.observe(
             self.coordinator.cert_handler.on.cert_changed, self._on_cert_handler_changed
-        )
-
-        # remote-write
-        self.framework.observe(
-            self._remote_write.on.endpoints_changed,  # pyright: ignore
-            self._on_remote_write_changed,
         )
 
     ######################
@@ -195,56 +180,17 @@ class TempoCoordinatorCharm(CharmBase):
     ##################
     # EVENT HANDLERS #
     ##################
-    def _on_tracing_broken(self, _):
-        """Update tracing relations' databags once one relation is removed."""
-        self._update_tracing_relations()
 
-    def _on_cert_handler_changed(self, e: ops.RelationChangedEvent):
-
-        # tls readiness change means config change.
-        # sync scheme change with traefik and related consumers
-        self._configure_ingress()
-
+    def _on_cert_handler_changed(self, _: ops.RelationChangedEvent):
         # sync the server CA cert with the charm container.
         # technically, because of charm tracing, this will be called first thing on each event
         self._update_server_ca_cert()
-
-        # update relations to reflect the new certificate
-        self._update_tracing_relations()
-
-    def _on_tracing_request(self, e: RequestEvent):
-        """Handle a remote requesting a tracing endpoint."""
-        logger.debug(f"received tracing request from {e.relation.app}: {e.requested_receivers}")
-        self._update_tracing_relations()
-
-    def _on_ingress_relation_created(self, _: RelationEvent):
-        self._configure_ingress()
-
-    def _on_ingress_relation_joined(self, _: RelationEvent):
-        self._configure_ingress()
-
-    def _on_leader_elected(self, _: ops.LeaderElectedEvent):
-        # as traefik_route goes through app data, we need to take lead of traefik_route if our leader dies.
-        self._configure_ingress()
-
-    def _on_ingress_ready(self, _event):
-        # whenever there's a change in ingress, we need to update all tracing relations
-        self._update_tracing_relations()
-
-    def _on_ingress_revoked(self, _event):
-        # whenever there's a change in ingress, we need to update all tracing relations
-        self._update_tracing_relations()
 
     def _on_list_receivers_action(self, event: ops.ActionEvent):
         res = {}
         for receiver in self._requested_receivers():
             res[receiver.replace("_", "-")] = self.get_receiver_url(receiver)
         event.set_results(res)
-
-    def _on_remote_write_changed(self, _event):
-        """Event handler for the remote write changed event."""
-        # notify the cluster
-        self.coordinator.update_cluster()
 
     def _on_collect_status(self, e: CollectStatusEvent):
         # add Tempo coordinator-specific statuses
@@ -261,8 +207,8 @@ class TempoCoordinatorCharm(CharmBase):
     ###################
     # UTILITY METHODS #
     ###################
-    def _configure_ingress(self) -> None:
-        """Make sure the traefik route and tracing relation data are up-to-date."""
+    def _update_ingress_relation(self) -> None:
+        """Make sure the traefik route is up-to-date."""
         if not self.unit.is_leader():
             return
 
@@ -270,11 +216,6 @@ class TempoCoordinatorCharm(CharmBase):
             self.ingress.submit_to_traefik(
                 self._ingress_config, static=self._static_ingress_config
             )
-            if self.ingress.external_host:
-                self._update_tracing_relations()
-
-        # notify the cluster
-        self.coordinator.update_cluster()
 
     def _update_tracing_relations(self) -> None:
         tracing_relations = self.model.relations["tracing"]
@@ -291,8 +232,6 @@ class TempoCoordinatorCharm(CharmBase):
                 [(p, self.get_receiver_url(p)) for p in requested_receivers]
             )
 
-        self.coordinator.update_cluster()
-
     def _requested_receivers(self) -> Tuple[ReceiverProtocol, ...]:
         """List what receivers we should activate, based on the active tracing relations and config-enabled extra receivers."""
         # we start with the sum of the requested endpoints from the requirers
@@ -305,14 +244,14 @@ class TempoCoordinatorCharm(CharmBase):
         return tuple(requested_receivers)
 
     @property
-    def trace_retention_period_hours(self) -> int:
+    def _trace_retention_period_hours(self) -> int:
         """Trace retention period for the compactor."""
-        # if unset, default to 30 days
-        trace_retention_period_hours = cast(int, self.config.get("retention_period_hours", 720))
-        return trace_retention_period_hours
+        # if unset, defaults to 30 days
+        return cast(int, self.config["retention-period"])
 
     def server_ca_cert(self) -> str:
         """For charm tracing."""
+        # Fixme: we do this once too many times if we're handling cert_handler.changed
         self._update_server_ca_cert()
         return self.tempo.tls_ca_path
 
@@ -437,6 +376,15 @@ class TempoCoordinatorCharm(CharmBase):
     def remote_write_endpoints(self):
         """Return remote-write endpoints."""
         return self._remote_write.endpoints
+
+    def _reconcile(self):
+        # This method contains unconditional update logic, i.e. logic that should be executed
+        # regardless of the event we are processing.
+        # reason is, if we miss these events because our coordinator cannot process events (inconsistent status),
+        # we need to 'remember' to run this logic as soon as we become ready, which is hard and error-prone
+        self._update_ingress_relation()
+        self._update_tracing_relations()
+        self.coordinator.update_cluster()
 
 
 if __name__ == "__main__":  # pragma: nocover

@@ -299,13 +299,13 @@ async def deploy_cluster(ops_test: OpsTest, tempo_app=APP_NAME):
     await ops_test.model.integrate(tempo_app + ":tempo-cluster", WORKER_NAME + ":tempo-cluster")
 
     await deploy_and_configure_minio(ops_test)
-
-    await ops_test.model.wait_for_idle(
-        apps=[tempo_app, WORKER_NAME, S3_INTEGRATOR],
-        status="active",
-        timeout=1000,
-        idle_period=30,
-    )
+    async with ops_test.fast_forward():
+        await ops_test.model.wait_for_idle(
+            apps=[tempo_app, WORKER_NAME, S3_INTEGRATOR],
+            status="active",
+            timeout=1000,
+            idle_period=30,
+        )
 
 
 def get_traces(tempo_host: str, service_name="tracegen-otlp_http", tls=True):
