@@ -17,9 +17,7 @@ logger = logging.getLogger(__name__)
 
 @pytest.mark.setup
 @pytest.mark.abort_on_fail
-async def test_deploy_tempo(ops_test: OpsTest):
-    tempo_charm = await ops_test.build_charm(".")
-
+async def test_deploy_tempo(ops_test: OpsTest, tempo_charm: Path):
     resources = {
         "nginx-image": METADATA["resources"]["nginx-image"]["upstream-source"],
         "nginx-prometheus-exporter-image": METADATA["resources"][
