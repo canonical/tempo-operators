@@ -8,7 +8,6 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from subprocess import check_call
 
 from pytest import fixture
 from pytest_operator.plugin import OpsTest
