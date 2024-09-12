@@ -289,9 +289,21 @@ async def deploy_and_configure_minio(ops_test: OpsTest):
     assert action_result.status == "completed"
 
 
+def tempo_worker_charm_and_channel():
+    """Tempo worker charm used for integration testing.
+
+    Build once per session and reuse it in all integration tests to save some minutes/hours.
+    You can also set `TEMPO_WORKER_CHARM` env variable to use an already existing built charm.
+    """
+    if path_from_env := os.getenv("TEMPO_WORKER_CHARM"):
+        return Path(path_from_env).absolute(), None
+    return "tempo-worker-k8s", "edge"
+
+
 async def deploy_cluster(ops_test: OpsTest, tempo_app=APP_NAME):
+    tempo_worker_charm_url, channel = tempo_worker_charm_and_channel()
     await ops_test.model.deploy(
-        "tempo-worker-k8s", application_name=WORKER_NAME, channel="edge", trust=True
+        tempo_worker_charm_url, application_name=WORKER_NAME, channel=channel, trust=True
     )
     await ops_test.model.deploy(S3_INTEGRATOR, channel="edge")
 
