@@ -40,7 +40,9 @@ async def test_build_and_deploy(ops_test: OpsTest, tempo_charm: Path):
     }
 
     await asyncio.gather(
-        ops_test.model.deploy(tempo_charm, resources=resources, application_name=APP_NAME),
+        ops_test.model.deploy(
+            tempo_charm, resources=resources, application_name=APP_NAME, trust=True
+        ),
         ops_test.model.deploy(
             tester_charm,
             resources=resources_tester,
