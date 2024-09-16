@@ -211,12 +211,13 @@ class TempoTesterGrpcCharm(CharmBase):
 
     def _update(self, _):
         """Event handler for all things."""
-        self.ensure_container_setup()
-
-        logger.info("running _update")
         if not self.container.can_connect():
             self.unit.status = WaitingStatus("waiting for container connectivity...")
             return
+
+        self.ensure_container_setup()
+
+        logger.info("running _update")
 
         # Wait for IP address. IP address is needed for forming tester clusters
         # and for related apps' config.
