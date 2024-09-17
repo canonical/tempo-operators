@@ -103,7 +103,9 @@ class TempoTesterGrpcCharm(CharmBase):
             "PORT": self.config["port"],
             "HOST": self.config["host"],
             "APP_NAME": self.app.name,
-            "TEMPO_ENDPOINT": str(self.tracing.get_endpoint("otlp_grpc") or ""),
+            "TEMPO_ENDPOINT": (
+                self.tracing.get_endpoint("otlp_grpc") if self.tracing.is_ready() else ""
+            ),
         }
         logging.info(f"Initing pebble layer with env: {str(env)}")
 
