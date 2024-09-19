@@ -21,7 +21,7 @@ from charms.tempo_k8s.v2.tracing import (
     TransportProtocolType,
     receiver_protocol_to_transport_protocol,
 )
-from charms.traefik_route_k8s.v0.traefik_route import TraefikRouteRequirer
+from charms.traefik_k8s.v0.traefik_route import TraefikRouteRequirer
 from cosl.coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
 from cosl.coordinated_workers.nginx import CA_CERT_PATH, CERT_PATH, KEY_PATH
 from ops import CollectStatusEvent
