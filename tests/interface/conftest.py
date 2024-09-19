@@ -77,16 +77,21 @@ def cluster_tester(interface_tester: InterfaceTester):
         _namespace="test-namespace",
         _patch=lambda _: None,
     ):
-        with charm_tracing_disabled():
-            interface_tester.configure(
-                charm_type=TempoCoordinatorCharm,
-                state_template=State(
-                    leader=True,
-                    containers=[nginx_container, nginx_prometheus_exporter_container],
-                    relations=[peers, s3_relation],
-                ),
-            )
-            yield interface_tester
+        with patch.multiple(
+                "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
+                _namespace="test-namespace",
+                _patch=lambda _: None,
+        ):
+            with charm_tracing_disabled():
+                interface_tester.configure(
+                    charm_type=TempoCoordinatorCharm,
+                    state_template=State(
+                        leader=True,
+                        containers=[nginx_container, nginx_prometheus_exporter_container],
+                        relations=[peers, s3_relation],
+                    ),
+                )
+                yield interface_tester
 
 
 @pytest.fixture
