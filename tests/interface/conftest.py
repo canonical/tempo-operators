@@ -1,6 +1,6 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from charms.tempo_k8s.v1.charm_tracing import charm_tracing_disabled
@@ -81,10 +81,10 @@ def cluster_tester(interface_tester: InterfaceTester):
         is_ready=k8s_resource_patch_ready,
     ):
         with patch.multiple(
-                "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
-                _namespace="test-namespace",
-                _patch=lambda _: None,
-                is_ready=k8s_resource_patch_ready,
+            "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
+            _namespace="test-namespace",
+            _patch=lambda _: None,
+            is_ready=k8s_resource_patch_ready,
         ):
             with charm_tracing_disabled():
                 interface_tester.configure(
@@ -107,10 +107,10 @@ def tracing_tester(interface_tester: InterfaceTester):
         is_ready=k8s_resource_patch_ready,
     ):
         with patch.multiple(
-                "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
-                _namespace="test-namespace",
-                _patch=lambda _: None,
-                is_ready=k8s_resource_patch_ready,
+            "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
+            _namespace="test-namespace",
+            _patch=lambda _: None,
+            is_ready=k8s_resource_patch_ready,
         ):
             with charm_tracing_disabled():
                 interface_tester.configure(
@@ -133,10 +133,10 @@ def s3_tester(interface_tester: InterfaceTester):
         is_ready=k8s_resource_patch_ready,
     ):
         with patch.multiple(
-                "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
-                _namespace="test-namespace",
-                _patch=lambda _: None,
-                is_ready=k8s_resource_patch_ready,
+            "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
+            _namespace="test-namespace",
+            _patch=lambda _: None,
+            is_ready=k8s_resource_patch_ready,
         ):
             with charm_tracing_disabled():
                 interface_tester.configure(
