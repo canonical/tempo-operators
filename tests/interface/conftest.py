@@ -104,17 +104,24 @@ def tracing_tester(interface_tester: InterfaceTester):
         "cosl.coordinated_workers.worker.KubernetesComputeResourcesPatch",
         _namespace="test-namespace",
         _patch=lambda _: None,
+        is_ready=k8s_resource_patch_ready,
     ):
-        with charm_tracing_disabled():
-            interface_tester.configure(
-                charm_type=TempoCoordinatorCharm,
-                state_template=State(
-                    leader=True,
-                    containers=[nginx_container, nginx_prometheus_exporter_container],
-                    relations=[peers, s3_relation, cluster_relation],
-                ),
-            )
-            yield interface_tester
+        with patch.multiple(
+                "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
+                _namespace="test-namespace",
+                _patch=lambda _: None,
+                is_ready=k8s_resource_patch_ready,
+        ):
+            with charm_tracing_disabled():
+                interface_tester.configure(
+                    charm_type=TempoCoordinatorCharm,
+                    state_template=State(
+                        leader=True,
+                        containers=[nginx_container, nginx_prometheus_exporter_container],
+                        relations=[peers, s3_relation, cluster_relation],
+                    ),
+                )
+                yield interface_tester
 
 
 @pytest.fixture
@@ -123,14 +130,21 @@ def s3_tester(interface_tester: InterfaceTester):
         "cosl.coordinated_workers.worker.KubernetesComputeResourcesPatch",
         _namespace="test-namespace",
         _patch=lambda _: None,
+        is_ready=k8s_resource_patch_ready,
     ):
-        with charm_tracing_disabled():
-            interface_tester.configure(
-                charm_type=TempoCoordinatorCharm,
-                state_template=State(
-                    leader=True,
-                    containers=[nginx_container, nginx_prometheus_exporter_container],
-                    relations=[peers, cluster_relation],
-                ),
-            )
-            yield interface_tester
+        with patch.multiple(
+                "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
+                _namespace="test-namespace",
+                _patch=lambda _: None,
+                is_ready=k8s_resource_patch_ready,
+        ):
+            with charm_tracing_disabled():
+                interface_tester.configure(
+                    charm_type=TempoCoordinatorCharm,
+                    state_template=State(
+                        leader=True,
+                        containers=[nginx_container, nginx_prometheus_exporter_container],
+                        relations=[peers, cluster_relation],
+                    ),
+                )
+                yield interface_tester
