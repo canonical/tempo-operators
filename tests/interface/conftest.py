@@ -1,6 +1,6 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 from charms.tempo_k8s.v1.charm_tracing import charm_tracing_disabled
@@ -63,6 +63,8 @@ cluster_relation = Relation(
 
 peers = PeerRelation("peers", peers_data={1: {}})
 
+k8s_resource_patch_ready = MagicMock(return_value=True)
+
 
 # Interface tests are centrally hosted at https://github.com/canonical/charm-relation-interfaces.
 # this fixture is used by the test runner of charm-relation-interfaces to test tempo's compliance
@@ -76,13 +78,13 @@ def cluster_tester(interface_tester: InterfaceTester):
         "cosl.coordinated_workers.worker.KubernetesComputeResourcesPatch",
         _namespace="test-namespace",
         _patch=lambda _: None,
-        is_ready=True,
+        is_ready=k8s_resource_patch_ready,
     ):
         with patch.multiple(
                 "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
                 _namespace="test-namespace",
                 _patch=lambda _: None,
-                is_ready=True,
+                is_ready=k8s_resource_patch_ready,
         ):
             with charm_tracing_disabled():
                 interface_tester.configure(
