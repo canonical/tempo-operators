@@ -76,11 +76,13 @@ def cluster_tester(interface_tester: InterfaceTester):
         "cosl.coordinated_workers.worker.KubernetesComputeResourcesPatch",
         _namespace="test-namespace",
         _patch=lambda _: None,
+        is_ready=True,
     ):
         with patch.multiple(
                 "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
                 _namespace="test-namespace",
                 _patch=lambda _: None,
+                is_ready=True,
         ):
             with charm_tracing_disabled():
                 interface_tester.configure(
