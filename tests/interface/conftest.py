@@ -9,6 +9,7 @@ from cosl.coordinated_workers.interface import (
     ClusterRequirerUnitData,
 )
 from interface_tester import InterfaceTester
+from ops import ActiveStatus
 from ops.pebble import Layer
 from scenario import Relation
 from scenario.state import Container, PeerRelation, State
@@ -85,6 +86,7 @@ def cluster_tester(interface_tester: InterfaceTester):
                 "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
                 _namespace="test-namespace",
                 _patch=lambda _: None,
+                get_status=lambda _: ActiveStatus(""),
                 is_ready=k8s_resource_patch_ready,
             ):
                 with charm_tracing_disabled():
@@ -112,6 +114,7 @@ def tracing_tester(interface_tester: InterfaceTester):
                 "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
                 _namespace="test-namespace",
                 _patch=lambda _: None,
+                get_status=lambda _: ActiveStatus(""),
                 is_ready=k8s_resource_patch_ready,
             ):
                 with charm_tracing_disabled():
@@ -139,6 +142,7 @@ def s3_tester(interface_tester: InterfaceTester):
                 "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
                 _namespace="test-namespace",
                 _patch=lambda _: None,
+                get_status=lambda _: ActiveStatus(""),
                 is_ready=k8s_resource_patch_ready,
             ):
                 with charm_tracing_disabled():
