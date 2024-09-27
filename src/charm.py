@@ -348,7 +348,7 @@ class TempoCoordinatorCharm(CharmBase):
             url = (
                 self.coordinator.hostname
                 if protocol_type == TransportProtocolType.grpc
-                else self.coordinator._internal_url
+                else self._internal_url
             )
 
         return f"{url}:{receiver_port}"
