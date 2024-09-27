@@ -57,6 +57,8 @@ class TempoCoordinatorCharm(CharmBase):
         # set the open ports for this unit
         self.unit.set_ports(*self.tempo.all_ports.values())
 
+        self.tracing = TracingEndpointProvider(self, external_url=self._external_url)
+
         self.framework.observe(self.on.collect_unit_status, self._on_collect_status)
 
         self.coordinator = Coordinator(
@@ -93,8 +95,6 @@ class TempoCoordinatorCharm(CharmBase):
                 self.ingress.on.ready,
             ],
         )
-
-        self.tracing = TracingEndpointProvider(self, external_url=self._external_url)
 
         # refuse to handle any other event as we can't possibly know what to do.
         if not self.coordinator.can_handle_events:
