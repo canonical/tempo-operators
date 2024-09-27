@@ -223,7 +223,9 @@ class Tempo:
             )
         )
 
-    def _build_memberlist_config(self, peers: Optional[Set[str]]) -> tempo_config.Memberlist:
+    def _build_memberlist_config(
+        self, peers: Optional[Tuple[str, ...]]
+    ) -> tempo_config.Memberlist:
         """Build memberlist config"""
         return tempo_config.Memberlist(
             abort_if_cluster_join_fails=False,
