@@ -36,7 +36,7 @@ def test_memberlist_multiple_members(
     )
     with context(context.on.relation_changed(all_worker), state) as mgr:
         charm: TempoCoordinatorCharm = mgr.charm
-        assert charm.coordinator.cluster.gather_addresses() == set(
+        assert charm.coordinator.cluster.gather_addresses() == tuple(
             [
                 "worker-0.test.svc.cluster.local:7946",
                 "worker-1.test.svc.cluster.local:7946",
