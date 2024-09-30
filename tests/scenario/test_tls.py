@@ -5,8 +5,9 @@ from unittest.mock import patch
 import pytest
 from charms.tempo_k8s.v1.charm_tracing import charm_tracing_disabled
 from charms.tempo_k8s.v2.tracing import TracingProviderAppData, TracingRequirerAppData
-from cosl.coordinated_workers.coordinator import Coordinator
 from scenario import Relation, Secret, State
+
+from charm import TempoCoordinatorCharm
 
 
 @pytest.fixture
@@ -38,7 +39,9 @@ def update_relations_tls_and_verify(
     tracing,
 ):
     state = replace(base_state, relations=relations)
-    with charm_tracing_disabled(), patch.object(Coordinator, "tls_available", local_has_tls):
+    with charm_tracing_disabled(), patch.object(
+        TempoCoordinatorCharm, "are_certificates_on_disk", local_has_tls
+    ):
         out = context.run(context.on.relation_changed(tracing), state)
     tracing_provider_app_data = TracingProviderAppData.load(
         out.get_relations(tracing.endpoint)[0].local_app_data
