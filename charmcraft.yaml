@@ -121,6 +121,9 @@ bases:
 
 parts:
   charm:
+#    uncomment this if you add git+ dependencies in requirements.txt
+#    build-packages:
+#      - "git"
     charm-binary-python-packages:
       - "pydantic>=2"
       - "cryptography"

@@ -5,14 +5,12 @@
 
 import enum
 import logging
-import re
 from enum import Enum, unique
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from urllib.parse import urlparse
 
 from cosl.coordinated_workers.coordinator import ClusterRolesConfig
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 logger = logging.getLogger(__name__)
 
@@ -255,25 +253,10 @@ class S3(BaseModel):
     bucket_name: str = Field(alias="bucket")
     access_key_id: str = Field(alias="access_key")
     endpoint: str
+    region: Optional[str] = None
     secret_access_key: str = Field(alias="secret_key")
     insecure: bool = False
-
-    @model_validator(mode="before")  # pyright: ignore
-    @classmethod
-    def set_insecure(cls, data: Any) -> Any:
-        if isinstance(data, dict) and data.get("endpoint", None):
-            data["insecure"] = False if data["endpoint"].startswith("https://") else True
-        return data
-
-    @field_validator("endpoint")
-    def remove_scheme(cls, v: str) -> str:
-        """Remove the scheme from the s3 endpoint."""
-        # remove scheme to avoid "Endpoint url cannot have fully qualified paths." on Tempo startup
-        return re.sub(
-            rf"^{urlparse(v).scheme}://",
-            "",
-            v,
-        )
+    tls_ca_path: Optional[str] = None
 
 
 class Block(BaseModel):

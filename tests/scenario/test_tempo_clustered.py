@@ -23,7 +23,8 @@ def coordinator_with_initial_config():
     new_coordinator_mock.return_value._s3_config = {
         "access_key_id": "key",
         "bucket_name": "tempo",
-        "endpoint": "http://1.2.3.4:9000",
+        "endpoint": "1.2.3.4:9000",
+        "insecure": True,
         "secret_access_key": "soverysecret",
     }
     new_coordinator_mock.return_value.cluster.gather_addresses.return_value = {"localhost"}
