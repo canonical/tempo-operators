@@ -52,8 +52,8 @@ def copy_charm_libs_into_tester_charm(ops_test):
     libraries = [
         "observability_libs/v1/cert_handler.py",
         "tls_certificates_interface/v3/tls_certificates.py",
-        "tempo_k8s/v1/charm_tracing.py",
-        "tempo_k8s/v2/tracing.py",
+        "tempo_coordinator_k8s/v0/charm_tracing.py",
+        "tempo_coordinator_k8s/v0/tracing.py",
     ]
 
     copies = []
@@ -75,7 +75,7 @@ def copy_charm_libs_into_tester_charm(ops_test):
 def copy_charm_libs_into_tester_grpc_charm(ops_test):
     """Ensure the tester GRPC charm has the libraries it uses."""
     libraries = [
-        "tempo_k8s/v2/tracing.py",
+        "tempo_coordinator_k8s/v0/tracing.py",
     ]
 
     copies = []

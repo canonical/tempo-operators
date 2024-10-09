@@ -6,7 +6,7 @@ import logging
 from typing import Any, Dict, List, Optional, Set, cast
 
 import crossplane
-from charms.tempo_k8s.v2.tracing import (
+from charms.tempo_coordinator_k8s.v0.tracing import (
     ReceiverProtocol,
     TransportProtocolType,
     receiver_protocol_to_transport_protocol,

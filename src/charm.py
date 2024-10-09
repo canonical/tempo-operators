@@ -14,8 +14,8 @@ from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
 from charms.prometheus_k8s.v1.prometheus_remote_write import (
     PrometheusRemoteWriteConsumer,
 )
-from charms.tempo_k8s.v1.charm_tracing import trace_charm
-from charms.tempo_k8s.v2.tracing import (
+from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
+from charms.tempo_coordinator_k8s.v0.tracing import (
     ReceiverProtocol,
     TracingEndpointProvider,
     TransportProtocolType,
@@ -26,7 +26,6 @@ from cosl.coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
 from cosl.coordinated_workers.nginx import CA_CERT_PATH, CERT_PATH, KEY_PATH
 from ops import CollectStatusEvent
 from ops.charm import CharmBase
-from ops.main import main
 
 from nginx_config import NginxConfig
 from tempo import Tempo
@@ -384,8 +383,9 @@ class TempoCoordinatorCharm(CharmBase):
         # we need to 'remember' to run this logic as soon as we become ready, which is hard and error-prone
         self._update_ingress_relation()
         self._update_tracing_relations()
-        self.coordinator.update_cluster()
 
 
 if __name__ == "__main__":  # pragma: nocover
-    main(TempoCoordinatorCharm)
+    from ops import main
+
+    main(TempoCoordinatorCharm)  # noqa

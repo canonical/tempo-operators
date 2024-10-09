@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from charms.tempo_k8s.v1.charm_tracing import charm_tracing_disabled
+from charms.tempo_coordinator_k8s.v0.charm_tracing import charm_tracing_disabled
 from scenario import State
 
 TEMPO_CHARM_ROOT = Path(__file__).parent.parent.parent

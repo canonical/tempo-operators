@@ -7,7 +7,7 @@ import logging
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 import yaml
-from charms.tempo_k8s.v2.tracing import ReceiverProtocol
+from charms.tempo_coordinator_k8s.v0.tracing import ReceiverProtocol
 from cosl.coordinated_workers.coordinator import Coordinator
 
 import tempo_config

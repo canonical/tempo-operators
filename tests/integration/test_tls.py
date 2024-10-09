@@ -73,13 +73,25 @@ async def test_build_and_deploy(ops_test: OpsTest, tempo_charm: Path):
         ),
     )
 
-    await ops_test.model.integrate(APP_NAME + ":certificates", SSC_APP_NAME + ":certificates")
     await ops_test.model.integrate(
         SSC_APP_NAME + ":certificates", TRAEFIK_APP_NAME + ":certificates"
     )
     # deploy cluster
     await deploy_cluster(ops_test)
 
+    await asyncio.gather(
+        ops_test.model.wait_for_idle(
+            apps=[APP_NAME, SSC_APP_NAME, TRAEFIK_APP_NAME, WORKER_NAME],
+            status="active",
+            raise_on_blocked=True,
+            timeout=2000,
+        ),
+    )
+
+
+@pytest.mark.abort_on_fail
+async def test_relate_ssc(ops_test: OpsTest):
+    await ops_test.model.integrate(APP_NAME + ":certificates", SSC_APP_NAME + ":certificates")
     await asyncio.gather(
         ops_test.model.wait_for_idle(
             apps=[APP_NAME, SSC_APP_NAME, TRAEFIK_APP_NAME, WORKER_NAME],
@@ -150,20 +162,17 @@ async def test_force_enable_protocols(ops_test: OpsTest):
     )
 
 
-@pytest.mark.abort_on_fail
-async def test_verify_traces_force_enabled_protocols_tls(ops_test: OpsTest, nonce):
-
+@pytest.mark.parametrize("protocol", protocols_endpoints.keys())
+async def test_verify_traces_force_enabled_protocols_tls(ops_test: OpsTest, nonce, protocol):
     tempo_host = await get_ingress_proxied_hostname(ops_test)
-
-    for protocol in list(protocols_endpoints.keys()):
-        logger.info(f"emitting & verifying trace using {protocol} protocol.")
-        tempo_endpoint = await get_tempo_ingressed_endpoint(tempo_host, protocol=protocol)
-        # emit a trace secured with TLS
-        await emit_trace(
-            tempo_endpoint, ops_test, nonce=nonce, verbose=1, proto=protocol, use_cert=True
-        )
-        # verify it's been ingested
-        await get_traces_patiently(tempo_host, service_name=f"tracegen-{protocol}")
+    logger.info(f"emitting & verifying trace using {protocol} protocol.")
+    tempo_endpoint = await get_tempo_ingressed_endpoint(tempo_host, protocol=protocol)
+    # emit a trace secured with TLS
+    await emit_trace(
+        tempo_endpoint, ops_test, nonce=nonce, verbose=1, proto=protocol, use_cert=True
+    )
+    # verify it's been ingested
+    await get_traces_patiently(tempo_host, service_name=f"tracegen-{protocol}")
 
 
 @pytest.mark.teardown

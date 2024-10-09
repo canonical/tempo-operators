@@ -1,7 +1,7 @@
 import json
 import socket
 
-from charms.tempo_k8s.v2.tracing import (
+from charms.tempo_coordinator_k8s.v0.tracing import (
     ProtocolType,
     Receiver,
     TracingProviderAppData,

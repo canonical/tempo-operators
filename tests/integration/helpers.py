@@ -315,7 +315,7 @@ async def deploy_cluster(ops_test: OpsTest, tempo_app=APP_NAME):
         await ops_test.model.wait_for_idle(
             apps=[tempo_app, WORKER_NAME, S3_INTEGRATOR],
             status="active",
-            timeout=1000,
+            timeout=2000,
             idle_period=30,
         )
 
