@@ -50,9 +50,11 @@ class Tempo:
         self,
         requested_receivers: Callable[[], "Tuple[ReceiverProtocol, ...]"],
         retention_period_hours: int,
+        external_hostname: str,
     ):
         self._receivers_getter = requested_receivers
         self._retention_period_hours = retention_period_hours
+        self._external_hostname = external_hostname
 
     @property
     def tempo_http_server_port(self) -> int:
@@ -79,10 +81,10 @@ class Tempo:
             distributor=self._build_distributor_config(
                 self._receivers_getter(), coordinator.tls_available
             ),
-            ingester=self._build_ingester_config(),
+            ingester=self._build_ingester_config(coordinator.cluster.gather_addresses_by_role()),
             memberlist=self._build_memberlist_config(coordinator.cluster.gather_addresses()),
             compactor=self._build_compactor_config(),
-            querier=self._build_querier_config(coordinator.cluster.gather_addresses_by_role()),
+            querier=self._build_querier_config(self._external_hostname),
             storage=self._build_storage_config(coordinator._s3_config),
             metrics_generator=self._build_metrics_generator_config(
                 coordinator.remote_write_endpoints_getter(), coordinator.tls_available  # type: ignore
@@ -109,8 +111,9 @@ class Tempo:
             config.metrics_generator_client = tempo_config.Client(
                 grpc_client_config=tempo_config.ClientTLS(**tls_config)
             )
+            # use ingress hostname here, as the query-frontend worker would be pointing at the ingress url
             config.querier.frontend_worker.grpc_client_config = tempo_config.ClientTLS(
-                **tls_config
+                **{**tls_config, "tls_server_name": self._external_hostname},
             )
             config.memberlist = config.memberlist.model_copy(update=tls_config)
 
@@ -192,20 +195,15 @@ class Tempo:
         )
         return tempo_config.Storage(trace=storage_config)
 
-    def _build_querier_config(self, roles_addresses: Dict[str, Set[str]]):
-        """Build querier config"""
-        # if distributor and query-frontend have the same address, then the mode of operation is 'all'.
-        query_frontend_addresses = roles_addresses.get(tempo_config.TempoRole.query_frontend)
-        distributor_addresses = roles_addresses.get(tempo_config.TempoRole.distributor)
+    def _build_querier_config(self, external_hostname: str):
+        """Build querier config.
 
-        if not query_frontend_addresses or query_frontend_addresses == distributor_addresses:
-            addr = "localhost"
-        else:
-            addr = query_frontend_addresses.pop()
+        Use coordinator's external_hostname to loadbalance across query-frontend worker instances if any.
+        """
 
         return tempo_config.Querier(
             frontend_worker=tempo_config.FrontendWorker(
-                frontend_address=f"{addr}:{self.tempo_grpc_server_port}"
+                frontend_address=f"{external_hostname}:{self.tempo_grpc_server_port}"
             ),
         )
 
@@ -233,8 +231,9 @@ class Tempo:
             join_members=([f"{peer}:{self.memberlist_port}" for peer in peers] if peers else []),
         )
 
-    def _build_ingester_config(self):
+    def _build_ingester_config(self, roles_addresses: Dict[str, Set[str]]):
         """Build ingester config"""
+        ingester_addresses = roles_addresses.get(tempo_config.TempoRole.ingester)
         # the length of time after a trace has not received spans to consider it complete and flush it
         # cut the head block when it hits this number of traces or ...
         #   this much time passes
@@ -242,6 +241,15 @@ class Tempo:
             trace_idle_period="10s",
             max_block_bytes=100,
             max_block_duration="30m",
+            # replication_factor=3 to ensure that the Tempo cluster can still be
+            # functional if one of the ingesters is down.
+            lifecycler=tempo_config.Lifecycler(
+                ring=tempo_config.Ring(
+                    replication_factor=(
+                        3 if ingester_addresses and len(ingester_addresses) >= 3 else 1
+                    )
+                ),
+            ),
         )
 
     def _build_distributor_config(

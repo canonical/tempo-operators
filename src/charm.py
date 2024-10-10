@@ -4,6 +4,7 @@
 
 """Charmed Operator for Tempo; a lightweight object storage based tracing backend."""
 import logging
+import re
 import socket
 from pathlib import Path
 from subprocess import CalledProcessError, getoutput
@@ -49,6 +50,7 @@ class TempoCoordinatorCharm(CharmBase):
         self.tempo = Tempo(
             requested_receivers=self._requested_receivers,
             retention_period_hours=self._trace_retention_period_hours,
+            external_hostname=self._external_hostname,
         )
         # set alert_rules_path="", as we don't want to populate alert rules into the relation databag
         # we only need `self._remote_write.endpoints`
@@ -114,6 +116,11 @@ class TempoCoordinatorCharm(CharmBase):
     ######################
     # UTILITY PROPERTIES #
     ######################
+    @property
+    def _external_hostname(self) -> str:
+        """Return the external hostname."""
+        return re.sub(r"^https?:\/\/", "", self._external_url)
+
     @property
     def hostname(self) -> str:
         """Unit's hostname."""

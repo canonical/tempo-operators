@@ -152,7 +152,12 @@ class NginxConfig:
                     {
                         "directive": "grpc_pass" if grpc else "proxy_pass",
                         "args": [f"{protocol}://{upstream}"],
-                    }
+                    },
+                    # if a server is down, no need to wait for a long time to pass on the request to the next available server
+                    {
+                        "directive": "proxy_connect_timeout",
+                        "args": ["5s"],
+                    },
                 ],
             }
         ]

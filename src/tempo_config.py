@@ -127,8 +127,14 @@ class Kvstore(BaseModel):
 class Ring(BaseModel):
     """Ring schema."""
 
-    kvstore: Kvstore
+    kvstore: Optional[Kvstore] = None
     replication_factor: int
+
+
+class Lifecycler(BaseModel):
+    """Lifecycler schema."""
+
+    ring: Ring
 
 
 class Memberlist(BaseModel):
@@ -173,7 +179,7 @@ class Ingester(BaseModel):
     trace_idle_period: str
     max_block_bytes: int
     max_block_duration: str
-    lifecycler: Optional[Ring] = None
+    lifecycler: Lifecycler
 
 
 class FrontendWorker(BaseModel):
