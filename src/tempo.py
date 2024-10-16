@@ -4,6 +4,7 @@
 
 """Tempo workload configuration and client."""
 import logging
+import re
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 import yaml
@@ -50,11 +51,9 @@ class Tempo:
         self,
         requested_receivers: Callable[[], "Tuple[ReceiverProtocol, ...]"],
         retention_period_hours: int,
-        external_hostname: str,
     ):
         self._receivers_getter = requested_receivers
         self._retention_period_hours = retention_period_hours
-        self._external_hostname = external_hostname
 
     @property
     def tempo_http_server_port(self) -> int:
@@ -74,7 +73,6 @@ class Tempo:
 
         Only activate the provided receivers.
         """
-
         config = tempo_config.TempoConfig(
             auth_enabled=False,
             server=self._build_server_config(coordinator.tls_available),
@@ -84,7 +82,7 @@ class Tempo:
             ingester=self._build_ingester_config(coordinator.cluster.gather_addresses_by_role()),
             memberlist=self._build_memberlist_config(coordinator.cluster.gather_addresses()),
             compactor=self._build_compactor_config(),
-            querier=self._build_querier_config(self._external_hostname),
+            querier=self._build_querier_config(coordinator.cluster.gather_addresses_by_role()),
             storage=self._build_storage_config(coordinator._s3_config),
             metrics_generator=self._build_metrics_generator_config(
                 coordinator.remote_write_endpoints_getter(), coordinator.tls_available  # type: ignore
@@ -95,29 +93,39 @@ class Tempo:
             config.overrides = self._build_overrides_config()
 
         if coordinator.tls_available:
-            # cfr:
-            # https://grafana.com/docs/tempo/latest/configuration/network/tls/#client-configuration
-            tls_config = {
-                "tls_enabled": True,
-                "tls_cert_path": self.tls_cert_path,
-                "tls_key_path": self.tls_key_path,
-                "tls_ca_path": self.tls_ca_path,
-                # try with fqdn?
-                "tls_server_name": coordinator.hostname,
-            }
+
+            tls_config = self._build_tls_config(coordinator.cluster.gather_addresses())
+
             config.ingester_client = tempo_config.Client(
                 grpc_client_config=tempo_config.ClientTLS(**tls_config)
             )
             config.metrics_generator_client = tempo_config.Client(
                 grpc_client_config=tempo_config.ClientTLS(**tls_config)
             )
-            # use ingress hostname here, as the query-frontend worker would be pointing at the ingress url
+
             config.querier.frontend_worker.grpc_client_config = tempo_config.ClientTLS(
-                **{**tls_config, "tls_server_name": self._external_hostname},
+                **tls_config,
             )
+
             config.memberlist = config.memberlist.model_copy(update=tls_config)
 
         return yaml.dump(config.model_dump(mode="json", by_alias=True, exclude_none=True))
+
+    def _build_tls_config(self, workers_addrs: Tuple[str, ...]):
+        """Build TLS config to be used by Tempo's internal clients to communicate with each other."""
+
+        # cfr:
+        # https://grafana.com/docs/tempo/latest/configuration/network/tls/#client-configuration
+        return {
+            "tls_enabled": True,
+            "tls_cert_path": self.tls_cert_path,
+            "tls_key_path": self.tls_key_path,
+            "tls_ca_path": self.tls_ca_path,
+            # Tempo's internal components contact each other using their IPs not their DNS names
+            # and we don't provide IP sans to Tempo's certificate. So, we need to provide workers' DNS names
+            # as tls_server_name to verify the certificate against this name not against the IP.
+            "tls_server_name": workers_addrs[0] if len(workers_addrs) > 0 else "",
+        }
 
     def _build_overrides_config(self):
         return tempo_config.Overrides(
@@ -195,15 +203,23 @@ class Tempo:
         )
         return tempo_config.Storage(trace=storage_config)
 
-    def _build_querier_config(self, external_hostname: str):
+    def _build_querier_config(self, roles_addresses: Dict[str, Set[str]]):
         """Build querier config.
 
-        Use coordinator's external_hostname to loadbalance across query-frontend worker instances if any.
+        Use query-frontend workers' service fqdn to loadbalance across query-frontend worker instances if any.
         """
-
+        query_frontend_addresses = roles_addresses.get(tempo_config.TempoRole.query_frontend)
+        if not query_frontend_addresses:
+            svc_addr = "localhost"
+        else:
+            addresses = sorted(query_frontend_addresses)
+            query_frontend_addr = next(iter(addresses))
+            # remove "tempo-worker-0." from "tempo-worker-0.tempo-endpoints.cluster.local.svc"
+            # to extract the worker's headless service
+            svc_addr = re.sub(r"^[^.]+\.", "", query_frontend_addr)
         return tempo_config.Querier(
             frontend_worker=tempo_config.FrontendWorker(
-                frontend_address=f"{external_hostname}:{self.tempo_grpc_server_port}"
+                frontend_address=f"{svc_addr}:{self.tempo_grpc_server_port}"
             ),
         )
 

@@ -31,11 +31,20 @@ def test_external_url_present(context, base_state, s3, all_worker):
     }
 
 
+@pytest.mark.parametrize(
+    "add_peer, expected_servers_count",
+    ((True, 2),),
+)
 @patch("socket.getfqdn", lambda: "1.2.3.4")
-def test_ingress_relation_set_with_dynamic_config(context, base_state, s3, all_worker):
+def test_ingress_relation_set_with_dynamic_config(
+    add_peer, expected_servers_count, context, base_state, s3, all_worker, peer
+):
     # WHEN ingress is related with external_host
     ingress = Relation("ingress", remote_app_data={"external_host": "1.2.3.4", "scheme": "http"})
+
     state = replace(base_state, relations=[ingress, s3, all_worker])
+    if add_peer:
+        state = replace(base_state, relations=[ingress, s3, all_worker, peer])
 
     with patch("charm.TempoCoordinatorCharm.is_workload_ready", lambda _: False):
         out = context.run(context.on.relation_joined(ingress), state)
@@ -83,25 +92,60 @@ def test_ingress_relation_set_with_dynamic_config(context, base_state, s3, all_w
             },
             "services": {
                 f"juju-{state.model.name}-{charm_name}-service-jaeger-thrift-http": {
-                    "loadBalancer": {"servers": [{"url": "http://1.2.3.4:14268"}]}
+                    "loadBalancer": {
+                        "servers": [
+                            {"url": "http://1.2.3.4:14268"}
+                            for server in range(expected_servers_count)
+                        ]
+                    }
                 },
                 f"juju-{state.model.name}-{charm_name}-service-otlp-http": {
-                    "loadBalancer": {"servers": [{"url": "http://1.2.3.4:4318"}]}
+                    "loadBalancer": {
+                        "servers": [
+                            {"url": "http://1.2.3.4:4318"}
+                            for server in range(expected_servers_count)
+                        ]
+                    }
                 },
                 f"juju-{state.model.name}-{charm_name}-service-tempo-http": {
-                    "loadBalancer": {"servers": [{"url": "http://1.2.3.4:3200"}]}
+                    "loadBalancer": {
+                        "servers": [
+                            {"url": "http://1.2.3.4:3200"}
+                            for server in range(expected_servers_count)
+                        ]
+                    }
                 },
                 f"juju-{state.model.name}-{charm_name}-service-zipkin": {
-                    "loadBalancer": {"servers": [{"url": "http://1.2.3.4:9411"}]}
+                    "loadBalancer": {
+                        "servers": [
+                            {"url": "http://1.2.3.4:9411"}
+                            for server in range(expected_servers_count)
+                        ]
+                    }
                 },
                 f"juju-{state.model.name}-{charm_name}-service-otlp-grpc": {
-                    "loadBalancer": {"servers": [{"url": "h2c://1.2.3.4:4317"}]},
+                    "loadBalancer": {
+                        "servers": [
+                            {"url": "h2c://1.2.3.4:4317"}
+                            for server in range(expected_servers_count)
+                        ]
+                    },
                 },
                 f"juju-{state.model.name}-{charm_name}-service-tempo-grpc": {
-                    "loadBalancer": {"servers": [{"url": "h2c://1.2.3.4:9096"}]}
+                    "loadBalancer": {
+                        "servers": [
+                            {"url": "h2c://1.2.3.4:9096"}
+                            for server in range(expected_servers_count)
+                        ]
+                    }
                 },
                 f"juju-{state.model.name}-{charm_name}-service-jaeger-grpc": {
-                    "loadBalancer": {"servers": [{"url": "h2c://1.2.3.4:14250"}]}
+                    "loadBalancer": {
+                        "servers": [
+                            {"url": "h2c://1.2.3.4:14250"}
+                            for server in range(expected_servers_count)
+                        ]
+                    }
                 },
             },
         },

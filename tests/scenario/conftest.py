@@ -3,9 +3,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from ops import ActiveStatus
-from scenario import Container, Context, Relation
+from scenario import Container, Context, PeerRelation, Relation
 
-from charm import TempoCoordinatorCharm
+from charm import PEERS_RELATION_ENDPOINT_NAME, TempoCoordinatorCharm
 
 
 @pytest.fixture()
@@ -56,6 +56,14 @@ def all_worker():
     return Relation(
         "tempo-cluster",
         remote_app_data={"role": '"all"'},
+        remote_units_data={
+            0: {
+                "address": json.dumps("localhost"),
+                "juju_topology": json.dumps(
+                    {"application": "worker", "unit": "worker/0", "charm_name": "tempo"}
+                ),
+            }
+        },
     )
 
 
@@ -66,6 +74,13 @@ def remote_write():
         remote_units_data={
             0: {"remote_write": json.dumps({"url": "http://prometheus:3000/api/write"})}
         },
+    )
+
+
+@pytest.fixture(scope="function")
+def peer():
+    return PeerRelation(
+        endpoint=PEERS_RELATION_ENDPOINT_NAME, peers_data={1: {"fqdn": json.dumps("1.2.3.4")}}
     )
 
 

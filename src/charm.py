@@ -8,7 +8,7 @@ import re
 import socket
 from pathlib import Path
 from subprocess import CalledProcessError, getoutput
-from typing import Dict, Optional, Set, Tuple, cast, get_args
+from typing import Dict, List, Optional, Set, Tuple, cast, get_args
 
 import ops
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
@@ -24,6 +24,7 @@ from charms.tempo_coordinator_k8s.v0.tracing import (
 )
 from charms.traefik_k8s.v0.traefik_route import TraefikRouteRequirer
 from cosl.coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
+from cosl.coordinated_workers.interface import DatabagModel
 from cosl.coordinated_workers.nginx import CA_CERT_PATH, CERT_PATH, KEY_PATH
 from ops import CollectStatusEvent
 from ops.charm import CharmBase
@@ -33,6 +34,14 @@ from tempo import Tempo
 from tempo_config import TEMPO_ROLES_CONFIG
 
 logger = logging.getLogger(__name__)
+PEERS_RELATION_ENDPOINT_NAME = "peers"
+
+
+class PeerData(DatabagModel):
+    """Databag model for the "peers" relation between coordinator units."""
+
+    fqdn: str
+    """FQDN hostname of this coordinator unit."""
 
 
 @trace_charm(
@@ -50,7 +59,6 @@ class TempoCoordinatorCharm(CharmBase):
         self.tempo = Tempo(
             requested_receivers=self._requested_receivers,
             retention_period_hours=self._trace_retention_period_hours,
-            external_hostname=self._external_hostname,
         )
         # set alert_rules_path="", as we don't want to populate alert rules into the relation databag
         # we only need `self._remote_write.endpoints`
@@ -97,6 +105,11 @@ class TempoCoordinatorCharm(CharmBase):
             ],
         )
 
+        # peer
+        self.framework.observe(
+            self.on[PEERS_RELATION_ENDPOINT_NAME].relation_created, self._on_peers_relation_created
+        )
+
         # refuse to handle any other event as we can't possibly know what to do.
         if not self.coordinator.can_handle_events:
             # logging is handled by the Coordinator object
@@ -116,6 +129,11 @@ class TempoCoordinatorCharm(CharmBase):
     ######################
     # UTILITY PROPERTIES #
     ######################
+    @property
+    def peers(self):
+        """Fetch the "peers" peer relation."""
+        return self.model.get_relation(PEERS_RELATION_ENDPOINT_NAME)
+
     @property
     def _external_hostname(self) -> str:
         """Return the external hostname."""
@@ -148,13 +166,17 @@ class TempoCoordinatorCharm(CharmBase):
         return self._internal_url
 
     @property
-    def _internal_url(self) -> str:
-        """Returns workload's FQDN."""
+    def _scheme(self) -> str:
+        """Return the URI scheme that should be used when communicating with this unit."""
         scheme = "http"
         if self.are_certificates_on_disk:
             scheme = "https"
+        return scheme
 
-        return f"{scheme}://{self.hostname}"
+    @property
+    def _internal_url(self) -> str:
+        """Return the locally addressable, FQDN based unit address."""
+        return f"{self._scheme}://{self.hostname}"
 
     @property
     def are_certificates_on_disk(self) -> bool:
@@ -186,6 +208,8 @@ class TempoCoordinatorCharm(CharmBase):
     ##################
     # EVENT HANDLERS #
     ##################
+    def _on_peers_relation_created(self, _: ops.RelationCreatedEvent):
+        self.update_peer_data()
 
     def _on_cert_handler_changed(self, _: ops.RelationChangedEvent):
         # sync the server CA cert with the charm container.
@@ -213,6 +237,19 @@ class TempoCoordinatorCharm(CharmBase):
     ###################
     # UTILITY METHODS #
     ###################
+
+    def update_peer_data(self) -> None:
+        """Update peer unit data bucket with this unit's hostname."""
+        if self.peers and self.peers.data:
+            PeerData(fqdn=self.hostname).dump(self.peers.data[self.unit])
+
+    def get_peer_data(self, unit: ops.Unit) -> Optional[PeerData]:
+        """Get peer data from a given unit data bucket."""
+        if not (self.peers and self.peers.data):
+            return None
+
+        return PeerData.load(self.peers.data.get(unit, {}))
+
     def _update_ingress_relation(self) -> None:
         """Make sure the traefik route is up-to-date."""
         if not self.unit.is_leader():
@@ -318,19 +355,34 @@ class TempoCoordinatorCharm(CharmBase):
                 # see https://doc.traefik.io/traefik/v2.0/user-guides/grpc/#with-http-h2c
                 http_services[
                     f"juju-{self.model.name}-{self.model.app.name}-service-{sanitized_protocol}"
-                ] = {"loadBalancer": {"servers": [{"url": f"h2c://{self.hostname}:{port}"}]}}
+                ] = {"loadBalancer": {"servers": self._build_lb_server_config("h2c", port)}}
             else:
                 # anything else, including secured GRPC, can use _internal_url
                 # ref https://doc.traefik.io/traefik/v2.0/user-guides/grpc/#with-https
                 http_services[
                     f"juju-{self.model.name}-{self.model.app.name}-service-{sanitized_protocol}"
-                ] = {"loadBalancer": {"servers": [{"url": f"{self._internal_url}:{port}"}]}}
+                ] = {"loadBalancer": {"servers": self._build_lb_server_config(self._scheme, port)}}
         return {
             "http": {
                 "routers": http_routers,
                 "services": http_services,
             },
         }
+
+    def _build_lb_server_config(self, scheme: str, port: int) -> List[Dict[str, str]]:
+        """build the server portion of the loadbalancer config of Traefik ingress."""
+
+        def to_url(fqdn: str):
+            return {"url": f"{scheme}://{fqdn}:{port}"}
+
+        urls = [to_url(self.hostname)]
+        if self.peers:
+            for peer in self.peers.units:
+                peer_data = self.get_peer_data(peer)
+                if peer_data:
+                    urls.append(to_url(peer_data.fqdn))
+
+        return urls
 
     def get_receiver_url(self, protocol: ReceiverProtocol):
         """Return the receiver endpoint URL based on the protocol.
