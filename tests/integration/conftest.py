@@ -4,10 +4,12 @@ import json
 import logging
 import os
 import random
+import shlex
 import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from subprocess import check_output
 
 from pytest import fixture
 from pytest_operator.plugin import OpsTest
@@ -67,8 +69,7 @@ def copy_charm_libs_into_tester_charm(ops_test):
     yield
 
     # cleanup: remove all libs
-    for path in copies:
-        Path(path).unlink()
+    check_output(shlex.split("rm -rf ./tests/integration/tester/lib"))
 
 
 @fixture(scope="module", autouse=True)
@@ -89,8 +90,7 @@ def copy_charm_libs_into_tester_grpc_charm(ops_test):
     yield
 
     # cleanup: remove all libs
-    for path in copies:
-        Path(path).unlink()
+    check_output(shlex.split("rm -rf ./tests/integration/tester-grpc/lib"))
 
 
 @fixture(scope="function")

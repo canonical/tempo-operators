@@ -8,6 +8,8 @@ import yaml
 from helpers import WORKER_NAME, deploy_cluster
 from pytest_operator.plugin import OpsTest
 
+from tests.integration.helpers import get_traces_patiently
+
 METADATA = yaml.safe_load(Path("./charmcraft.yaml").read_text())
 APP_NAME = "tempo"
 TESTER_METADATA = yaml.safe_load(Path("./tests/integration/tester/metadata.yaml").read_text())
@@ -22,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 @pytest.mark.setup
 @pytest.mark.abort_on_fail
-async def test_build_and_deploy(ops_test: OpsTest, tempo_charm: Path):
+async def test_build_deploy_testers(ops_test: OpsTest, tempo_charm: Path):
     # Given a fresh build of the charm
     # When deploying it together with testers
     # Then applications should eventually be created
@@ -91,29 +93,40 @@ async def test_relate(ops_test: OpsTest):
 async def test_verify_traces_http(ops_test: OpsTest):
     # given a relation between charms
     # when traces endpoint is queried
-    # then it should contain traces from tester charm
+    # then it should contain traces from the tester charm
     status = await ops_test.model.get_status()
     app = status["applications"][APP_NAME]
-    endpoint = app.public_address + ":3200/api/search"
-    cmd = [
-        "curl",
-        endpoint,
-    ]
-    rc, stdout, stderr = await ops_test.run(*cmd)
-    logger.info("%s: %s", endpoint, (rc, stdout, stderr))
-    assert rc == 0, (
-        f"curl exited with rc={rc} for {endpoint}; "
-        f"non-zero return code means curl encountered a >= 400 HTTP code; "
-        f"cmd={cmd}"
+    traces = await get_traces_patiently(
+        tempo_host=app.public_address, service_name="TempoTesterCharm", tls=False
     )
-    traces = json.loads(stdout)["traces"]
+    assert (
+        traces
+    ), f"There's no trace of charm exec traces in tempo. {json.dumps(traces, indent=2)}"
 
-    found = False
-    for trace in traces:
-        if trace["rootServiceName"] == "TempoTesterCharm":
-            found = True
 
-    assert found, f"There's no trace of charm exec traces in tempo. {json.dumps(traces, indent=2)}"
+@pytest.mark.skip(reason="fails because search query results are not stable")
+# keep an eye onhttps://github.com/grafana/tempo/issues/3777 and see if they fix it
+async def test_verify_buffered_charm_traces_http(ops_test: OpsTest):
+    # given a relation between charms
+    # when traces endpoint is queried
+    # then it should contain all traces from the tester charm since the setup phase, thanks to the buffer
+    status = await ops_test.model.get_status()
+    app = status["applications"][APP_NAME]
+    traces = await get_traces_patiently(
+        tempo_host=app.public_address, service_name="TempoTesterCharm", tls=False
+    )
+
+    # charm-tracing trace names are in the format:
+    # "mycharm/0: <event-name> event"
+    captured_events = {trace["rootTraceName"].split(" ")[1] for trace in traces}
+    expected_setup_events = {
+        "start",
+        "install",
+        "leader-elected",
+        "tracing-relation-created",
+        "replicas-relation-created",
+    }
+    assert expected_setup_events.issubset(captured_events)
 
 
 async def test_verify_traces_grpc(ops_test: OpsTest):
@@ -122,27 +135,11 @@ async def test_verify_traces_grpc(ops_test: OpsTest):
     status = await ops_test.model.get_status()
     app = status["applications"][APP_NAME]
     logger.info(app.public_address)
-    endpoint = app.public_address + ":3200/api/search"
-    cmd = [
-        "curl",
-        endpoint,
-    ]
-    rc, stdout, stderr = await ops_test.run(*cmd)
-    logger.info("%s: %s", endpoint, (rc, stdout, stderr))
-    assert rc == 0, (
-        f"curl exited with rc={rc} for {endpoint}; "
-        f"non-zero return code means curl encountered a >= 400 HTTP code; "
-        f"cmd={cmd}"
+    traces = await get_traces_patiently(
+        tempo_host=app.public_address, service_name="TempoTesterGrpcCharm", tls=False
     )
-    traces = json.loads(stdout)["traces"]
-
-    found = False
-    for trace in traces:
-        if trace["rootServiceName"] == "TempoTesterGrpcCharm":
-            found = True
-
     assert (
-        found
+        traces
     ), f"There's no trace of generated grpc traces in tempo. {json.dumps(traces, indent=2)}"
 
 

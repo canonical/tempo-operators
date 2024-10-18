@@ -26,7 +26,11 @@ logger = logging.getLogger(__name__)
 TRACING_APP_NAME = "TempoTesterCharm"
 
 
-@trace_charm(tracing_endpoint="tempo_otlp_http_endpoint", service_name=TRACING_APP_NAME)
+@trace_charm(
+    tracing_endpoint="tempo_otlp_http_endpoint",
+    service_name=TRACING_APP_NAME,
+    buffer_max_events=100,
+)
 class TempoTesterCharm(CharmBase):
     """Charm the service."""
 

@@ -2,10 +2,26 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
+from charms.tempo_coordinator_k8s.v0.charm_tracing import charm_tracing_disabled
 from ops import ActiveStatus
 from scenario import Container, Context, PeerRelation, Relation
 
 from charm import PEERS_RELATION_ENDPOINT_NAME, TempoCoordinatorCharm
+
+
+@pytest.fixture(autouse=True)
+def patch_buffer_file_for_charm_tracing(tmp_path):
+    with patch(
+        "charms.tempo_coordinator_k8s.v0.charm_tracing.BUFFER_DEFAULT_CACHE_FILE_NAME",
+        str(tmp_path / "foo.json"),
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True, scope="session")
+def disable_charm_tracing():
+    with charm_tracing_disabled():
+        yield
 
 
 @pytest.fixture()
@@ -14,17 +30,18 @@ def coordinator():
 
 
 @pytest.fixture
-def tempo_charm():
+def tempo_charm(tmp_path):
     with patch("lightkube.core.client.GenericSyncClient"):
         with patch("charm.TempoCoordinatorCharm.are_certificates_on_disk", False):
-            with patch.multiple(
-                "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
-                _namespace="test-namespace",
-                _patch=lambda _: None,
-                get_status=lambda _: ActiveStatus(""),
-                is_ready=lambda _: True,
-            ):
-                yield TempoCoordinatorCharm
+            with patch("tempo.Tempo.tls_ca_path", str(tmp_path / "cert.tmp")):
+                with patch.multiple(
+                    "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
+                    _namespace="test-namespace",
+                    _patch=lambda _: None,
+                    get_status=lambda _: ActiveStatus(""),
+                    is_ready=lambda _: True,
+                ):
+                    yield TempoCoordinatorCharm
 
 
 @pytest.fixture(scope="function")
