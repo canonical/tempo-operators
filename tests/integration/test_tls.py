@@ -108,7 +108,7 @@ async def test_push_tracegen_script_and_deps(ops_test: OpsTest):
     await ops_test.juju(
         "ssh",
         f"{APP_NAME}/0",
-        "python3 -m pip install opentelemetry-exporter-otlp-proto-grpc opentelemetry-exporter-otlp-proto-http"
+        "python3 -m pip install protobuf==3.20.* opentelemetry-exporter-otlp-proto-grpc opentelemetry-exporter-otlp-proto-http"
         + " opentelemetry-exporter-zipkin opentelemetry-exporter-jaeger",
     )
 

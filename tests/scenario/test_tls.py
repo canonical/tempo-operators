@@ -49,7 +49,9 @@ def update_relations_tls_and_verify(
     tracing_provider_app_data = TracingProviderAppData.load(
         out.get_relations(tracing.endpoint)[0].local_app_data
     )
-    actual_url = tracing_provider_app_data.receivers[0].url
+    for receiver in tracing_provider_app_data.receivers:
+        if receiver.protocol.name == "otlp_http":
+            actual_url = receiver.url
     expected_url = f"{remote_scheme if has_ingress else local_scheme}://{socket.getfqdn() if not has_ingress else 'foo.com.org'}:4318"
     assert actual_url == expected_url
     return out

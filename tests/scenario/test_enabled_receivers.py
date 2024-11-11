@@ -22,7 +22,10 @@ def test_receivers_with_no_relations_or_config(
         containers=[nginx_container, nginx_prometheus_exporter_container],
     )
     context.run(context.on.action("list-receivers"), state)
-    assert context.action_results == {"otlp-http": f"http://{socket.getfqdn()}:4318"}
+    assert context.action_results == {
+        "otlp-http": f"http://{socket.getfqdn()}:4318",
+        "jaeger-thrift-http": f"http://{socket.getfqdn()}:14268",
+    }
 
 
 def test_receivers_with_relations(
@@ -40,20 +43,21 @@ def test_receivers_with_relations(
     with context(context.on.relation_changed(tracing), state) as mgr:
         charm: TempoCoordinatorCharm = mgr.charm
         # extra receivers should only include default otlp_http
-        assert charm.enabled_receivers == {"otlp_http"}
+        assert charm.enabled_receivers == {"otlp_http", "jaeger_thrift_http"}
         out = mgr.run()
 
     tracing_out = out.get_relations(tracing.endpoint)[0]
     assert tracing_out.remote_app_data == TracingRequirerAppData(receivers=["otlp_grpc"]).dump()
     # provider app data should include endpoints for otlp_grpc and otlp_http
     provider_data = json.loads(tracing_out.local_app_data.get("receivers"))
-    assert len(provider_data) == 2
+    assert len(provider_data) == 3
 
     # run action
     context.run(context.on.action("list-receivers"), state)
     assert context.action_results == {
         "otlp-http": f"http://{socket.getfqdn()}:4318",
         "otlp-grpc": f"{socket.getfqdn()}:4317",
+        "jaeger-thrift-http": f"http://{socket.getfqdn()}:14268",
     }
 
 
@@ -86,7 +90,7 @@ def test_receivers_with_relations_and_config(
     with context(context.on.config_changed(), state) as mgr:
         charm: TempoCoordinatorCharm = mgr.charm
         # extra receivers should only include default otlp_http
-        assert charm.enabled_receivers == {"otlp_http", "zipkin"}
+        assert charm.enabled_receivers == {"otlp_http", "zipkin", "jaeger_thrift_http"}
 
     # run action
     context.run(context.on.action("list-receivers"), state)
@@ -94,4 +98,5 @@ def test_receivers_with_relations_and_config(
         "otlp-http": f"http://{socket.getfqdn()}:4318",
         "zipkin": f"http://{socket.getfqdn()}:9411",
         "otlp-grpc": f"{socket.getfqdn()}:4317",
+        "jaeger-thrift-http": f"http://{socket.getfqdn()}:14268",
     }

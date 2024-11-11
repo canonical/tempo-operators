@@ -342,6 +342,7 @@ class TempoConfig(BaseModel):
     """Tempo config schema."""
 
     auth_enabled: bool
+    use_otel_tracer: bool = True
     server: Server
     distributor: Distributor
     ingester: Ingester
