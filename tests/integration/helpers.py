@@ -10,13 +10,12 @@ from typing import Dict, Literal
 
 import requests
 import yaml
+from cosl.coordinated_workers.nginx import CA_CERT_PATH
 from juju.application import Application
 from juju.unit import Unit
 from minio import Minio
 from pytest_operator.plugin import OpsTest
 from tenacity import retry, stop_after_attempt, wait_exponential
-
-from tempo import Tempo
 
 _JUJU_DATA_CACHE = {}
 _JUJU_KEYS = ("egress-subnets", "ingress-address", "private-address")
@@ -347,7 +346,7 @@ async def emit_trace(
         f"TRACEGEN_ENDPOINT={endpoint} "
         f"TRACEGEN_VERBOSE={verbose} "
         f"TRACEGEN_PROTOCOL={proto} "
-        f"TRACEGEN_CERT={Tempo.tls_ca_path if use_cert else ''} "
+        f"TRACEGEN_CERT={CA_CERT_PATH if use_cert else ''} "
         f"TRACEGEN_NONCE={nonce} "
         "python3 tracegen.py"
     )

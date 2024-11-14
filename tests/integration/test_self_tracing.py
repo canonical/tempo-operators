@@ -70,7 +70,7 @@ async def test_verify_trace_http_self(ops_test: OpsTest):
 
 @pytest.mark.abort_on_fail
 async def test_relate_remote_instance(ops_test: OpsTest):
-    await ops_test.model.integrate(APP_NAME + ":tracing", APP_REMOTE_NAME + ":self-tracing")
+    await ops_test.model.integrate(APP_NAME + ":tracing", APP_REMOTE_NAME + ":self-charm-tracing")
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME, WORKER_NAME],
         status="active",

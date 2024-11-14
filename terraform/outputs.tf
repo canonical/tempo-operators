@@ -5,12 +5,13 @@ output "app_name" {
 output "endpoints" {
   value = {
     # Requires
-    certificates      = "certificates",
-    ingress           = "ingress",
-    logging           = "logging",
-    s3                = "s3",
-    self_tracing      = "self-tracing",
-    send-remote-write = "send-remote-write",
+    certificates          = "certificates",
+    ingress               = "ingress",
+    logging               = "logging",
+    s3                    = "s3",
+    self_charm_tracing    = "self-charm-tracing",
+    self_workload_tracing = "self-workload-tracing",
+    send-remote-write     = "send-remote-write",
     # Provides
     grafana_dashboard = "grafana-dashboard",
     grafana_source    = "grafana-source",

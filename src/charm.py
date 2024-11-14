@@ -37,6 +37,28 @@ logger = logging.getLogger(__name__)
 PEERS_RELATION_ENDPOINT_NAME = "peers"
 
 
+class TempoCoordinator(Coordinator):
+    """A Tempo coordinator class that inherits from the Coordinator class."""
+
+    @property
+    def _charm_tracing_receivers_urls(self) -> Dict[str, str]:
+        """Override with custom enabled and requested receivers."""
+        # if related to a remote instance, return the remote instance's endpoints
+        if self.charm_tracing.is_ready():
+            return super()._charm_tracing_receivers_urls
+        # return this instance's endpoints
+        return self._charm.requested_receivers_urls()  # type: ignore
+
+    @property
+    def _workload_tracing_receivers_urls(self) -> Dict[str, str]:
+        """Override with custom enabled and requested receivers."""
+        # if related to a remote instance, return the remote instance's endpoints
+        if self.workload_tracing.is_ready():
+            return super()._workload_tracing_receivers_urls
+        # return this instance's endpoints
+        return self._charm.requested_receivers_urls()  # type: ignore
+
+
 class PeerData(DatabagModel):
     """Databag model for the "peers" relation between coordinator units."""
 
@@ -72,7 +94,7 @@ class TempoCoordinatorCharm(CharmBase):
 
         self.framework.observe(self.on.collect_unit_status, self._on_collect_status)
 
-        self.coordinator = Coordinator(
+        self.coordinator = TempoCoordinator(
             charm=self,
             roles_config=TEMPO_ROLES_CONFIG,
             external_url=self._external_url,
@@ -84,14 +106,16 @@ class TempoCoordinatorCharm(CharmBase):
                 "logging": "logging",
                 "metrics": "metrics-endpoint",
                 "s3": "s3",
-                "tracing": "self-tracing",
+                "charm-tracing": "self-charm-tracing",
+                "workload-tracing": "self-workload-tracing",
             },
             nginx_config=NginxConfig(server_name=self.hostname).config,
             workers_config=self.tempo.config,
-            tracing_receivers=self.requested_receivers_urls,
             resources_requests=self.get_resources_requests,
             container_name="charm",
             remote_write_endpoints=self.remote_write_endpoints,  # type: ignore
+            # TODO: future Tempo releases would be using otlp_xx protocols instead.
+            workload_tracing_protocols=["jaeger_thrift_http"],
         )
 
         # configure this tempo as a datasource in grafana
@@ -122,11 +146,6 @@ class TempoCoordinatorCharm(CharmBase):
 
         # actions
         self.framework.observe(self.on.list_receivers_action, self._on_list_receivers_action)
-
-        # tls
-        self.framework.observe(
-            self.coordinator.cert_handler.on.cert_changed, self._on_cert_handler_changed
-        )
 
     ######################
     # UTILITY PROPERTIES #
@@ -215,11 +234,6 @@ class TempoCoordinatorCharm(CharmBase):
     def _on_peers_relation_created(self, _: ops.RelationCreatedEvent):
         self.update_peer_data()
 
-    def _on_cert_handler_changed(self, _: ops.RelationChangedEvent):
-        # sync the server CA cert with the charm container.
-        # technically, because of charm tracing, this will be called first thing on each event
-        self._update_server_ca_cert()
-
     def _on_list_receivers_action(self, event: ops.ActionEvent):
         res = {}
         for receiver in self._requested_receivers():
@@ -298,26 +312,14 @@ class TempoCoordinatorCharm(CharmBase):
 
     def server_ca_cert(self) -> str:
         """For charm tracing."""
-        # Fixme: we do this once too many times if we're handling cert_handler.changed
-        self._update_server_ca_cert()
-        return self.tempo.tls_ca_path
-
-    def _update_server_ca_cert(self) -> None:
-        """Server CA certificate for charm tracing tls, if tls is enabled."""
-        server_ca_cert = Path(self.tempo.tls_ca_path)
-        if self.coordinator.tls_available:
-            if self.coordinator.cert_handler.ca_cert:
-                server_ca_cert.parent.mkdir(parents=True, exist_ok=True)
-                server_ca_cert.write_text(self.coordinator.cert_handler.ca_cert)
-        else:  # tls unavailable: delete local cert
-            server_ca_cert.unlink(missing_ok=True)
+        return CA_CERT_PATH
 
     def tempo_otlp_http_endpoint(self) -> Optional[str]:
         """Endpoint at which the charm tracing information will be forwarded."""
         # the charm container and the tempo workload container have apparently the same
         # IP, so we can talk to tempo at localhost.
-        if self.coordinator and self.coordinator.tracing.is_ready():
-            return self.coordinator.tracing.get_endpoint("otlp_http")
+        if hasattr(self, "coordinator") and self.coordinator.charm_tracing.is_ready():
+            return self.coordinator.charm_tracing.get_endpoint("otlp_http")
         # In absence of another Tempo instance, we don't want to lose this instance's charm traces
         elif self.is_workload_ready():
             return f"{self._internal_url}:{self.tempo.receiver_ports['otlp_http']}"
@@ -418,7 +420,7 @@ class TempoCoordinatorCharm(CharmBase):
     def is_workload_ready(self):
         """Whether the tempo built-in readiness check reports 'ready'."""
         if self.coordinator.tls_available:
-            tls, s = f" --cacert {self.tempo.tls_ca_path}", "s"
+            tls, s = f" --cacert {CA_CERT_PATH}", "s"
         else:
             tls = s = ""
 
