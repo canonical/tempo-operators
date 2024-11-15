@@ -3,6 +3,7 @@
 """Nginx workload."""
 
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, cast
 
 import crossplane
@@ -18,6 +19,7 @@ from tempo import Tempo
 from tempo_config import TempoRole
 
 logger = logging.getLogger(__name__)
+RESOLV_CONF_PATH = "/etc/resolv.conf"
 
 
 class NginxConfig:
@@ -25,6 +27,7 @@ class NginxConfig:
 
     def __init__(self, server_name: str):
         self.server_name = server_name
+        self.dns_IP_address = _get_dns_ip_address()
 
     def config(self, coordinator: Coordinator) -> str:
         """Build and return the Nginx configuration."""
@@ -163,7 +166,10 @@ class NginxConfig:
         ]
         return nginx_locations
 
-    def _resolver(self, custom_resolver: Optional[List[Any]] = None) -> List[Dict[str, Any]]:
+    def _resolver(
+        self,
+        custom_resolver: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         if custom_resolver:
             return [{"directive": "resolver", "args": [custom_resolver]}]
         return [{"directive": "resolver", "args": ["kube-dns.kube-system.svc.cluster.local."]}]
@@ -246,6 +252,7 @@ class NginxConfig:
                     {"directive": "ssl_certificate_key", "args": [KEY_PATH]},
                     {"directive": "ssl_protocols", "args": ["TLSv1", "TLSv1.1", "TLSv1.2"]},
                     {"directive": "ssl_ciphers", "args": ["HIGH:!aNULL:!MD5"]},  # codespell:ignore
+                    *self._resolver(custom_resolver=self.dns_IP_address),
                     *self._locations(upstream, grpc, tls),
                 ],
             }
@@ -261,6 +268,7 @@ class NginxConfig:
                     "args": ["X-Scope-OrgID", "$ensured_x_scope_orgid"],
                 },
                 {"directive": "server_name", "args": [self.server_name]},
+                *self._resolver(custom_resolver=self.dns_IP_address),
                 *self._locations(upstream, grpc, tls),
             ],
         }
@@ -276,3 +284,13 @@ class NginxConfig:
         ):
             return True
         return False
+
+
+def _get_dns_ip_address():
+    """Obtain DNS ip address from /etc/resolv.conf."""
+    resolv = Path(RESOLV_CONF_PATH).read_text()
+    for line in resolv.splitlines():
+        if line.startswith("nameserver"):
+            # assume there's only one
+            return line.split()[1].strip()
+    raise RuntimeError("cannot find nameserver in /etc/resolv.conf")
