@@ -302,7 +302,9 @@ class TempoCoordinatorCharm(CharmBase):
         requested_protocols.update(self.enabled_receivers)
         # and publish only those we support
         requested_receivers = requested_protocols.intersection(set(self.tempo.receiver_ports))
-        return tuple(requested_receivers)
+        # sorting for stable output to prevent remote units from receiving
+        # spurious relation-changed events
+        return tuple(sorted(requested_receivers))
 
     @property
     def _trace_retention_period_hours(self) -> int:
