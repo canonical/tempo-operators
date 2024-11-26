@@ -92,3 +92,13 @@ async def test_verify_trace_http_remote(ops_test: OpsTest):
 
     # adjust back to the default interval time
     await ops_test.model.set_config({"update-status-hook-interval": "5m"})
+
+
+@pytest.mark.abort_on_fail
+async def test_workload_traces(ops_test: OpsTest):
+    # verify traces from tempo-scalable-single-binary are ingested
+    assert await get_traces_patiently(
+        await get_application_ip(ops_test, APP_NAME),
+        service_name="tempo-scalable-single-binary",
+        tls=False,
+    )
