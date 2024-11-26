@@ -6,8 +6,11 @@ settings:
     not_planned: rejected
     
   components:
-    - tempo-coordinator
+    - tempo
     - team-tracing
+
+  labels:
+    - 25.04
       
   add_gh_comment: false
   sync_description: false
