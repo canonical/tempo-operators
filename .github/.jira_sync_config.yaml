@@ -1,5 +1,5 @@
 settings:
-  jira_project_key: "OPENG"
+  jira_project_key: "TAP"
   status_mapping:
     opened: Untriaged
     closed: done
@@ -7,7 +7,6 @@ settings:
     
   components:
     - tempo
-    - team-tracing
 
   add_gh_comment: false
   sync_description: false
