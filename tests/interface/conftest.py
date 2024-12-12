@@ -1,6 +1,9 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
+import json
+import pathlib
 from contextlib import ExitStack
+from shutil import rmtree
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -63,6 +66,11 @@ cluster_relation = Relation(
     },
 )
 
+grafana_source_relation = Relation(
+    "grafana-source",
+    remote_app_data={"datasources": json.dumps({"tempo/0": {"type": "tempo", "uid": "01234"}})},
+)
+
 peers = PeerRelation("peers", peers_data={1: {}})
 
 k8s_resource_patch_ready = MagicMock(return_value=True)
@@ -82,8 +90,12 @@ def patch_all():
             )
         )
         stack.enter_context(charm_tracing_disabled())
-
         yield
+
+        # cleanup: some tests create a spurious src folder for alert rules in ./
+        src_root = pathlib.Path(__file__).parent / "src"
+        if src_root.exists():
+            rmtree(src_root)
 
 
 # Interface tests are centrally hosted at https://github.com/canonical/charm-relation-interfaces.
@@ -138,7 +150,20 @@ def grafana_datasource_tester(interface_tester: InterfaceTester):
         state_template=State(
             leader=True,
             containers=[nginx_container, nginx_prometheus_exporter_container],
-            relations=[peers, cluster_relation],
+            relations=[peers, s3_relation, cluster_relation],
+        ),
+    )
+    yield interface_tester
+
+
+@pytest.fixture
+def grafana_datasource_exchange_tester(interface_tester: InterfaceTester):
+    interface_tester.configure(
+        charm_type=TempoCoordinatorCharm,
+        state_template=State(
+            leader=True,
+            containers=[nginx_container, nginx_prometheus_exporter_container],
+            relations=[peers, s3_relation, cluster_relation, grafana_source_relation],
         ),
     )
     yield interface_tester

@@ -1,4 +1,6 @@
 import json
+from pathlib import Path
+from shutil import rmtree
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -16,6 +18,14 @@ def patch_buffer_file_for_charm_tracing(tmp_path):
         str(tmp_path / "foo.json"),
     ):
         yield
+
+
+@pytest.fixture(autouse=True, scope="session")
+def cleanup_prometheus_alert_rules(tmp_path):
+    # some tests trigger the charm to generate prometheus alert rules file in ./src; clean it up
+    yield
+    src_path = Path(__file__).parent / "src"
+    rmtree(src_path)
 
 
 @pytest.fixture(autouse=True, scope="session")

@@ -24,8 +24,9 @@ from charms.tempo_coordinator_k8s.v0.tracing import (
 )
 from charms.traefik_k8s.v0.traefik_route import TraefikRouteRequirer
 from cosl.coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
-from cosl.coordinated_workers.interface import DatabagModel
 from cosl.coordinated_workers.nginx import CA_CERT_PATH, CERT_PATH, KEY_PATH
+from cosl.interfaces.datasource_exchange import DatasourceDict
+from cosl.interfaces.utils import DatabagModel
 from ops import CollectStatusEvent
 from ops.charm import CharmBase
 
@@ -108,6 +109,8 @@ class TempoCoordinatorCharm(CharmBase):
                 "s3": "s3",
                 "charm-tracing": "self-charm-tracing",
                 "workload-tracing": "self-workload-tracing",
+                "send-datasource": None,
+                "receive-datasource": "receive-datasource",
             },
             nginx_config=NginxConfig(server_name=self.hostname).config,
             workers_config=self.tempo.config,
@@ -443,6 +446,53 @@ class TempoCoordinatorCharm(CharmBase):
         """Return remote-write endpoints."""
         return self._remote_write.endpoints
 
+    def _update_source_exchange(self) -> None:
+        """Update the grafana-datasource-exchange relations with what we receive from grafana-source."""
+
+        # leader operation only
+        if not self.unit.is_leader():
+            return
+
+        # Each grafana we're sending our data to gives us back a mapping from unit names to datasource UIDs.
+        #   so if we have two tempo units, and we're related to two grafanas,
+        #   the grafana-source databag will look something like this:
+        # {"grafana_uid": "1234-1234-1234-1234",
+        # "datasource_uids": {
+        #     "grafana/0": {
+        #         "tempo/0": "0000-0000-0000-0000",
+        #         "tempo/1": "0000-0000-0000-0001"
+        #         },
+        #     "grafana/1": {
+        #         "tempo/0": "0000-0000-0000-0000",
+        #         "tempo/1": "0000-0000-0000-0001"
+        #     },
+        # }}
+        # This is an implementation detail, but the UID is 'unique-per-grafana' and ATM it turns out to be
+        #   deterministic given tempo's jujutopology, so if we are related to multiple grafanas,
+        #   the UIDs they assign to our units will be the same.
+        # Either way, we assume for simplicity (also, why not) that we're sending the same data to
+        #   different grafanas, and not somehow different subsets to different places. Therefore, it should not
+        #   matter which grafana you talk to, to cross-reference the data this unit is presenting to the world.
+        # However, if at some point grafana's algorithm to generate source UIDs changes, we'd be in trouble since
+        #   the unit we are sharing our data to might be talking to 'another grafana' which might be using a
+        #   different UID convention!
+
+        # we might have multiple grafana-source relations, this method collects them all and returns a mapping from
+        # the `grafana_uid` to the contents of the `datasource_uids` field
+        grafana_uids_to_units_to_uids = self.grafana_source_provider.get_source_uids()
+        raw_datasources: List[DatasourceDict] = []
+
+        for grafana_uid, ds_uids in grafana_uids_to_units_to_uids.items():
+            # we don't need the grafana unit name
+            for _, ds_uid in ds_uids.items():
+                # we also don't care about which unit's server we're looking at, since hopefully the data is the same.
+                raw_datasources.append(
+                    {"type": "tempo", "uid": ds_uid, "grafana_uid": grafana_uid}
+                )
+
+        # publish() already sorts the data for us, to prevent databag flapping and ensuing event storms
+        self.coordinator.datasource_exchange.publish(datasources=raw_datasources)
+
     def _reconcile(self):
         # This method contains unconditional update logic, i.e. logic that should be executed
         # regardless of the event we are processing.
@@ -450,6 +500,7 @@ class TempoCoordinatorCharm(CharmBase):
         # we need to 'remember' to run this logic as soon as we become ready, which is hard and error-prone
         self._update_ingress_relation()
         self._update_tracing_relations()
+        self._update_source_exchange()
 
 
 if __name__ == "__main__":  # pragma: nocover
