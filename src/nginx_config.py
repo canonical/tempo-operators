@@ -73,7 +73,7 @@ class NginxConfig:
                     # tempo-related
                     {"directive": "sendfile", "args": ["on"]},
                     {"directive": "tcp_nopush", "args": ["on"]},
-                    *self._resolver(custom_resolver=None),
+                    *self._resolver(),
                     # TODO: add custom http block for the user to config?
                     {
                         "directive": "map",
@@ -141,7 +141,27 @@ class NginxConfig:
         return {
             "directive": "upstream",
             "args": [role],
-            "block": [{"directive": "server", "args": [f"{addr}:{port}"]} for addr in address_set],
+            "block": [
+                # TODO: uncomment the below directive when nginx version >= 1.27.3
+                # monitor changes of IP addresses and automatically modify the upstream config without the need of restarting nginx.
+                # this nginx plus feature has been part of opensource nginx in 1.27.3
+                # ref: https://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream
+                # {
+                #     "directive": "zone",
+                #     "args": [f"{role}_zone", "64k"],
+                # },
+                *(
+                    {
+                        "directive": "server",
+                        "args": [
+                            f"{addr}:{port}",
+                            # TODO: uncomment the below arg when nginx version >= 1.27.3
+                            #  "resolve"
+                        ],
+                    }
+                    for addr in address_set
+                ),
+            ],
         }
 
     def _locations(self, upstream: str, grpc: bool, tls: bool) -> List[Dict[str, Any]]:
@@ -152,9 +172,10 @@ class NginxConfig:
                 "directive": "location",
                 "args": ["/"],
                 "block": [
+                    {"directive": "set", "args": ["$backend", f"{protocol}://{upstream}"]},
                     {
                         "directive": "grpc_pass" if grpc else "proxy_pass",
-                        "args": [f"{protocol}://{upstream}"],
+                        "args": ["$backend"],
                     },
                     # if a server is down, no need to wait for a long time to pass on the request to the next available server
                     {
@@ -170,9 +191,18 @@ class NginxConfig:
         self,
         custom_resolver: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
+
+        # pass a custom resolver, such as kube-dns.kube-system.svc.cluster.local.
         if custom_resolver:
             return [{"directive": "resolver", "args": [custom_resolver]}]
-        return [{"directive": "resolver", "args": ["kube-dns.kube-system.svc.cluster.local."]}]
+
+        # by default, fetch the DNS resolver address from /etc/resolv.conf
+        return [
+            {
+                "directive": "resolver",
+                "args": [self.dns_IP_address],
+            }
+        ]
 
     def _basic_auth(self, enabled: bool) -> List[Optional[Dict[str, Any]]]:
         if enabled:
@@ -252,7 +282,6 @@ class NginxConfig:
                     {"directive": "ssl_certificate_key", "args": [KEY_PATH]},
                     {"directive": "ssl_protocols", "args": ["TLSv1", "TLSv1.1", "TLSv1.2"]},
                     {"directive": "ssl_ciphers", "args": ["HIGH:!aNULL:!MD5"]},  # codespell:ignore
-                    *self._resolver(custom_resolver=self.dns_IP_address),
                     *self._locations(upstream, grpc, tls),
                 ],
             }
@@ -268,7 +297,6 @@ class NginxConfig:
                     "args": ["X-Scope-OrgID", "$ensured_x_scope_orgid"],
                 },
                 {"directive": "server_name", "args": [self.server_name]},
-                *self._resolver(custom_resolver=self.dns_IP_address),
                 *self._locations(upstream, grpc, tls),
             ],
         }
