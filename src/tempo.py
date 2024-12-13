@@ -128,10 +128,15 @@ class Tempo:
         }
 
     def _build_overrides_config(self):
+        # in order to tell tempo to enable the metrics generator, we need to set
+        # "processors": list of enabled processors in the overrides section
         return tempo_config.Overrides(
             defaults=tempo_config.Defaults(
                 metrics_generator=tempo_config.MetricsGeneratorDefaults(
-                    processors=[tempo_config.MetricsGeneratorProcessor.SPAN_METRICS],
+                    processors=[
+                        tempo_config.MetricsGeneratorProcessorLabel.SPAN_METRICS,
+                        tempo_config.MetricsGeneratorProcessorLabel.SERVICE_GRAPHS,
+                    ],
                 )
             )
         )
@@ -160,11 +165,15 @@ class Tempo:
             storage=tempo_config.MetricsGeneratorStorage(
                 path=self.metrics_generator_wal_path,
                 remote_write=remote_write_instances,
-            )
+            ),
             # Adding juju topology will be done on the worker's side
             # to populate the correct unit label.
+            processor=tempo_config.MetricsGeneratorProcessor(
+                span_metrics=tempo_config.MetricsGeneratorSpanMetricsProcessor(),
+                service_graphs=tempo_config.MetricsGeneratorServiceGraphsProcessor(),
+            ),
+            # per-processor configuration should go in here
         )
-
         return config
 
     def _build_server_config(self, use_tls=False):
