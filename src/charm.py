@@ -12,6 +12,7 @@ from subprocess import CalledProcessError, getoutput
 from typing import Any, Dict, List, Optional, Set, Tuple, cast, get_args
 
 import ops
+from charms.catalogue_k8s.v1.catalogue import CatalogueItem
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
 from charms.prometheus_k8s.v1.prometheus_remote_write import (
     PrometheusRemoteWriteConsumer,
@@ -113,6 +114,7 @@ class TempoCoordinatorCharm(CharmBase):
                 "workload-tracing": "self-workload-tracing",
                 "send-datasource": None,
                 "receive-datasource": "receive-datasource",
+                "catalogue": "catalogue",
             },
             nginx_config=NginxConfig(server_name=self.hostname).config,
             workers_config=self.tempo.config,
@@ -121,6 +123,7 @@ class TempoCoordinatorCharm(CharmBase):
             remote_write_endpoints=self.remote_write_endpoints,  # type: ignore
             # TODO: future Tempo releases would be using otlp_xx protocols instead.
             workload_tracing_protocols=["jaeger_thrift_http"],
+            catalogue_item=self._catalogue_item,
         )
 
         # configure this tempo as a datasource in grafana
@@ -233,6 +236,23 @@ class TempoCoordinatorCharm(CharmBase):
             ]
         )
         return enabled_receivers
+
+    @property
+    def _catalogue_item(self) -> CatalogueItem:
+        """A catalogue application entry for this Tempo instance."""
+        return CatalogueItem(
+            # use app.name in case there are multiple Tempo applications deployed.
+            name=self.app.name,
+            icon="transit-connection-variant",
+            # Unlike Prometheus, Tempo doesn't have a sophisticated web UI.
+            # Instead, we'll show the current cluster members and their health status.
+            # ref: https://grafana.com/docs/tempo/latest/api_docs/
+            url=f"{self._external_url}:3200/memberlist",
+            description=(
+                "Tempo is a distributed tracing backend by Grafana, supporting Jaeger, "
+                "Zipkin, and OpenTelemetry protocols."
+            ),
+        )
 
     ##################
     # EVENT HANDLERS #

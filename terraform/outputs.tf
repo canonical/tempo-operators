@@ -12,6 +12,8 @@ output "endpoints" {
     self_charm_tracing    = "self-charm-tracing",
     self_workload_tracing = "self-workload-tracing",
     send-remote-write     = "send-remote-write",
+    receive_datasource    = "receive-datasource"
+    catalogue             = "catalogue",
     # Provides
     grafana_dashboard = "grafana-dashboard",
     grafana_source    = "grafana-source",
