@@ -10,10 +10,10 @@ This means that, if your charm is related to, for example, COS' Tempo charm, you
 in real time from the Grafana dashboard the execution flow of your charm.
 
 # Quickstart
-Fetch the following charm libs (and ensure the minimum version/revision numbers are satisfied):
+Fetch the following charm libs:
 
-    charmcraft fetch-lib charms.tempo_coordinator_k8s.v0.tracing  # >= 1.10
-    charmcraft fetch-lib charms.tempo_coordinator_k8s.v0.charm_tracing  # >= 2.7
+    charmcraft fetch-lib charms.tempo_coordinator_k8s.v0.tracing
+    charmcraft fetch-lib charms.tempo_coordinator_k8s.v0.charm_tracing
 
 Then edit your charm code to include:
 
