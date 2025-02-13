@@ -30,7 +30,8 @@ def cleanup_prometheus_alert_rules():
         / "prometheus_alert_rules"
         / "consolidated_rules"
     )
-    rmtree(src_path)
+    if src_path.exists():
+        rmtree(src_path)
 
 
 @pytest.fixture(autouse=True, scope="session")

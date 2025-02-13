@@ -7,8 +7,10 @@ from typing import Optional
 from unittest.mock import MagicMock, patch
 
 import pytest
-import scenario
-from charms.tempo_coordinator_k8s.v0.charm_tracing import CHARM_TRACING_ENABLED
+from charms.tempo_coordinator_k8s.v0.charm_tracing import (
+    BUFFER_DEFAULT_CACHE_FILE_NAME,
+    CHARM_TRACING_ENABLED,
+)
 from charms.tempo_coordinator_k8s.v0.charm_tracing import (
     _autoinstrument as autoinstrument,
 )
@@ -28,8 +30,7 @@ from charms.tempo_coordinator_k8s.v0.tracing import (
 )
 from ops import EventBase, EventSource, Framework
 from ops.charm import CharmBase, CharmEvents
-from scenario import Context, Relation, State
-from scenario.runtime import UncaughtCharmError
+from ops.testing import Context, Relation, State
 
 logger = logging.getLogger(__name__)
 
@@ -381,7 +382,7 @@ def test_tracing_requirer_remote_charm_request_response(leader):
     MyRemoteCharm._request = True
     ctx = Context(MyRemoteCharm, meta=MyRemoteCharm.META)
     # WHEN you get any event AND the remote unit has already replied
-    tracing = scenario.Relation(
+    tracing = Relation(
         "tracing",
         # if we're not leader, assume the leader did its part already
         local_app_data=(
@@ -407,7 +408,7 @@ def test_tracing_requirer_remote_charm_no_request_but_response(leader):
     MyRemoteCharm._request = False
     ctx = Context(MyRemoteCharm, meta=MyRemoteCharm.META)
     # WHEN you get any event AND the remote unit has already replied
-    tracing = scenario.Relation(
+    tracing = Relation(
         "tracing",
         # empty local app data
         remote_app_data=TracingProviderAppData(
@@ -434,7 +435,7 @@ def test_tracing_requirer_remote_charm_no_request_no_response(leader, relation):
     # WHEN you get any event
     if relation:
         # AND you have an empty relation
-        tracing = scenario.Relation(
+        tracing = Relation(
             "tracing",
             # empty local and remote app data
         )
@@ -446,7 +447,7 @@ def test_tracing_requirer_remote_charm_no_request_no_response(leader, relation):
     # THEN self.tempo() will raise on init
     # FIXME: non-leader units should get a permission denied exception,
     # but it won't fire due to https://github.com/canonical/operator/issues/1378
-    with pytest.raises(UncaughtCharmError, match=r"ProtocolNotRequestedError"):
+    with pytest.raises(Exception, match=r"ProtocolNotRequestedError"):
         ctx.run(ctx.on.start(), State(relations=relations, leader=leader))
 
 
@@ -472,7 +473,7 @@ def test_borky_tempo_return_value(borky_return_value, caplog):
 
     # traceback from the TypeError raised by _get_tracing_endpoint
     with pytest.raises(
-        UncaughtCharmError,
+        Exception,
         match=r"MyRemoteBorkyCharm\.tempo should resolve to a tempo "
         r"endpoint \(string\); got (.*) instead\.",
     ):
@@ -725,7 +726,7 @@ def test_buffering_flush(tmp_path, tls):
         else:
             cert = None
 
-        buffer_path = tmp_path / "mycert"
+        buffer_path = tmp_path / BUFFER_DEFAULT_CACHE_FILE_NAME
         buffer_path.write_bytes(b"mockspan")
 
         charm = make_buffering_charm(cert, buffer_path)
@@ -746,7 +747,7 @@ def test_buffering_flush(tmp_path, tls):
 
         ctx.run(ctx.on.start(), State(relations={tracing}))
         # then the buffered traces get flushed
-        assert f.call_count == 2
+        assert f.call_count == 3
 
         # and the buffer is empty
         assert buffer_path.read_bytes() == b""
@@ -767,7 +768,7 @@ def test_buffering_size_limit(tmp_path, tls):
         else:
             cert = None
 
-        buffer_path = tmp_path / "mycert"
+        buffer_path = tmp_path / BUFFER_DEFAULT_CACHE_FILE_NAME
 
         # current buffer contains a span that's ~80mb large
         buffer_path.write_bytes(b"mockspan" * 10**7)
@@ -802,7 +803,7 @@ def test_buffering_event_n_limit(tmp_path, tls, n_events):
         else:
             cert = None
 
-        buffer_path = tmp_path / "mycert"
+        buffer_path = tmp_path / BUFFER_DEFAULT_CACHE_FILE_NAME
 
         # set max buffer size to 2 events
         charm = make_buffering_charm(cert, buffer_path, buffer_max_events=2)

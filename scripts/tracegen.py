@@ -5,6 +5,10 @@ from pathlib import Path
 from typing import Any, Literal, get_args
 
 import requests
+
+# modern protobuf implementations will whine otherwise
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
 from opentelemetry import trace
 from opentelemetry.exporter.jaeger.proto.grpc import JaegerExporter as JaegerGRPCExporter
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter as JaegerThriftHttpExporter
@@ -29,10 +33,10 @@ ReceiverProtocol = Literal[
 
 def set_envvars(cert: Path = None):
     ca_cert_path = str(Path(cert).absolute()) if cert else ""
-    os.environ['OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE'] = ca_cert_path
-    os.environ['OTEL_EXPORTER_JAEGER_CERTIFICATE'] = ca_cert_path
+    os.environ["OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE"] = ca_cert_path
+    os.environ["OTEL_EXPORTER_JAEGER_CERTIFICATE"] = ca_cert_path
     # jaeger thrift http exporter does not expose a parameter to set path for CA verification
-    os.environ['SSL_CERT_FILE'] = ca_cert_path
+    os.environ["SSL_CERT_FILE"] = ca_cert_path
     os.environ["REQUESTS_CA_BUNDLE"] = ca_cert_path
 
 
@@ -74,30 +78,39 @@ def initialize_exporter(protocol: str, endpoint: str, cert: Path = None):
 
 
 def emit_trace(
-        endpoint: str,
-        log_trace_to_console: bool = False,
-        cert: Path = None,
-        protocol: ReceiverProtocol = "otlp_http",
-        nonce: Any = None,
-    service_name:str = None
+    endpoint: str,
+    log_trace_to_console: bool = False,
+    cert: Path = None,
+    protocol: ReceiverProtocol = "otlp_http",
+    nonce: Any = None,
+    service_name: str = None,
 ):
     if protocol == "ALL":
         for proto in get_args(protocol):
-            emit_trace(endpoint, log_trace_to_console, cert, proto, nonce=nonce,service_name=service_name)
+            emit_trace(
+                endpoint, log_trace_to_console, cert, proto, nonce=nonce, service_name=service_name
+            )
     else:
         set_envvars(cert)
         span_exporter = initialize_exporter(protocol, endpoint, cert)
-        return _export_trace(span_exporter, log_trace_to_console=log_trace_to_console, nonce=nonce, protocol=protocol,
-                             service_name=service_name)
+        return _export_trace(
+            span_exporter,
+            log_trace_to_console=log_trace_to_console,
+            nonce=nonce,
+            protocol=protocol,
+            service_name=service_name,
+        )
 
 
-def _export_trace(span_exporter, log_trace_to_console: bool = False, nonce: Any = None,
-                  protocol: ReceiverProtocol = "otlp_http",
-                  service_name:str = None):
-    resource = Resource.create(attributes={
-        "service.name": service_name or f"tracegen-{protocol}",
-        "nonce": str(nonce)
-    }
+def _export_trace(
+    span_exporter,
+    log_trace_to_console: bool = False,
+    nonce: Any = None,
+    protocol: ReceiverProtocol = "otlp_http",
+    service_name: str = None,
+):
+    resource = Resource.create(
+        attributes={"service.name": service_name or f"tracegen-{protocol}", "nonce": str(nonce)}
     )
     provider = TracerProvider(resource=resource)
 
@@ -114,17 +127,17 @@ def _export_trace(span_exporter, log_trace_to_console: bool = False, nonce: Any 
     with tracer.start_as_current_span("foo"):
         with tracer.start_as_current_span("bar"):
             with tracer.start_as_current_span("baz"):
-                time.sleep(.1)
+                time.sleep(0.1)
 
     return span_exporter.force_flush()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     emit_trace(
         endpoint=os.getenv("TRACEGEN_ENDPOINT", "http://127.0.0.1:8080"),
         service_name=os.getenv("TRACEGEN_SERVICE", None),
         cert=os.getenv("TRACEGEN_CERT", None),
         log_trace_to_console=os.getenv("TRACEGEN_VERBOSE", False),
         protocol=os.getenv("TRACEGEN_PROTOCOL", "otlp_http"),
-        nonce=os.getenv("TRACEGEN_NONCE", "24")
+        nonce=os.getenv("TRACEGEN_NONCE", "24"),
     )

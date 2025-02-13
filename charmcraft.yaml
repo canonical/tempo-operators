@@ -105,7 +105,6 @@ requires:
     interface: catalogue
     description: |
       Integration to help users discover Tempo's UI, providing visibility into Tempo's cluster members and their health status.
-      
 
 storage:
   data:
