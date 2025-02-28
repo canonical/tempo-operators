@@ -60,6 +60,10 @@ provides:
     interface: tracing
     description: |
       Integration to offer other charms the possibility to send traces to Tempo.
+  probes:
+    interface: blackbox_exporter_probes
+    description: |
+      Integration to expose Blackbox Exporter probes for Tempo's reachability.
 
 requires:
   self-charm-tracing:
