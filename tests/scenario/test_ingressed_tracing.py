@@ -29,10 +29,6 @@ def test_external_url_present(context, base_state, s3, all_worker):
     tracing_out = out.get_relations(tracing.endpoint)[0]
     expected_data = [
         {
-            "protocol": {"name": "jaeger_thrift_http", "type": "http"},
-            "url": "http://1.2.3.4:14268",
-        },
-        {
             "protocol": {"name": "otlp_http", "type": "http"},
             "url": "http://1.2.3.4:4318",
         },

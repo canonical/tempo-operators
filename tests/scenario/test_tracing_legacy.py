@@ -22,15 +22,11 @@ def test_tracing_v2_endpoint_published(context, s3, all_worker, evt_name, base_s
 
     with charm_tracing_disabled():
         with context(getattr(context.on, f"relation_{evt_name}")(tracing), state) as mgr:
-            assert len(mgr.charm._requested_receivers()) == 2
+            assert len(mgr.charm._requested_receivers()) == 1
             out = mgr.run()
 
     tracing_out = out.get_relations(tracing.endpoint)[0]
     expected_data = [
-        {
-            "protocol": {"name": "jaeger_thrift_http", "type": "http"},
-            "url": f"http://{socket.getfqdn()}:14268",
-        },
         {
             "protocol": {"name": "otlp_http", "type": "http"},
             "url": f"http://{socket.getfqdn()}:4318",

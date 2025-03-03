@@ -22,12 +22,19 @@ from tempo import Tempo
             {
                 "jaeger": {
                     "protocols": {
-                        "grpc": None,
-                        "thrift_http": None,
+                        "grpc": {"endpoint": f"0.0.0.0:{Tempo.receiver_ports['jaeger_grpc']}"},
+                        "thrift_http": {
+                            "endpoint": f"0.0.0.0:{Tempo.receiver_ports['jaeger_thrift_http']}"
+                        },
                     }
                 },
-                "zipkin": None,
-                "otlp": {"protocols": {"http": None, "grpc": None}},
+                "zipkin": {"endpoint": f"0.0.0.0:{Tempo.receiver_ports['zipkin']}"},
+                "otlp": {
+                    "protocols": {
+                        "http": {"endpoint": f"0.0.0.0:{Tempo.receiver_ports['otlp_http']}"},
+                        "grpc": {"endpoint": f"0.0.0.0:{Tempo.receiver_ports['otlp_grpc']}"},
+                    }
+                },
             },
         ),
         (
@@ -36,11 +43,17 @@ from tempo import Tempo
             {
                 "jaeger": {
                     "protocols": {
-                        "thrift_http": None,
+                        "thrift_http": {
+                            "endpoint": f"0.0.0.0:{Tempo.receiver_ports['jaeger_thrift_http']}"
+                        },
                     }
                 },
-                "zipkin": None,
-                "otlp": {"protocols": {"http": None}},
+                "zipkin": {"endpoint": f"0.0.0.0:{Tempo.receiver_ports['zipkin']}"},
+                "otlp": {
+                    "protocols": {
+                        "http": {"endpoint": f"0.0.0.0:{Tempo.receiver_ports['otlp_http']}"}
+                    }
+                },
             },
         ),
         (
@@ -54,7 +67,8 @@ from tempo import Tempo
                                 "ca_file": "/usr/local/share/ca-certificates/ca.crt",
                                 "cert_file": "/etc/worker/server.cert",
                                 "key_file": "/etc/worker/private.key",
-                            }
+                            },
+                            "endpoint": f"0.0.0.0:{Tempo.receiver_ports['jaeger_thrift_http']}",
                         },
                     }
                 },
@@ -63,7 +77,8 @@ from tempo import Tempo
                         "ca_file": "/usr/local/share/ca-certificates/ca.crt",
                         "cert_file": "/etc/worker/server.cert",
                         "key_file": "/etc/worker/private.key",
-                    }
+                    },
+                    "endpoint": f"0.0.0.0:{Tempo.receiver_ports['zipkin']}",
                 },
                 "otlp": {
                     "protocols": {
@@ -72,7 +87,8 @@ from tempo import Tempo
                                 "ca_file": "/usr/local/share/ca-certificates/ca.crt",
                                 "cert_file": "/etc/worker/server.cert",
                                 "key_file": "/etc/worker/private.key",
-                            }
+                            },
+                            "endpoint": f"0.0.0.0:{Tempo.receiver_ports['otlp_http']}",
                         },
                     }
                 },

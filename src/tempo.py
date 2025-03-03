@@ -3,8 +3,10 @@
 # See LICENSE file for licensing details.
 
 """Tempo workload configuration and client."""
+
 import logging
 import re
+from collections import defaultdict
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 import yaml
@@ -65,10 +67,7 @@ class Tempo:
         """Return the receiver port for the built-in tempo_http protocol."""
         return self.server_ports["tempo_grpc"]
 
-    def config(
-        self,
-        coordinator: Coordinator,
-    ) -> str:
+    def config(self, coordinator: Coordinator) -> str:
         """Generate the Tempo configuration.
 
         Only activate the provided receivers.
@@ -85,7 +84,8 @@ class Tempo:
             querier=self._build_querier_config(coordinator.cluster.gather_addresses_by_role()),
             storage=self._build_storage_config(coordinator._s3_config),
             metrics_generator=self._build_metrics_generator_config(
-                coordinator.remote_write_endpoints_getter(), coordinator.tls_available  # type: ignore
+                coordinator.remote_write_endpoints_getter(),  # type: ignore
+                coordinator.tls_available,
             ),
         )
 
@@ -93,7 +93,6 @@ class Tempo:
             config.overrides = self._build_overrides_config()
 
         if coordinator.tls_available:
-
             tls_config = self._build_tls_config(coordinator.cluster.gather_addresses())
 
             config.ingester_client = tempo_config.Client(
@@ -289,40 +288,38 @@ class Tempo:
         if not receivers_set:
             logger.warning("No receivers set. Tempo will be up but not functional.")
 
-        if use_tls:
-            receiver_config = {
-                "tls": {
-                    "ca_file": str(self.tls_ca_path),
-                    "cert_file": str(self.tls_cert_path),
-                    "key_file": str(self.tls_key_path),
-                }
+        def _build_receiver_config(
+            protocol: str,
+        ) -> Dict[str, Any]:
+            return {
+                "endpoint": f"0.0.0.0:{self.receiver_ports[protocol]}",
+                **(
+                    {
+                        "tls": {
+                            "ca_file": str(self.tls_ca_path),
+                            "cert_file": str(self.tls_cert_path),
+                            "key_file": str(self.tls_key_path),
+                        }
+                    }
+                    if use_tls
+                    else {}
+                ),
             }
-        else:
-            receiver_config = None
 
-        config = {}
+        config: Dict[str, Any] = defaultdict(lambda: defaultdict(dict))
 
         if "zipkin" in receivers_set:
-            config["zipkin"] = receiver_config
+            config["zipkin"] = _build_receiver_config("zipkin")
 
-        otlp_config = {}
-        if "otlp_http" in receivers_set:
-            otlp_config["http"] = receiver_config
-        if "otlp_grpc" in receivers_set:
-            otlp_config["grpc"] = receiver_config
-        if otlp_config:
-            config["otlp"] = {"protocols": otlp_config}
+        for proto, config_field_name in {("otlp_http", "http"), ("otlp_grpc", "grpc")}:
+            if proto in receivers_set:
+                config["otlp"]["protocols"][config_field_name] = _build_receiver_config(proto)
 
-        jaeger_config = {}
-        if "jaeger_thrift_http" in receivers_set:
-            jaeger_config["thrift_http"] = receiver_config
-        if "jaeger_grpc" in receivers_set:
-            jaeger_config["grpc"] = receiver_config
-        if "jaeger_thrift_binary" in receivers_set:
-            jaeger_config["thrift_binary"] = receiver_config
-        if "jaeger_thrift_compact" in receivers_set:
-            jaeger_config["thrift_compact"] = receiver_config
-        if jaeger_config:
-            config["jaeger"] = {"protocols": jaeger_config}
+        for proto, config_field_name in {
+            ("jaeger_thrift_http", "thrift_http"),
+            ("jaeger_grpc", "grpc"),
+        }:
+            if proto in receivers_set:
+                config["jaeger"]["protocols"][config_field_name] = _build_receiver_config(proto)
 
         return tempo_config.Distributor(receivers=config)
