@@ -13,7 +13,7 @@ from charms.tempo_coordinator_k8s.v0.tracing import (
     receiver_protocol_to_transport_protocol,
 )
 from cosl.coordinated_workers.coordinator import Coordinator
-from cosl.coordinated_workers.nginx import CERT_PATH, KEY_PATH
+from cosl.coordinated_workers.nginx import CERT_PATH, KEY_PATH, is_ipv6_enabled
 
 from tempo import Tempo
 from tempo_config import TempoRole
@@ -28,6 +28,7 @@ class NginxConfig:
     def __init__(self, server_name: str):
         self.server_name = server_name
         self.dns_IP_address = _get_dns_ip_address()
+        self.ipv6_enabled = is_ipv6_enabled()
 
     def config(self, coordinator: Coordinator) -> str:
         """Build and return the Nginx configuration."""
@@ -55,7 +56,10 @@ class NginxConfig:
                     # upstreams (load balancing)
                     *self._upstreams(addresses_by_role),
                     # temp paths
-                    {"directive": "client_body_temp_path", "args": ["/tmp/client_temp"]},
+                    {
+                        "directive": "client_body_temp_path",
+                        "args": ["/tmp/client_temp"],
+                    },
                     {"directive": "proxy_temp_path", "args": ["/tmp/proxy_temp_path"]},
                     {"directive": "fastcgi_temp_path", "args": ["/tmp/fastcgi_temp"]},
                     {"directive": "uwsgi_temp_path", "args": ["/tmp/uwsgi_temp"]},
@@ -172,7 +176,10 @@ class NginxConfig:
                 "directive": "location",
                 "args": ["/"],
                 "block": [
-                    {"directive": "set", "args": ["$backend", f"{protocol}://{upstream}"]},
+                    {
+                        "directive": "set",
+                        "args": ["$backend", f"{protocol}://{upstream}"],
+                    },
                     {
                         "directive": "grpc_pass" if grpc else "proxy_pass",
                         "args": ["$backend"],
@@ -191,7 +198,6 @@ class NginxConfig:
         self,
         custom_resolver: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-
         # pass a custom resolver, such as kube-dns.kube-system.svc.cluster.local.
         if custom_resolver:
             return [{"directive": "resolver", "args": [custom_resolver]}]
@@ -220,9 +226,13 @@ class NginxConfig:
         directives.append(
             {"directive": "listen", "args": self._listen_args(port, False, ssl, http2)}
         )
-        directives.append(
-            {"directive": "listen", "args": self._listen_args(port, True, ssl, http2)}
-        )
+        if self.ipv6_enabled:
+            directives.append(
+                {
+                    "directive": "listen",
+                    "args": self._listen_args(port, True, ssl, http2),
+                }
+            )
         return directives
 
     def _listen_args(self, port: int, ipv6: bool, ssl: bool, http2: bool) -> List[str]:
@@ -247,7 +257,10 @@ class NginxConfig:
             for protocol, port in Tempo.receiver_ports.items():
                 servers.append(
                     self._build_server_config(
-                        port, protocol.replace("_", "-"), self._is_protocol_grpc(protocol), tls
+                        port,
+                        protocol.replace("_", "-"),
+                        self._is_protocol_grpc(protocol),
+                        tls,
                     )
                 )
         # generate a server config for the Tempo server protocols (3200, 9096)
@@ -255,7 +268,10 @@ class NginxConfig:
             for protocol, port in Tempo.server_ports.items():
                 servers.append(
                     self._build_server_config(
-                        port, protocol.replace("_", "-"), self._is_protocol_grpc(protocol), tls
+                        port,
+                        protocol.replace("_", "-"),
+                        self._is_protocol_grpc(protocol),
+                        tls,
                     )
                 )
         return servers
@@ -280,8 +296,14 @@ class NginxConfig:
                     {"directive": "server_name", "args": [self.server_name]},
                     {"directive": "ssl_certificate", "args": [CERT_PATH]},
                     {"directive": "ssl_certificate_key", "args": [KEY_PATH]},
-                    {"directive": "ssl_protocols", "args": ["TLSv1", "TLSv1.1", "TLSv1.2"]},
-                    {"directive": "ssl_ciphers", "args": ["HIGH:!aNULL:!MD5"]},  # codespell:ignore
+                    {
+                        "directive": "ssl_protocols",
+                        "args": ["TLSv1", "TLSv1.1", "TLSv1.2"],
+                    },
+                    {
+                        "directive": "ssl_ciphers",
+                        "args": ["HIGH:!aNULL:!MD5"],  # codespell:ignore
+                    },
                     *self._locations(upstream, grpc, tls),
                 ],
             }

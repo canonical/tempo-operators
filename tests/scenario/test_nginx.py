@@ -3,7 +3,7 @@ import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from typing import List
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -73,6 +73,7 @@ def test_nginx_config_is_parsed_with_workers(context, nginx_container, coordinat
     assert isinstance(prepared_config, str)
 
 
+@pytest.mark.parametrize("ipv6", (True, False))
 @pytest.mark.parametrize(
     "addresses",
     (
@@ -96,13 +97,14 @@ def test_nginx_config_is_parsed_with_workers(context, nginx_container, coordinat
 )
 @pytest.mark.parametrize("tls", (True, False))
 def test_nginx_config_contains_upstreams_and_proxy_pass(
-    context, nginx_container, coordinator, addresses, tls
+    context, nginx_container, coordinator, addresses, tls, ipv6
 ):
     coordinator.cluster.gather_addresses_by_role.return_value = addresses
     coordinator.nginx.are_certificates_on_disk = tls
 
-    with mock_resolv_conf(f"nameserver {sample_dns_ip}"):
-        nginx = NginxConfig("localhost")
+    with mock_ipv6(ipv6):
+        with mock_resolv_conf(f"nameserver {sample_dns_ip}"):
+            nginx = NginxConfig("localhost")
 
     prepared_config = nginx.config(coordinator)
     assert f"resolver {sample_dns_ip};" in prepared_config
@@ -110,18 +112,22 @@ def test_nginx_config_contains_upstreams_and_proxy_pass(
     for role, addresses in addresses.items():
         for address in addresses:
             if role == "distributor":
-                _assert_config_per_role(Tempo.receiver_ports, address, prepared_config, tls)
+                _assert_config_per_role(Tempo.receiver_ports, address, prepared_config, tls, ipv6)
             if role == "query-frontend":
-                _assert_config_per_role(Tempo.server_ports, address, prepared_config, tls)
+                _assert_config_per_role(Tempo.server_ports, address, prepared_config, tls, ipv6)
 
 
-def _assert_config_per_role(source_dict, address, prepared_config, tls):
+def _assert_config_per_role(source_dict, address, prepared_config, tls, ipv6):
     # as entire config is in a format that's hard to parse (and crossplane returns a string), we look for servers,
     # upstreams and correct proxy/grpc_pass instructions.
     for port in source_dict.values():
         assert f"server {address}:{port};" in prepared_config
         assert f"listen {port}" in prepared_config
-        assert f"listen [::]:{port}" in prepared_config
+        assert (
+            (f"listen [::]:{port}" in prepared_config)
+            if ipv6
+            else (f"listen [::]:{port}" not in prepared_config)
+        )
 
     for protocol in source_dict.keys():
         sanitised_protocol = protocol.replace("_", "-")
@@ -143,12 +149,21 @@ def mock_resolv_conf(contents: str):
             yield
 
 
+@contextmanager
+def mock_ipv6(enable: bool):
+    with patch("nginx_config.is_ipv6_enabled", MagicMock(return_value=enable)):
+        yield
+
+
 @pytest.mark.parametrize(
     "mock_contents, expected_dns_ip",
     (
         (f"foo bar\nnameserver {sample_dns_ip}", sample_dns_ip),
         (f"nameserver {sample_dns_ip}\n foo bar baz", sample_dns_ip),
-        (f"foo bar\nfoo bar\nnameserver {sample_dns_ip}\nnameserver 198.18.0.1", sample_dns_ip),
+        (
+            f"foo bar\nfoo bar\nnameserver {sample_dns_ip}\nnameserver 198.18.0.1",
+            sample_dns_ip,
+        ),
     ),
 )
 def test_dns_ip_addr_getter(mock_contents, expected_dns_ip):
