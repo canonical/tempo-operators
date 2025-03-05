@@ -64,6 +64,10 @@ provides:
     interface: blackbox_exporter_probes
     description: |
       Integration to expose Blackbox Exporter probes for Tempo's reachability.
+  tempo-api:
+    interface: tempo_api
+    description: |
+      Integration to offer other charms the possibility to interact with Tempo's API.
 
 requires:
   self-charm-tracing:

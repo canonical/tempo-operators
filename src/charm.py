@@ -24,6 +24,10 @@ from charms.prometheus_k8s.v1.prometheus_remote_write import (
     PrometheusRemoteWriteConsumer,
 )
 from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
+from charms.tempo_coordinator_k8s.v0.tempo_api import (
+    DEFAULT_RELATION_NAME as tempo_api_relation_name,
+)
+from charms.tempo_coordinator_k8s.v0.tempo_api import TempoApiProvider
 from charms.tempo_coordinator_k8s.v0.tracing import (
     ReceiverProtocol,
     TracingEndpointProvider,
@@ -161,6 +165,12 @@ class TempoCoordinatorCharm(CharmBase):
         self.framework.observe(
             self.on[PEERS_RELATION_ENDPOINT_NAME].relation_created,
             self._on_peers_relation_created,
+        )
+
+        self.tempo_api = TempoApiProvider(
+            relation_mapping=self.model.relations,
+            relation_name=tempo_api_relation_name,
+            app=self.app,
         )
 
         # refuse to handle any other event as we can't possibly know what to do.
@@ -332,6 +342,31 @@ class TempoCoordinatorCharm(CharmBase):
             self.ingress.submit_to_traefik(
                 self._ingress_config, static=self._static_ingress_config
             )
+
+    def _update_tempo_api_relations(self) -> None:
+        """Update all applications related to us via the tempo-api relation."""
+        if not self.unit.is_leader():
+            return
+
+        # tempo-api should only send an external URL if it's set, otherwise it leaves that empty
+        internal_url = self._internal_url
+        direct_url_http = internal_url + f":{self.tempo.server_ports['tempo_http']}"
+        direct_url_grpc = internal_url + f":{self.tempo.server_ports['tempo_grpc']}"
+
+        external_url = self._external_url
+        if external_url:
+            ingress_url_http = external_url + f":{self.tempo.server_ports['tempo_http']}"
+            ingress_url_grpc = external_url + f":{self.tempo.server_ports['tempo_grpc']}"
+        else:
+            ingress_url_http = None
+            ingress_url_grpc = None
+
+        self.tempo_api.publish(
+            direct_url_http=direct_url_http,
+            direct_url_grpc=direct_url_grpc,
+            ingress_url_http=ingress_url_http,
+            ingress_url_grpc=ingress_url_grpc,
+        )
 
     def _update_tracing_relations(self) -> None:
         tracing_relations = self.model.relations["tracing"]
@@ -564,6 +599,7 @@ class TempoCoordinatorCharm(CharmBase):
         self._update_grafana_source()
         # open the necessary ports on this unit
         self.unit.set_ports(*self._nginx_ports)
+        self._update_tempo_api_relations()
 
     def _get_grafana_source_uids(self) -> Dict[str, Dict[str, str]]:
         """Helper method to retrieve the databags of any grafana-source relations.
