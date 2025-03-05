@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 import yaml
-from helpers import WORKER_NAME, deploy_cluster
+from helpers import WORKER_NAME, deploy_monolithic_cluster
 from pytest_operator.plugin import OpsTest
 
 from tests.integration.helpers import get_traces_patiently
@@ -59,7 +59,7 @@ async def test_build_deploy_testers(ops_test: OpsTest, tempo_charm: Path):
         ),
     )
 
-    await deploy_cluster(ops_test)
+    await deploy_monolithic_cluster(ops_test)
 
     await asyncio.gather(
         # for both testers, depending on the result of race with tempo it's either waiting or active

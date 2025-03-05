@@ -77,7 +77,7 @@ def deploy(
         try:
             if _check_juju_status(get_s3_status(status), "idle") and _check_workload_status(
                 minio, "active"
-            ):
+            ) and minio.get("address"):
                 break
         except KeyError:
             pass

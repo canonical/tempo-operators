@@ -29,25 +29,40 @@ class Tempo:
     wal_path = "/etc/tempo/tempo_wal"
     metrics_generator_wal_path = "/etc/tempo/metrics_generator_wal"
 
+    # this is the single source of truth for which ports are opened and configured
+    # in the distributed Tempo deployment
     memberlist_port = 7946
+    tempo_http_server_port = 3200
+    tempo_grpc_server_port = (
+        9096  # default grpc listen port is 9095, but that conflicts with promtail.
+    )
 
-    server_ports: Dict[str, int] = {
-        "tempo_http": 3200,
-        "tempo_grpc": 9096,  # default grpc listen port is 9095, but that conflicts with promtail.
-    }
-
-    # ports defined are the default ports specified in
+    # these are the default ports specified in
     # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver
     # for each of the below receivers.
-    receiver_ports: Dict[str, int] = {
-        "zipkin": 9411,
-        "otlp_grpc": 4317,
-        "otlp_http": 4318,
-        "jaeger_thrift_http": 14268,
-        "jaeger_grpc": 14250,
-    }
+    zipkin_receiver_port = 9411
+    otlp_grpc_receiver_port = 4317
+    otlp_http_receiver_port = 4318
+    jaeger_thrift_http_receiver_port = 14268
+    jaeger_grpc_receiver_port = 14250
 
-    all_ports = {**server_ports, **receiver_ports}
+    # utility grouping of the ports
+    receiver_ports: Dict[str, int] = {
+        "zipkin": zipkin_receiver_port,
+        "otlp_grpc": otlp_grpc_receiver_port,
+        "otlp_http": otlp_http_receiver_port,
+        "jaeger_thrift_http": jaeger_thrift_http_receiver_port,
+        "jaeger_grpc": jaeger_grpc_receiver_port,
+    }
+    server_ports: Dict[str, int] = {
+        "tempo_http": tempo_http_server_port,
+        "tempo_grpc": tempo_grpc_server_port,
+    }
+    all_ports = {
+        "tempo_http": tempo_http_server_port,
+        "tempo_grpc": tempo_grpc_server_port,
+        **receiver_ports,
+    }
 
     def __init__(
         self,
@@ -57,17 +72,10 @@ class Tempo:
         self._receivers_getter = requested_receivers
         self._retention_period_hours = retention_period_hours
 
-    @property
-    def tempo_http_server_port(self) -> int:
-        """Return the receiver port for the built-in tempo_http protocol."""
-        return self.server_ports["tempo_http"]
-
-    @property
-    def tempo_grpc_server_port(self) -> int:
-        """Return the receiver port for the built-in tempo_http protocol."""
-        return self.server_ports["tempo_grpc"]
-
-    def config(self, coordinator: Coordinator) -> str:
+    def config(
+        self,
+        coordinator: Coordinator,
+    ) -> str:
         """Generate the Tempo configuration.
 
         Only activate the provided receivers.

@@ -40,7 +40,7 @@ from ops.charm import CharmBase
 
 from nginx_config import NginxConfig
 from tempo import Tempo
-from tempo_config import TEMPO_ROLES_CONFIG
+from tempo_config import TEMPO_ROLES_CONFIG, TempoRole
 
 logger = logging.getLogger(__name__)
 PEERS_RELATION_ENDPOINT_NAME = "peers"
@@ -94,19 +94,19 @@ class TempoCoordinatorCharm(CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
 
+        # INTEGRATIONS
         self.ingress = TraefikRouteRequirer(self, self.model.get_relation("ingress"), "ingress")  # type: ignore
+        self.tracing = TracingEndpointProvider(self, external_url=self._most_external_url)
+        # set alert_rules_path="", as we don't want to populate alert rules into the relation databag
+        # we only need `self._remote_write.endpoints`
+        self._remote_write = PrometheusRemoteWriteConsumer(self, alert_rules_path="")
+
         self.tempo = Tempo(
             requested_receivers=self._requested_receivers,
             retention_period_hours=self._trace_retention_period_hours,
         )
-        # set alert_rules_path="", as we don't want to populate alert rules into the relation databag
-        # we only need `self._remote_write.endpoints`
-        self._remote_write = PrometheusRemoteWriteConsumer(self, alert_rules_path="")
-        # set the open ports for this unit
-        self.unit.set_ports(*self.tempo.all_ports.values())
 
-        self.tracing = TracingEndpointProvider(self, external_url=self._most_external_url)
-
+        # keep this above the coordinator definition
         self.framework.observe(self.on.collect_unit_status, self._on_collect_status)
 
         self.coordinator = TempoCoordinator(
@@ -132,6 +132,7 @@ class TempoCoordinatorCharm(CharmBase):
             resources_requests=self.get_resources_requests,
             container_name="charm",
             remote_write_endpoints=self.remote_write_endpoints,  # type: ignore
+            worker_ports=self._get_worker_ports,
             workload_tracing_protocols=["otlp_http"],
             catalogue_item=self._catalogue_item,
         )
@@ -141,12 +142,6 @@ class TempoCoordinatorCharm(CharmBase):
             self,
             source_type="tempo",
             source_url=self._external_http_server_url,
-            refresh_event=[
-                # refresh the source url when TLS config might be changing
-                self.on[self.coordinator.cert_handler.certificates_relation_name].relation_changed,
-                # or when ingress changes
-                self.ingress.on.ready,
-            ],
             extra_fields=self._build_grafana_source_extra_fields(),
         )
 
@@ -161,6 +156,7 @@ class TempoCoordinatorCharm(CharmBase):
             ],
         )
 
+        # OBSERVERS
         # peer
         self.framework.observe(
             self.on[PEERS_RELATION_ENDPOINT_NAME].relation_created,
@@ -199,7 +195,7 @@ class TempoCoordinatorCharm(CharmBase):
     @property
     def _external_http_server_url(self) -> str:
         """External url of the http(s) server."""
-        return f"{self._most_external_url}:{self.tempo.tempo_http_server_port}"
+        return f"{self._most_external_url}:{Tempo.tempo_http_server_port}"
 
     @property
     def _external_url(self) -> Optional[str]:
@@ -486,7 +482,9 @@ class TempoCoordinatorCharm(CharmBase):
             tls = s = ""
 
         # cert is for fqdn/ingress, not for IP
-        cmd = f"curl{tls} http{s}://{self.coordinator.hostname}:{self.tempo.tempo_http_server_port}/ready"
+        cmd = (
+            f"curl{tls} http{s}://{self.coordinator.hostname}:{Tempo.tempo_http_server_port}/ready"
+        )
 
         try:
             out = getoutput(cmd).split("\n")[-1]
@@ -564,6 +562,8 @@ class TempoCoordinatorCharm(CharmBase):
         # reconcile grafana-source databags to update `extra_fields`
         # if it gets changed by any other influencing relation.
         self._update_grafana_source()
+        # open the necessary ports on this unit
+        self.unit.set_ports(*self._nginx_ports)
 
     def _get_grafana_source_uids(self) -> Dict[str, Dict[str, str]]:
         """Helper method to retrieve the databags of any grafana-source relations.
@@ -695,6 +695,36 @@ class TempoCoordinatorCharm(CharmBase):
             "httpMethod": "GET",
             **svc_graph_config,
         }
+
+    @property
+    def _nginx_ports(self) -> Tuple[int, ...]:
+        """The ports that we should open on this pod."""
+        # we only open the ports that we need to open: that is, the worker ports for all roles.
+        return self._get_worker_ports("all")
+
+    def _get_worker_ports(self, role: str) -> Tuple[int, ...]:
+        """Determine, from the role of a worker, which ports it should open."""
+        # some ports that all workers should open
+        ports: Set[int] = {
+            Tempo.memberlist_port,
+            # we need this because the metrics server is on the same port
+            # technically we don't need it the way things are set up right now, because prometheus
+            # scrapes the worker units over their fqdn, which is an UNIT IP address (not APP), because
+            # juju uses statefulsets and not deployments. We add it anyway to err on the safe side.
+            Tempo.tempo_http_server_port,
+        }
+
+        tempo_role = TempoRole(role)
+
+        # distributor nodes should be able to accept spans in all supported formats
+        if tempo_role in {TempoRole.all, TempoRole.distributor}:
+            for enabled_receiver in self._requested_receivers():
+                ports.add(Tempo.receiver_ports[enabled_receiver])
+
+        # open server ports in query_frontend role
+        if tempo_role in {TempoRole.all, TempoRole.query_frontend}:
+            ports.add(Tempo.tempo_grpc_server_port)
+        return tuple(ports)
 
 
 if __name__ == "__main__":  # pragma: nocover

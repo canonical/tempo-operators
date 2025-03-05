@@ -10,7 +10,7 @@ import pytest
 import yaml
 from helpers import (
     WORKER_NAME,
-    deploy_cluster,
+    deploy_monolithic_cluster,
     get_application_ip,
     get_traces_patiently,
 )
@@ -42,7 +42,7 @@ async def test_build_and_deploy(ops_test: OpsTest, tempo_charm: Path):
     )
 
     # deploy cluster
-    await deploy_cluster(ops_test, APP_NAME)
+    await deploy_monolithic_cluster(ops_test, APP_NAME)
 
     await asyncio.gather(
         ops_test.model.wait_for_idle(

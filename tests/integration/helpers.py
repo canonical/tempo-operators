@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -6,7 +7,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Literal
+from typing import Dict, Literal, Optional, Sequence, Union
 
 import requests
 import yaml
@@ -24,14 +25,18 @@ SECRET_KEY = "secretkey"
 MINIO = "minio"
 BUCKET_NAME = "tempo"
 S3_INTEGRATOR = "s3-integrator"
+PROMETHEUS = "prometheus"
+PROMETHEUS_CHARM = "prometheus-k8s"
 WORKER_NAME = "tempo-worker"
 APP_NAME = "tempo"
+TRACEGEN_SCRIPT_PATH = Path() / "scripts" / "tracegen.py"
+
 protocols_endpoints = {
-    "jaeger_thrift_http": "https://{}:14268/api/traces?format=jaeger.thrift",
-    "zipkin": "https://{}:9411/v1/traces",
-    "jaeger_grpc": "{}:14250",
-    "otlp_http": "https://{}:4318/v1/traces",
-    "otlp_grpc": "{}:4317",
+    "jaeger_thrift_http": "{scheme}://{hostname}:14268/api/traces?format=jaeger.thrift",
+    "zipkin": "{scheme}://{hostname}:9411/v1/traces",
+    "jaeger_grpc": "{hostname}:14250",
+    "otlp_http": "{scheme}://{hostname}:4318/v1/traces",
+    "otlp_grpc": "{hostname}:4317",
 }
 
 logger = logging.getLogger(__name__)
@@ -299,10 +304,20 @@ def tempo_worker_charm_and_channel():
     return "tempo-worker-k8s", "edge"
 
 
-async def deploy_cluster(ops_test: OpsTest, tempo_app=APP_NAME):
+def get_resources(path: Union[str, Path]):
+    meta = yaml.safe_load((Path(path) / "charmcraft.yaml").read_text())
+    resources_meta = meta.get("resources", {})
+    return {res_name: res_meta["upstream-source"] for res_name, res_meta in resources_meta.items()}
+
+
+async def deploy_monolithic_cluster(ops_test: OpsTest, tempo_app=APP_NAME):
+    """This assumes tempo-coordinator is already deployed as `param:tempo_app`."""
     tempo_worker_charm_url, channel = tempo_worker_charm_and_channel()
     await ops_test.model.deploy(
-        tempo_worker_charm_url, application_name=WORKER_NAME, channel=channel, trust=True
+        tempo_worker_charm_url,
+        application_name=WORKER_NAME,
+        channel=channel,
+        trust=True,
     )
     await ops_test.model.deploy(S3_INTEGRATOR, channel="edge")
 
@@ -319,7 +334,48 @@ async def deploy_cluster(ops_test: OpsTest, tempo_app=APP_NAME):
         )
 
 
-def get_traces(tempo_host: str, service_name="tracegen-otlp_http", tls=True):
+async def deploy_distributed_cluster(ops_test: OpsTest, roles: Sequence[str], tempo_app=APP_NAME):
+    """This assumes tempo-coordinator is already deployed as `param:tempo_app`."""
+    tempo_worker_charm_url, channel = tempo_worker_charm_and_channel()
+
+    await asyncio.gather(
+        *(
+            ops_test.model.deploy(
+                tempo_worker_charm_url,
+                application_name=f"{WORKER_NAME}-{role}",
+                channel=channel,
+                trust=True,
+                config={"role-all": False, f"role-{role}": True},
+            )
+            for role in roles
+        ),
+        ops_test.model.deploy(S3_INTEGRATOR, channel="edge"),
+        ops_test.model.deploy(
+            PROMETHEUS_CHARM, application_name=PROMETHEUS, channel="edge", trust=True
+        ),
+    )
+
+    all_workers = tuple(f"{WORKER_NAME}-{role}" for role in roles)
+    await asyncio.gather(
+        *(
+            ops_test.model.integrate(tempo_app + ":tempo-cluster", worker_name + ":tempo-cluster")
+            for worker_name in all_workers
+        ),
+        ops_test.model.integrate(tempo_app + ":send-remote-write", PROMETHEUS),
+        ops_test.model.integrate(tempo_app + ":s3", S3_INTEGRATOR + ":s3-credentials"),
+    )
+
+    await deploy_and_configure_minio(ops_test)
+    async with ops_test.fast_forward():
+        await ops_test.model.wait_for_idle(
+            apps=[tempo_app, *all_workers, S3_INTEGRATOR, PROMETHEUS],
+            status="active",
+            timeout=2000,
+            idle_period=30,
+        )
+
+
+def get_traces(tempo_host: str, service_name="tracegen", tls=True):
     url = f"{'https' if tls else 'http'}://{tempo_host}:3200/api/search?tags=service.name={service_name}"
     req = requests.get(
         url,
@@ -331,29 +387,77 @@ def get_traces(tempo_host: str, service_name="tracegen-otlp_http", tls=True):
 
 
 @retry(stop=stop_after_attempt(15), wait=wait_exponential(multiplier=1, min=4, max=10))
-async def get_traces_patiently(tempo_host, service_name="tracegen-otlp_http", tls=True):
+async def get_traces_patiently(tempo_host, service_name="tracegen", tls=True):
+    logger.info(f"polling {tempo_host} for service {service_name!r} traces...")
     traces = get_traces(tempo_host, service_name=service_name, tls=tls)
     assert len(traces) > 0
     return traces
 
 
 async def emit_trace(
-    endpoint, ops_test: OpsTest, nonce, proto: str = "otlp_http", verbose=0, use_cert=False
+    endpoint,
+    ops_test: OpsTest,
+    nonce: str = None,
+    proto: str = "otlp_http",
+    service_name: Optional[str] = "tracegen",
+    verbose=0,
+    use_cert=False,
 ):
     """Use juju ssh to run tracegen from the tempo charm; to avoid any DNS issues."""
+    # SCP tracegen script onto unit and install dependencies
+    logger.info(f"pushing tracegen onto {APP_NAME}/0")
+
+    await ops_test.juju("scp", TRACEGEN_SCRIPT_PATH, f"{APP_NAME}/0:tracegen.py")
+    await ops_test.juju(
+        "ssh",
+        f"{APP_NAME}/0",
+        "python3 -m pip install protobuf==3.20.* opentelemetry-exporter-otlp-proto-grpc opentelemetry-exporter-otlp-proto-http"
+        + " opentelemetry-exporter-zipkin opentelemetry-exporter-jaeger",
+    )
+
     cmd = (
         f"juju ssh -m {ops_test.model_name} {APP_NAME}/0 "
+        f"TRACEGEN_SERVICE={service_name or ''} "
         f"TRACEGEN_ENDPOINT={endpoint} "
         f"TRACEGEN_VERBOSE={verbose} "
         f"TRACEGEN_PROTOCOL={proto} "
         f"TRACEGEN_CERT={CA_CERT_PATH if use_cert else ''} "
-        f"TRACEGEN_NONCE={nonce} "
+        f"TRACEGEN_NONCE={nonce or ''} "
         "python3 tracegen.py"
     )
-    return subprocess.getoutput(cmd)
+
+    logger.info(f"running tracegen with {cmd!r}")
+
+    out = subprocess.run(shlex.split(cmd), text=True, capture_output=True).stdout
+    logger.info(f"tracegen completed; stdout={out!r}")
 
 
 async def get_application_ip(ops_test: OpsTest, app_name: str):
     status = await ops_test.model.get_status()
     app = status["applications"][app_name]
     return app.public_address
+
+
+def _get_endpoint(protocol: str, hostname: str, tls: bool):
+    protocol_endpoint = protocols_endpoints.get(protocol)
+    if protocol_endpoint is None:
+        assert False, f"Invalid {protocol}"
+
+    if "grpc" in protocol:
+        # no scheme in _grpc endpoints
+        return protocol_endpoint.format(hostname=hostname)
+    else:
+        return protocol_endpoint.format(hostname=hostname, scheme="https" if tls else "http")
+
+
+def get_tempo_ingressed_endpoint(hostname, protocol: str, tls: bool):
+    return _get_endpoint(protocol, hostname, tls)
+
+
+def get_tempo_internal_endpoint(ops_test: OpsTest, protocol: str, tls: bool):
+    hostname = f"{APP_NAME}-0.{APP_NAME}-endpoints.{ops_test.model.name}.svc.cluster.local"
+    return _get_endpoint(protocol, hostname, tls)
+
+
+async def get_tempo_application_endpoint(tempo_ip: str, protocol: str, tls: bool):
+    return _get_endpoint(protocol, tempo_ip, tls)
