@@ -39,6 +39,11 @@ protocols_endpoints = {
     "otlp_grpc": "{hostname}:4317",
 }
 
+api_endpoints = {
+    "tempo_http": "{scheme}://{hostname}:3200/api",
+    "tempo_grpc": "{hostname}:9096",
+}
+
 logger = logging.getLogger(__name__)
 
 
@@ -439,7 +444,7 @@ async def get_application_ip(ops_test: OpsTest, app_name: str):
 
 
 def _get_endpoint(protocol: str, hostname: str, tls: bool):
-    protocol_endpoint = protocols_endpoints.get(protocol)
+    protocol_endpoint = protocols_endpoints.get(protocol) or api_endpoints.get(protocol)
     if protocol_endpoint is None:
         assert False, f"Invalid {protocol}"
 

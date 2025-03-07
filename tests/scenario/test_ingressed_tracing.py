@@ -7,6 +7,8 @@ import yaml
 from charms.tempo_coordinator_k8s.v0.charm_tracing import charm_tracing_disabled
 from scenario import Relation, State
 
+from tempo import Tempo
+
 
 @pytest.fixture
 def base_state(nginx_container, nginx_prometheus_exporter_container):
@@ -159,6 +161,7 @@ def test_ingress_relation_set_with_dynamic_config(
                     }
                 },
             },
+            "middlewares": {},
         },
     }
 
@@ -166,3 +169,33 @@ def test_ingress_relation_set_with_dynamic_config(
     ingress_out = out.get_relations(ingress.endpoint)[0]
     assert ingress_out.local_app_data
     assert yaml.safe_load(ingress_out.local_app_data["config"]) == expected_rel_data
+
+
+@patch("charm.TempoCoordinatorCharm.is_workload_ready", lambda _: False)
+def test_ingress_config_middleware_tls(context, base_state, s3, all_worker):
+    charm_name = "tempo-coordinator-k8s"
+    # GIVEN an ingress relation with TLS
+    ingress = Relation("ingress", remote_app_data={"external_host": "1.2.3.4", "scheme": "https"})
+
+    state = replace(base_state, relations=[ingress, s3, all_worker])
+
+    # WHEN relation is joined
+    out = context.run(context.on.relation_joined(ingress), state)
+
+    # THEN middleware config is present in ingress config
+    ingress_out = out.get_relations(ingress.endpoint)[0]
+    assert ingress_out.local_app_data
+    config = yaml.safe_load(ingress_out.local_app_data["config"])
+    middlewares = config["http"]["middlewares"]
+    for proto_name, port in Tempo.all_ports.items():
+        middleware = (
+            f"juju-{state.model.name}-{charm_name}-middleware-{proto_name.replace('_', '-')}"
+        )
+        assert middleware in middlewares
+        assert middlewares[middleware] == {
+            "redirectScheme": {
+                "permanent": True,
+                "port": port,
+                "scheme": "https",
+            }
+        }

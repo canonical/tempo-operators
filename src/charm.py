@@ -436,13 +436,34 @@ class TempoCoordinatorCharm(CharmBase):
         """Build a raw ingress configuration for Traefik."""
         http_routers = {}
         http_services = {}
+        middlewares = {}
         for protocol, port in self.tempo.all_ports.items():
             sanitized_protocol = protocol.replace("_", "-")
+            redirect_middleware = (
+                {
+                    f"juju-{self.model.name}-{self.model.app.name}-middleware-{sanitized_protocol}": {
+                        "redirectScheme": {
+                            "permanent": True,
+                            "port": port,
+                            "scheme": "https",
+                        }
+                    }
+                }
+                if self.ingress.is_ready() and self.ingress.scheme == "https"
+                else {}
+            )
+            middlewares.update(redirect_middleware)
+
             http_routers[f"juju-{self.model.name}-{self.model.app.name}-{sanitized_protocol}"] = {
                 "entryPoints": [sanitized_protocol],
                 "service": f"juju-{self.model.name}-{self.model.app.name}-service-{sanitized_protocol}",
                 # TODO better matcher
                 "rule": "ClientIP(`0.0.0.0/0`)",
+                **(
+                    {"middlewares": list(redirect_middleware.keys())}
+                    if redirect_middleware
+                    else {}
+                ),
             }
             if (
                 protocol == "tempo_grpc"
@@ -460,11 +481,13 @@ class TempoCoordinatorCharm(CharmBase):
                 http_services[
                     f"juju-{self.model.name}-{self.model.app.name}-service-{sanitized_protocol}"
                 ] = {"loadBalancer": {"servers": self._build_lb_server_config(self._scheme, port)}}
+
         return {
             "http": {
                 "routers": http_routers,
                 "services": http_services,
-            },
+                "middlewares": middlewares,
+            }
         }
 
     def _build_lb_server_config(self, scheme: str, port: int) -> List[Dict[str, str]]:

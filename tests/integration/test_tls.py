@@ -3,9 +3,11 @@ import logging
 from pathlib import Path
 
 import pytest
+import requests
 import yaml
 from helpers import (
     WORKER_NAME,
+    api_endpoints,
     deploy_monolithic_cluster,
     emit_trace,
     get_application_ip,
@@ -145,7 +147,12 @@ async def test_force_enable_protocols(ops_test: OpsTest):
 async def test_verify_traces_force_enabled_protocols_tls(ops_test: OpsTest, nonce, protocol):
     tempo_host = await get_ingress_proxied_hostname(ops_test)
     logger.info(f"emitting & verifying trace using {protocol} protocol.")
-    tempo_endpoint = get_tempo_ingressed_endpoint(tempo_host, protocol=protocol, tls=True)
+
+    tempo_endpoint = get_tempo_ingressed_endpoint(
+        tempo_host,
+        protocol=protocol,
+        tls=True,
+    )
     # emit a trace secured with TLS
     await emit_trace(
         tempo_endpoint,
@@ -168,6 +175,26 @@ async def test_workload_traces_tls(ops_test: OpsTest):
         tempo_host,
         service_name="tempo-scalable-single-binary",
     )
+
+
+@pytest.mark.parametrize(
+    "protocol",
+    # test all ports on the coordinator
+    set(protocols_endpoints.keys()).union(api_endpoints.keys()),
+)
+async def test_plain_request_redirect(ops_test: OpsTest, protocol):
+    if "grpc" in protocol:
+        # there's no simple way to test with a gRPC client
+        return
+    tempo_host = await get_ingress_proxied_hostname(ops_test)
+    tempo_endpoint = get_tempo_ingressed_endpoint(tempo_host, protocol=protocol, tls=False)
+    req = requests.get(
+        tempo_endpoint,
+        verify=False,
+        allow_redirects=False,
+    )
+    # Permanent Redirect codes
+    assert req.status_code == 301 or req.status_code == 308
 
 
 @pytest.mark.teardown
