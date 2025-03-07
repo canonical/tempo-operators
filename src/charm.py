@@ -730,7 +730,7 @@ class TempoCoordinatorCharm(CharmBase):
             },
         }
 
-    def _build_grafana_source_extra_fields(self) -> Dict[str, Any]:
+    def _build_grafana_source_extra_fields(self) -> Optional[Dict[str, Any]]:
         """Extra fields needed for the grafana-source relation, like data correlation config."""
         ## https://grafana.com/docs/tempo/latest/metrics-generator/service_graphs/enable-service-graphs/
         # "httpMethod": "GET",
@@ -746,9 +746,8 @@ class TempoCoordinatorCharm(CharmBase):
         # },
 
         svc_graph_config = self._build_service_graph_config()
-
         if not svc_graph_config:
-            return {}
+            return None
 
         return {
             "httpMethod": "GET",
