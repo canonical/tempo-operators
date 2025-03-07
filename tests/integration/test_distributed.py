@@ -17,14 +17,9 @@ from pytest_operator.plugin import OpsTest
 
 from tempo import Tempo
 from tempo_config import TempoRole
-from tests.integration.helpers import (
-    get_resources,
-    get_traces_patiently,
-)
+from tests.integration.helpers import get_resources, get_traces_patiently
 
-# FIXME: metrics-generator  goes to error state
-# https://github.com/canonical/tempo-worker-k8s-operator/issues/61
-ALL_ROLES = [role for role in TempoRole.all_nonmeta() if role != "metrics-generator"]
+ALL_ROLES = [role for role in TempoRole.all_nonmeta()]
 ALL_WORKERS = [f"{WORKER_NAME}-" + role for role in ALL_ROLES]
 S3_INTEGRATOR = "s3-integrator"
 
