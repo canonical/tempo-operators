@@ -298,15 +298,21 @@ async def deploy_and_configure_minio(ops_test: OpsTest):
     assert action_result.status == "completed"
 
 
-def tempo_worker_charm_and_channel():
+def tempo_worker_charm_and_channel_and_resources():
     """Tempo worker charm used for integration testing.
 
     Build once per session and reuse it in all integration tests to save some minutes/hours.
     You can also set `TEMPO_WORKER_CHARM` env variable to use an already existing built charm.
     """
     if path_from_env := os.getenv("TEMPO_WORKER_CHARM"):
-        return Path(path_from_env).absolute(), None
-    return "tempo-worker-k8s", "edge"
+        worker_charm_path = Path(path_from_env).absolute()
+        logger.info("Using local tempo worker charm: %s", worker_charm_path)
+        return (
+            worker_charm_path,
+            None,
+            get_resources(worker_charm_path.parent),
+        )
+    return "tempo-worker-k8s", "edge", None
 
 
 def get_resources(path: Union[str, Path]):
@@ -317,12 +323,13 @@ def get_resources(path: Union[str, Path]):
 
 async def deploy_monolithic_cluster(ops_test: OpsTest, tempo_app=APP_NAME):
     """This assumes tempo-coordinator is already deployed as `param:tempo_app`."""
-    tempo_worker_charm_url, channel = tempo_worker_charm_and_channel()
+    tempo_worker_charm_url, channel, resources = tempo_worker_charm_and_channel_and_resources()
     await ops_test.model.deploy(
         tempo_worker_charm_url,
         application_name=WORKER_NAME,
         channel=channel,
         trust=True,
+        resources=resources,
     )
     await ops_test.model.deploy(S3_INTEGRATOR, channel="edge")
 
@@ -341,7 +348,7 @@ async def deploy_monolithic_cluster(ops_test: OpsTest, tempo_app=APP_NAME):
 
 async def deploy_distributed_cluster(ops_test: OpsTest, roles: Sequence[str], tempo_app=APP_NAME):
     """This assumes tempo-coordinator is already deployed as `param:tempo_app`."""
-    tempo_worker_charm_url, channel = tempo_worker_charm_and_channel()
+    tempo_worker_charm_url, channel, resources = tempo_worker_charm_and_channel_and_resources()
 
     await asyncio.gather(
         *(
@@ -351,6 +358,7 @@ async def deploy_distributed_cluster(ops_test: OpsTest, roles: Sequence[str], te
                 channel=channel,
                 trust=True,
                 config={"role-all": False, f"role-{role}": True},
+                resources=resources,
             )
             for role in roles
         ),
