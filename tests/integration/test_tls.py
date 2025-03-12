@@ -204,7 +204,6 @@ async def test_remove_relation(ops_test: OpsTest):
         "remove-relation", APP_NAME + ":certificates", SSC_APP_NAME + ":certificates"
     )
     await asyncio.gather(
-        ops_test.model.wait_for_idle(
-            apps=[APP_NAME], status="active", raise_on_blocked=True, timeout=1000
-        ),
+        # coordinator will be set to blocked since ingress is over TLS, but the coordinator is not
+        ops_test.model.wait_for_idle(apps=[APP_NAME], status="blocked", timeout=1000),
     )
