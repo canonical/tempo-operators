@@ -27,7 +27,9 @@ from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
 from charms.tempo_coordinator_k8s.v0.tempo_api import (
     DEFAULT_RELATION_NAME as tempo_api_relation_name,
 )
-from charms.tempo_coordinator_k8s.v0.tempo_api import TempoApiProvider
+from charms.tempo_coordinator_k8s.v0.tempo_api import (
+    TempoApiProvider,
+)
 from charms.tempo_coordinator_k8s.v0.tracing import (
     ReceiverProtocol,
     TracingEndpointProvider,

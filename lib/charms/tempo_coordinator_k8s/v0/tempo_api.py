@@ -24,7 +24,9 @@ class FooCharm(CharmBase):
 
         tempo_api = TempoApiRequirer(self.model.relations, "tempo-api")
 
-        self.framework.observe(self.on["tempo-api"].relation_changed, self._on_tempo_api_changed)
+        self.framework.observe(
+            self.on["tempo-api"].relation_changed, self._on_tempo_api_changed
+        )
 
     def do_something_with_metadata(self):
         data = tempo_api.get_data()
@@ -59,8 +61,12 @@ class FooCharm(CharmBase):
         )
 
         self.framework.observe(self.on.leader_elected, self.do_something_to_publish)
-        self.framework.observe(self._charm.on["tempo-api"].relation_joined, self.do_something_to_publish)
-        self.framework.observe(self.on.some_event_that_changes_tempos_url, self.do_something_to_publish)
+        self.framework.observe(
+            self._charm.on["tempo-api"].relation_joined, self.do_something_to_publish
+        )
+        self.framework.observe(
+            self.on.some_event_that_changes_tempos_url, self.do_something_to_publish
+        )
 
     def do_something_to_publish(self, e):
         self.tempo_api.publish(...)
@@ -78,10 +84,10 @@ provides:
 import json
 import logging
 from pathlib import Path
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 
 import yaml
-from ops import Application, RelationMapping, Relation
+from ops import Application, Relation, RelationMapping
 from pydantic import AfterValidator, AnyHttpUrl, BaseModel, Field
 from typing_extensions import Annotated
 
@@ -93,7 +99,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 1
+LIBPATCH = 2
 
 PYDEPS = ["pydantic>=2"]
 
