@@ -161,7 +161,6 @@ def test_ingress_relation_set_with_dynamic_config(
                     }
                 },
             },
-            "middlewares": {},
         },
     }
 

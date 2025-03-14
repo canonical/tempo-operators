@@ -488,7 +488,10 @@ class TempoCoordinatorCharm(CharmBase):
             "http": {
                 "routers": http_routers,
                 "services": http_services,
-                "middlewares": middlewares,
+                # else we get: level=error msg="Error occurred during watcher callback:
+                # ...: middlewares cannot be a standalone element (type map[string]*dynamic.Middleware)"
+                # providerName=file
+                **({"middlewares": middlewares} if middlewares else {}),
             }
         }
 
