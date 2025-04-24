@@ -1,26 +1,31 @@
 # Copyright 2021 Canonical Ltd.
 # See LICENSE file for licensing details.
-import json
 import logging
 import os
 import random
 import shlex
 import shutil
-import subprocess
-import tempfile
-from pathlib import Path
 from subprocess import check_output
 
+import jubilant
 from pytest import fixture
-from pytest_operator.plugin import OpsTest
 
-from tests.integration.helpers import get_relation_data
+from tests.integration.helpers import _get_tempo_charm
 
-APP_NAME = "tempo"
-SSC = "self-signed-certificates"
 SSC_APP_NAME = "ssc"
 
 logger = logging.getLogger(__name__)
+
+
+@fixture(scope="module")
+def juju():
+    if model:=os.getenv("JUBILANT_MODEL"):
+        yield jubilant.Juju(model=model)
+    else:
+        with jubilant.temp_model(
+                keep=os.getenv("KEEP_MODELS", False)
+        ) as juju:
+            yield juju
 
 
 @fixture(scope="session")
@@ -28,28 +33,13 @@ def tempo_charm():
     """Tempo charm used for integration testing.
 
     Build once per session and reuse it in all integration tests to save some minutes/hours.
-    You can also set `TEMPO_CHARM` env variable to use an already existing built charm.
+    You can also set `CHARM_PATH` env variable to use an already existing built charm.
     """
-    if tempo_charm := os.getenv("TEMPO_CHARM"):
-        return tempo_charm
-
-    count = 0
-    # Intermittent issue where charmcraft fails to build the charm for an unknown reason.
-    # Retry building the charm
-    while True:
-        try:
-            subprocess.check_call(["charmcraft", "pack", "-v"])
-            return Path("./tempo-coordinator-k8s_ubuntu-22.04-amd64.charm").absolute()
-        except subprocess.CalledProcessError:
-            logger.warning("Failed to build Tempo coordinator. Trying again!")
-            count += 1
-
-            if count == 3:
-                raise
+    return _get_tempo_charm()
 
 
 @fixture(scope="module", autouse=True)
-def copy_charm_libs_into_tester_charm(ops_test):
+def copy_charm_libs_into_tester_charm():
     """Ensure the tester charm has the libraries it uses."""
     libraries = [
         "observability_libs/v1/cert_handler.py",
@@ -73,7 +63,7 @@ def copy_charm_libs_into_tester_charm(ops_test):
 
 
 @fixture(scope="module", autouse=True)
-def copy_charm_libs_into_tester_grpc_charm(ops_test):
+def copy_charm_libs_into_tester_grpc_charm():
     """Ensure the tester GRPC charm has the libraries it uses."""
     libraries = [
         "tempo_coordinator_k8s/v0/tracing.py",
@@ -91,21 +81,6 @@ def copy_charm_libs_into_tester_grpc_charm(ops_test):
 
     # cleanup: remove all libs
     check_output(shlex.split("rm -rf ./tests/integration/tester-grpc/lib"))
-
-
-@fixture(scope="function")
-def server_cert(ops_test: OpsTest):
-    data = get_relation_data(
-        requirer_endpoint=f"{APP_NAME}/0:certificates",
-        provider_endpoint=f"{SSC_APP_NAME}/0:certificates",
-        model=ops_test.model.name,
-    )
-    cert = json.loads(data.provider.application_data["certificates"])[0]["certificate"]
-
-    with tempfile.NamedTemporaryFile() as f:
-        p = Path(f.name)
-        p.write_text(cert)
-        yield p
 
 
 @fixture(scope="function")

@@ -78,12 +78,12 @@ def initialize_exporter(protocol: str, endpoint: str, cert: Path = None):
 
 
 def emit_trace(
-    endpoint: str,
-    log_trace_to_console: bool = False,
-    cert: Path = None,
-    protocol: ReceiverProtocol = "otlp_http",
-    nonce: Any = None,
-    service_name: str = None,
+        endpoint: str,
+        log_trace_to_console: bool = False,
+        cert: Path = None,
+        protocol: ReceiverProtocol = "otlp_http",
+        nonce: Any = None,
+        service_name: str = None,
 ):
     if protocol == "ALL":
         for proto in get_args(protocol):
@@ -103,14 +103,18 @@ def emit_trace(
 
 
 def _export_trace(
-    span_exporter,
-    log_trace_to_console: bool = False,
-    nonce: Any = None,
-    protocol: ReceiverProtocol = "otlp_http",
-    service_name: str = None,
+        span_exporter,
+        log_trace_to_console: bool = False,
+        nonce: Any = None,
+        protocol: ReceiverProtocol = "otlp_http",
+        service_name: str = None,
 ):
     resource = Resource.create(
-        attributes={"service.name": service_name or f"tracegen-{protocol}", "nonce": str(nonce)}
+        attributes={
+            "service.name": service_name or f"tracegen-{protocol}",
+            # use "tracegen" to namespace the nonce, to minimise conflicts with other instrumentation
+            "tracegen.nonce": str(nonce)
+        }
     )
     provider = TracerProvider(resource=resource)
 

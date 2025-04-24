@@ -404,9 +404,9 @@ class TempoCoordinatorCharm(CharmBase):
         # if unset, defaults to 30 days
         return cast(int, self.config["retention-period"])
 
-    def server_ca_cert(self) -> str:
+    def server_ca_cert(self) -> Optional[str]:
         """For charm tracing."""
-        return CA_CERT_PATH
+        return CA_CERT_PATH if Path(CA_CERT_PATH).exists() else None
 
     def tempo_otlp_http_endpoint(self) -> Optional[str]:
         """Endpoint at which the charm tracing information will be forwarded."""

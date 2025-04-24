@@ -92,9 +92,9 @@ def tempo_coordinator():
     tempo = App.from_path(
         REPOS_ROOT / "tempo-coordinator-k8s-operator",
         patches=[
-            patch("charm.KubernetesServicePatch"),
+            # patch("charm.KubernetesServicePatch"),
             patch("lightkube.core.client.GenericSyncClient"),
-            patch("charm.TempoCoordinatorCharm._update_server_cert"),
+            # patch("charm.TempoCoordinatorCharm._update_server_cert"),
             # patch("tempo.Tempo.is_ready", new=lambda _: True),
         ],
         name="tempo",

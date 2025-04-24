@@ -13,3 +13,5 @@ src/prometheus_alert_rules/consolidated_rules/**
 tests/scenario/src/prometheus_alert_rules/consolidated_rules/**
 .terraform*
 *.tfstate*
+/tests/integration/tester/lib/
+/tests/integration/tester-grpc/lib/

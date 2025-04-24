@@ -8,22 +8,47 @@ requires-python = ">=3.10"
 dependencies = [
     "ops",
     "cosl>=0.0.56",
+    "cryptography",
+    "jsonschema",
+    "crossplane",
     "pydantic<3",
     # ---PYDEPS---
     # lib/charms/tempo_coordinator_k8s/v0/charm_tracing.py
     "opentelemetry-exporter-otlp-proto-http==1.21.0",
+    "jubilant>=0.4.1",
 ]
 
 [project.optional-dependencies]
 dev = [
+#   UNIT TESTS
     "pytest",
     "pytest-cov",
     "coverage[toml]",
     "ops[testing]",
-    "pyright",
-    "ruff"
-]
 
+#   CATAN TESTS: see https://github.com/canonical/tempo-coordinator-k8s-operator/issues/145
+#   "catan@git+https://github.com/pietropasotti/catan.git@main"
+
+#   INTEGRATION TESTS
+    "jubilant",
+    "requests",
+    "minio",
+    "tenacity==8.2.3",
+    # tracegen
+    "opentelemetry-exporter-otlp-proto-grpc",
+    "opentelemetry-exporter-zipkin",
+    "opentelemetry-exporter-jaeger",
+    # opentelemetry-exporter-jaeger complains about old generated protos
+    "protobuf==3.20.*",
+    # https://github.com/juju/python-libjuju/issues/1184
+    "websockets<14.0",
+
+#   LINTING
+    "pyright",
+    "ruff",
+#   INTERFACE TESTS
+    "pytest-interface-tester==3.3.1",
+]
 
 [tool.pyright]
 extraPaths = ["lib"]

@@ -1,65 +1,43 @@
-import logging
 from pathlib import Path
 
+import jubilant
 import pytest
-import yaml
-from helpers import deploy_monolithic_cluster
-from juju.application import Application
-from pytest_operator.plugin import OpsTest
+from jubilant import Juju, all_blocked
 
-METADATA = yaml.safe_load(Path("./charmcraft.yaml").read_text())
-APP_NAME = "tempo"
-S3_INTEGRATOR = "s3-integrator"
-
-logger = logging.getLogger(__name__)
+from helpers import deploy_monolithic_cluster, TEMPO_APP, S3_APP
+from tests.integration.helpers import TEMPO_RESOURCES
 
 
 @pytest.mark.setup
-@pytest.mark.abort_on_fail
-async def test_deploy_tempo(ops_test: OpsTest, tempo_charm: Path):
-    resources = {
-        "nginx-image": METADATA["resources"]["nginx-image"]["upstream-source"],
-        "nginx-prometheus-exporter-image": METADATA["resources"][
-            "nginx-prometheus-exporter-image"
-        ]["upstream-source"],
-    }
-    await ops_test.model.deploy(
-        tempo_charm, resources=resources, application_name=APP_NAME, trust=True
+def test_deploy_tempo(juju: Juju, tempo_charm: Path):
+    juju.deploy(
+        tempo_charm, TEMPO_APP, resources=TEMPO_RESOURCES, trust=True
     )
 
-    await ops_test.model.wait_for_idle(
-        apps=[APP_NAME],
-        # coordinator will be blocked on s3 and workers integration
-        status="blocked",
-        timeout=10000,
-        raise_on_error=False,
+    # coordinator will be blocked because of missing s3 and workers integration
+    juju.wait(
+        lambda status: all_blocked(status, TEMPO_APP),
+        timeout=1000
     )
 
 
-@pytest.mark.abort_on_fail
-async def test_scale_tempo_up_without_s3_blocks(ops_test: OpsTest):
-    app: Application = ops_test.model.applications[APP_NAME]
-    await app.add_unit(1)
-
-    await ops_test.model.wait_for_idle(
-        apps=[APP_NAME],
-        status="blocked",
-        timeout=1000,
+def test_scale_tempo_up_stays_blocked(juju: Juju):
+    juju.cli("add-unit", TEMPO_APP, "-n", "1")
+    juju.wait(
+        lambda status: all_blocked(status, TEMPO_APP),
+        timeout=1000
     )
 
 
 @pytest.mark.setup
-@pytest.mark.abort_on_fail
-async def test_tempo_active_when_deploy_s3_and_workers(ops_test: OpsTest):
-    await deploy_monolithic_cluster(ops_test)
+def test_tempo_active_when_deploy_s3_and_workers(juju: Juju):
+    deploy_monolithic_cluster(juju, tempo_deployed_as=TEMPO_APP)
 
 
 @pytest.mark.teardown
-async def test_tempo_blocks_if_s3_goes_away(ops_test: OpsTest):
-    app: Application = ops_test.model.applications[S3_INTEGRATOR]
-    await app.destroy(destroy_storage=True)
-    await ops_test.model.wait_for_idle(
-        apps=[APP_NAME],
-        status="blocked",
-        timeout=1000,
-    )
+def test_tempo_blocks_if_s3_goes_away(juju: Juju):
+    juju.remove_relation(S3_APP, TEMPO_APP)
+    # FIXME: s3 stubbornly refuses to die
+    # juju.remove_application(S3_APP, force=True)
+    juju.wait(lambda status: jubilant.all_blocked(status, TEMPO_APP),
+              timeout=1000)
