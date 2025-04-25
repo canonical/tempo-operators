@@ -12,6 +12,7 @@ import yaml
 from cosl.coordinated_workers.nginx import CA_CERT_PATH
 from jubilant import Juju
 from minio import Minio
+from pytest_jubilant import pack_charm
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from tempo_config import TempoRole
@@ -140,21 +141,14 @@ def _get_tempo_charm():
     # Intermittent issue where charmcraft fails to build the charm for an unknown reason.
     # Retry building the charm
     for _ in range(3):
+        logger.info("packing...")
         try:
-            logger.info("packing...")
-            out = subprocess.run(
-                ["charmcraft", "pack"],
-                check=True, text=True,
-                capture_output=True
-            ).stderr  # why on the actual ...
-
-            charm = out.strip().splitlines()[-1].strip().split()[-1]
-            pth = Path(charm).absolute()
-            os.environ["CHARM_PATH"] = str(pth)
-            return pth
+            pth = pack_charm().charm.absolute()
         except subprocess.CalledProcessError:
             logger.warning("Failed to build Tempo coordinator. Trying again!")
-
+            continue
+        os.environ["CHARM_PATH"] = str(pth)
+        return pth
     raise err  # noqa
 
 def _deploy_cluster(juju: Juju, workers: Sequence[str], tempo_deployed_as: str = None):

@@ -1,10 +1,9 @@
 import json
-import shlex
-import subprocess
 from pathlib import Path
 
 import jubilant
 import pytest
+from pytest_jubilant import pack_charm
 import yaml
 from jubilant import Juju
 
@@ -19,39 +18,25 @@ TESTER_GRPC_METADATA = yaml.safe_load(
 TESTER_GRPC_APP_NAME = TESTER_GRPC_METADATA["name"]
 
 
-
 @pytest.mark.setup
 def test_build_deploy_tester(juju: Juju):
-    tester_root = "./tests/integration/tester/"
-    proc = subprocess.run(shlex.split("charmcraft pack -p %s" % tester_root),
-                          check=True, capture_output=True, text=True)
-    tester_charm = proc.stderr.strip().splitlines()[-1].split()[-1]
-    resources_tester = {"workload": TESTER_METADATA["resources"]["workload"]["upstream-source"]}
-
+    out = pack_charm("./tests/integration/tester/")
     juju.deploy(
-        "./"+tester_charm,
-        resources=resources_tester,
-        app=TESTER_APP_NAME,
+        f"./{out.charm}",
+        TESTER_APP_NAME,
+        resources=out.resources,
         num_units=3,
     )
 
 @pytest.mark.setup
 def test_build_deploy_tester_grpc(juju: Juju):
-    tester_grpc_root = "./tests/integration/tester-grpc/"
-    proc = subprocess.run(shlex.split("charmcraft pack -p %s" % tester_grpc_root),
-                          check=True, capture_output=True, text=True)
-    tester_grpc_charm = proc.stderr.strip().splitlines()[-1].split()[-1]
-    resources_tester_grpc = {
-        "workload": TESTER_GRPC_METADATA["resources"]["workload"]["upstream-source"]
-    }
-
+    out = pack_charm("./tests/integration/tester-grpc/")
     juju.deploy(
-        "./"+tester_grpc_charm,
-        resources=resources_tester_grpc,
-        app=TESTER_GRPC_APP_NAME,
+        f"./{out.charm}",
+        TESTER_GRPC_APP_NAME,
+        resources=out.resources,
         num_units=3,
     )
-
 
 @pytest.mark.setup
 def test_deploy_monolithic_cluster(juju: Juju, tempo_charm: Path):

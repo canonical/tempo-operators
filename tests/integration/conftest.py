@@ -7,7 +7,6 @@ import shlex
 import shutil
 from subprocess import check_output
 
-import jubilant
 from pytest import fixture
 
 from tests.integration.helpers import _get_tempo_charm
@@ -15,17 +14,6 @@ from tests.integration.helpers import _get_tempo_charm
 SSC_APP_NAME = "ssc"
 
 logger = logging.getLogger(__name__)
-
-
-@fixture(scope="module")
-def juju():
-    if model:=os.getenv("JUBILANT_MODEL"):
-        yield jubilant.Juju(model=model)
-    else:
-        with jubilant.temp_model(
-                keep=os.getenv("KEEP_MODELS", False)
-        ) as juju:
-            yield juju
 
 
 @fixture(scope="session")
