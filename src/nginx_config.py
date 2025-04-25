@@ -298,7 +298,7 @@ class NginxConfig:
                     {"directive": "ssl_certificate_key", "args": [KEY_PATH]},
                     {
                         "directive": "ssl_protocols",
-                        "args": ["TLSv1", "TLSv1.1", "TLSv1.2"],
+                        "args": ["TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3"],
                     },
                     {
                         "directive": "ssl_ciphers",
