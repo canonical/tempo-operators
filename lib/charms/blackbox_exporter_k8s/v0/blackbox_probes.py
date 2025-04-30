@@ -12,8 +12,8 @@ for the purpose of providing a probes metrics endpoint to Prometheus.
 
 The Blackbox Exporter charm interacts with its datasources using this charm
 library.
-Charms seeking to expose probes for Blackbox, may do so using
-the `BlackboxProbesProvider` object from this charm library.
+Charms seeking to expose probes for Blackbox, may do so
+using the `BlackboxProbesProvider` object from this charm library.
 For the simplest use cases, the BlackboxProbesProvider object requires
 to be instantiated with a list of jobs with the endpoints to monitor.
 A probe in blackbox is defined by a module and a static_config target. Those
@@ -191,7 +191,7 @@ is added and/or old ones removed from the list.
 For this purpose the `BlackboxProbesRequirer` object
 exposes a `probes()` method that returns a list of probes jobs. Each
 element of this list is a probes configuration to be added to the list of jobs for
-Prometheus to monitor.
+Prometheus to monitor. 
 Same goes for the list of client charm defined modules. The `BlackboxProbesRequirer` object
 exposes a `modules()` method that returns a dict of the new modules to be added to the
 Blackbox configuration file.
@@ -234,7 +234,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 1
+LIBPATCH = 2
 
 PYDEPS = ["pydantic"]
 
@@ -242,10 +242,8 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_RELATION_NAME = "probes"
 
-
 class DataValidationError(Exception):
     """Raised when data validation fails on IPU relation data."""
-
 
 class DatabagModel(BaseModel):
     """Base databag model."""
@@ -316,16 +314,16 @@ class DatabagModel(BaseModel):
 
         return databag
 
-
 class ProbesStaticConfigModel(BaseModel):
     class Config:
         extra = "allow"
 
-    targets: List[str] = Field(description="List of probes targets.")
+    targets: List[str] = Field(
+        description='List of probes targets.'
+    )
     labels: Optional[Dict[str, str]] = Field(
         description="Optional labels for the scrape targets", default=None
     )
-
 
 class ProbesJobModel(BaseModel):
     class Config:
@@ -335,23 +333,24 @@ class ProbesJobModel(BaseModel):
         description="Name of the Prometheus scrape job, each job must be given a unique name & should be a fixed string (e.g. hardcoded literal)",
         default=None,
     )
-    metrics_path: Optional[str] = Field(description="Path for metrics scraping.", default=None)
-    params: Dict[str, List[str]] = Field(description="Module for probing targets.")
+    metrics_path: Optional[str] = Field(
+        description="Path for metrics scraping.", default=None
+    )
+    params: Dict[str, List[str]] = Field(
+        description="Module for probing targets."
+    )
     static_configs: List[ProbesStaticConfigModel] = Field(
         description="List of static configurations to probe."
     )
 
-
 class ListProbesModel(BaseModel):
     probes: List[ProbesJobModel]
-
 
 class ModuleConfig(BaseModel):
     class Config:
         extra = "allow"
 
     prober: str = Field(description="Module prober.")
-
 
 class ScrapeMetadataModel(BaseModel):
     class Config:
@@ -361,7 +360,6 @@ class ScrapeMetadataModel(BaseModel):
     model_uuid: str = Field(description="Juju model UUID.", alias="model_uuid")
     application: str = Field(description="Juju application name.")
     unit: str = Field(description="Juju unit name.")
-
 
 class ApplicationDataModel(DatabagModel):
     scrape_metadata: ScrapeMetadataModel = Field(
@@ -373,7 +371,6 @@ class ApplicationDataModel(DatabagModel):
     scrape_modules: Optional[Dict[str, ModuleConfig]] = Field(
         description="List of custom blackbox probing modules."
     )
-
 
 class InvalidProbeEvent(EventBase):
     """Event emitted when alert rule files are not valid."""
@@ -492,10 +489,8 @@ class BlackboxProbesProvider(Object):
                     if msg.startswith(
                         b"ERROR cannot read relation application settings: permission denied"
                     ):
-                        error_message = (
-                            f"encountered error {e} while attempting to update_relation_data."
+                        error_message = f"encountered error {e} while attempting to update_relation_data." \
                             f"The relation must be gone."
-                        )
                         errors.append(error_message)
                         continue
                 raise
@@ -549,7 +544,6 @@ class BlackboxProbesProvider(Object):
         """
         return self.topology.as_dict()
 
-
 class TargetsChangedEvent(EventBase):
     """Event emitted when Blackbox Exporter scrape targets change."""
 
@@ -565,12 +559,10 @@ class TargetsChangedEvent(EventBase):
         """Restore scrape target relation information."""
         self.relation_id = snapshot["relation_id"]
 
-
 class MonitoringEvents(ObjectEvents):
     """Event descriptor for events raised by `BlackboxProbesRequirer`."""
 
     targets_changed = EventSource(TargetsChangedEvent)
-
 
 def _type_convert_stored(obj):
     """Convert Stored* to their appropriate types, recursively."""
@@ -591,7 +583,7 @@ class BlackboxProbesRequirer(Object):
     _stored = StoredState()
 
     def __init__(self, charm: CharmBase, relation_name: str = DEFAULT_RELATION_NAME):
-        """ "A requirer object for Blackbox Exporter probes.
+        """"A requirer object for Blackbox Exporter probes.
 
         Args:
             charm: a `CharmBase` instance that manages this
@@ -696,7 +688,8 @@ class BlackboxProbesRequirer(Object):
                 if not relation.data[relation.app]:
                     continue
                 databag = ApplicationDataModel.load(relation.data[relation.app])
-                scrape_probes = self._process_and_hash_probes(databag)
+                relation_scrape_probes = self._process_and_hash_probes(databag)
+                scrape_probes.extend(relation_scrape_probes)
             except (json.JSONDecodeError, pydantic.ValidationError, DataValidationError) as e:
                 error_message = f"Invalid probes provided in relation {relation.id}: {e}"
                 errors.append(error_message)
