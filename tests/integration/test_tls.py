@@ -14,22 +14,17 @@ from helpers import (
     emit_trace,
     get_tempo_ingressed_endpoint,
     get_traces_patiently,
-    protocols_endpoints, TRAEFIK_APP, SSC_APP, get_tempo_internal_endpoint, get_app_ip_address,
+    protocols_endpoints,
+    TRAEFIK_APP,
+    SSC_APP,
+    get_tempo_internal_endpoint,
+    get_app_ip_address,
+    get_ingress_proxied_hostname,
+    TEMPO_APP,
 )
-from tests.integration.helpers import TEMPO_APP
 
 
 logger = logging.getLogger(__name__)
-
-
-def get_ingress_proxied_hostname(juju: Juju):
-    status = juju.status()
-    status_msg = status.apps[TRAEFIK_APP].app_status.message
-
-    # hacky way to get ingress hostname, but it's the safest one.
-    if "Serving at" not in status_msg:
-        raise RuntimeError(f"Ingressed hostname is not present in {TRAEFIK_APP} status message.")
-    return status_msg.replace("Serving at", "").strip()
 
 
 @pytest.mark.setup

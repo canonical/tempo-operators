@@ -308,3 +308,14 @@ def get_tempo_internal_endpoint(juju: Juju, protocol: str, tls: bool):
 
 def get_tempo_application_endpoint(tempo_ip: str, protocol: str, tls: bool):
     return _get_endpoint(protocol, tempo_ip, tls)
+
+def get_ingress_proxied_hostname(juju: Juju):
+    status = juju.status()
+    status_msg = status.apps[TRAEFIK_APP].app_status.message
+
+    # hacky way to get ingress hostname, but it's the safest one.
+    if "Serving at" not in status_msg:
+        raise RuntimeError(
+            f"Ingressed hostname is not present in {TRAEFIK_APP} status message."
+        )
+    return status_msg.replace("Serving at", "").strip()
