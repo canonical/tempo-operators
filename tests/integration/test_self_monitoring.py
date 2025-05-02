@@ -36,12 +36,8 @@ def test_deploy(juju: Juju, tempo_charm: Path):
     juju.integrate(f"{PROMETHEUS_APP}:metrics-endpoint", f"{TEMPO_APP}:metrics-endpoint")
 
     juju.wait(
-        lambda status: jubilant.all_active(status, PROMETHEUS_APP),
-        timeout=600,
-    )
-
-    juju.wait(
-        lambda status: jubilant.all_blocked(status, TEMPO_APP),
+        lambda status: jubilant.all_active(status, PROMETHEUS_APP) and
+                       jubilant.all_blocked(status, TEMPO_APP),
         timeout=600,
     )
     wait_for_ready_prometheus(juju)

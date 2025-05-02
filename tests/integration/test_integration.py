@@ -107,6 +107,16 @@ def test_verify_traces_grpc(juju: Juju):
     ), f"There's no trace of generated grpc traces in tempo. {json.dumps(traces, indent=2)}"
 
 
+def test_scale_up_tempo(juju: Juju):
+    # GIVEN we scale up tempo
+    juju.add_unit(TEMPO_APP, num_units=2)
+    # THEN all units become active
+    juju.wait(
+        lambda status: jubilant.all_active(status, TEMPO_APP, WORKER_APP, TESTER_APP_NAME, TESTER_GRPC_APP_NAME),
+        timeout=1000
+    )
+
+
 @pytest.mark.teardown
 def test_remove_relation(juju: Juju):
     # given related charms
