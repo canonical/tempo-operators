@@ -38,15 +38,20 @@ from charms.tempo_coordinator_k8s.v0.tracing import (
 )
 from charms.traefik_k8s.v0.traefik_route import TraefikRouteRequirer
 from cosl.coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
-from cosl.coordinated_workers.nginx import CA_CERT_PATH, CERT_PATH, KEY_PATH
+from cosl.coordinated_workers.nginx import (
+    CA_CERT_PATH,
+    CERT_PATH,
+    KEY_PATH,
+    NginxConfig,
+)
 from cosl.interfaces.datasource_exchange import DatasourceDict, DSExchangeAppData
 from cosl.interfaces.utils import DatabagModel, DataValidationError
 from ops import CollectStatusEvent
 from ops.charm import CharmBase
 
-from nginx_config import NginxConfig
 from tempo import Tempo
 from tempo_config import TEMPO_ROLES_CONFIG, TempoRole
+from nginx_config import upstreams, server_ports_to_locations
 
 logger = logging.getLogger(__name__)
 PEERS_RELATION_ENDPOINT_NAME = "peers"
@@ -133,7 +138,11 @@ class TempoCoordinatorCharm(CharmBase):
                 "receive-datasource": "receive-datasource",
                 "catalogue": "catalogue",
             },
-            nginx_config=NginxConfig(server_name=self.hostname).config,
+            nginx_config=NginxConfig(
+                server_name=self.hostname,
+                upstream_configs= upstreams(),
+                server_ports_to_locations=server_ports_to_locations(),
+            ),
             workers_config=self.tempo.config,
             resources_requests=self.get_resources_requests,
             container_name="charm",

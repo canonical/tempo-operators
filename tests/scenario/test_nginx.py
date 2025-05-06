@@ -2,28 +2,17 @@ import logging
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-from typing import List
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from nginx_config import NginxConfig, _get_dns_ip_address
 from tempo import Tempo
+from cosl.coordinated_workers.nginx import NginxConfig
+from nginx_config import upstreams, server_ports_to_locations
 
 logger = logging.getLogger(__name__)
 sample_dns_ip = "198.18.0.0"
 
-
-def test_nginx_config_is_list_before_crossplane(context, nginx_container, coordinator):
-    nginx = NginxConfig("localhost")
-    prepared_config = nginx._prepare_config(coordinator)
-    assert isinstance(prepared_config, List)
-
-
-def test_nginx_config_is_parsed_by_crossplane(context, nginx_container, coordinator):
-    nginx = NginxConfig("localhost")
-    prepared_config = nginx.config(coordinator)
-    assert isinstance(prepared_config, str)
 
 
 @pytest.mark.parametrize(
@@ -67,9 +56,9 @@ def test_nginx_config_is_parsed_by_crossplane(context, nginx_container, coordina
 def test_nginx_config_is_parsed_with_workers(context, nginx_container, coordinator, addresses):
     coordinator.cluster.gather_addresses_by_role.return_value = addresses
 
-    nginx = NginxConfig("localhost")
+    nginx = NginxConfig("localhost",upstreams(), server_ports_to_locations())
 
-    prepared_config = nginx.config(coordinator)
+    prepared_config = nginx.get_config(coordinator.cluster.gather_addresses_by_role(), False)
     assert isinstance(prepared_config, str)
 
 
@@ -104,9 +93,9 @@ def test_nginx_config_contains_upstreams_and_proxy_pass(
 
     with mock_ipv6(ipv6):
         with mock_resolv_conf(f"nameserver {sample_dns_ip}"):
-            nginx = NginxConfig("localhost")
+            nginx = NginxConfig("localhost",upstreams(), server_ports_to_locations())
 
-    prepared_config = nginx.config(coordinator)
+    prepared_config = nginx.get_config(coordinator.cluster.gather_addresses_by_role(), tls)
     assert f"resolver {sample_dns_ip};" in prepared_config
 
     for role, addresses in addresses.items():
@@ -145,33 +134,12 @@ def _assert_config_per_role(source_dict, address, prepared_config, tls, ipv6):
 def mock_resolv_conf(contents: str):
     with tempfile.NamedTemporaryFile() as tf:
         Path(tf.name).write_text(contents)
-        with patch("nginx_config.RESOLV_CONF_PATH", tf.name):
+        with patch("cosl.coordinated_workers.nginx.RESOLV_CONF_PATH", tf.name):
             yield
 
 
 @contextmanager
 def mock_ipv6(enable: bool):
-    with patch("nginx_config.is_ipv6_enabled", MagicMock(return_value=enable)):
+    with patch("cosl.coordinated_workers.nginx.is_ipv6_enabled", MagicMock(return_value=enable)):
         yield
 
-
-@pytest.mark.parametrize(
-    "mock_contents, expected_dns_ip",
-    (
-        (f"foo bar\nnameserver {sample_dns_ip}", sample_dns_ip),
-        (f"nameserver {sample_dns_ip}\n foo bar baz", sample_dns_ip),
-        (
-            f"foo bar\nfoo bar\nnameserver {sample_dns_ip}\nnameserver 198.18.0.1",
-            sample_dns_ip,
-        ),
-    ),
-)
-def test_dns_ip_addr_getter(mock_contents, expected_dns_ip):
-    with mock_resolv_conf(mock_contents):
-        assert _get_dns_ip_address() == expected_dns_ip
-
-
-def test_dns_ip_addr_fail():
-    with pytest.raises(RuntimeError):
-        with mock_resolv_conf("foo bar"):
-            _get_dns_ip_address()

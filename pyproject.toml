@@ -7,10 +7,11 @@ requires-python = ">=3.10"
 
 dependencies = [
     "ops",
-    "cosl>=0.0.56",
+    "cosl>=0.1.0",
+    # FIXME: remove crossplane once https://github.com/canonical/cos-lib/issues/144 is fixed 
+    "crossplane",
     "cryptography",
     "jsonschema",
-    "crossplane",
     "pydantic<3",
     # ---PYDEPS---
     # lib/charms/tempo_coordinator_k8s/v0/charm_tracing.py
