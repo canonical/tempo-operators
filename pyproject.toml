@@ -47,7 +47,7 @@ dev = [
     "websockets<14.0",
 
 #   LINTING
-    "pyright",
+    "pyright<1.1.399", # 1.1.399 vendors typeshed that dropped Python 3.8 support
     "ruff",
 #   INTERFACE TESTS
     "pytest-interface-tester==3.3.1",
