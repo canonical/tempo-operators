@@ -97,6 +97,9 @@ def test_force_enable_protocols(juju: Juju):
         lambda status: jubilant.all_active(status, TEMPO_APP, WORKER_APP),
         error=jubilant.any_error,
         timeout=2000,
+        # wait for an idle period
+        delay=5,
+        successes=3,
     )
 
 

@@ -259,13 +259,26 @@ def emit_trace(
     """Use juju ssh to run tracegen from the tempo charm; to avoid any DNS issues."""
     # SCP tracegen script onto unit and install dependencies
     logger.info(f"pushing tracegen onto {TEMPO_APP}/0")
+    tracegen_deps = (
+        "protobuf==3.20.*",
+        "opentelemetry-exporter-otlp-proto-http==1.21.0",
+        "opentelemetry-exporter-otlp-proto-grpc",
+        "opentelemetry-exporter-zipkin",
+        "opentelemetry-exporter-jaeger",
+        # opentelemetry-exporter-jaeger complains about old generated protos
+        "protobuf==3.20.*",
+        # FIXME: thrift exporter uses thrift package that doesn't work with Python>=3.12
+        # There's a fix, but they haven't released a new version of thrift yet.
+        "thrift@git+https://github.com/apache/thrift.git@6e380306ef48af4050a61f2f91b3c8380d8e78fb#subdirectory=lib/py",
+    )
 
     juju.cli("scp", str(TRACEGEN_SCRIPT_PATH), f"{TEMPO_APP}/0:tracegen.py")
     juju.cli(
         "ssh",
         f"{TEMPO_APP}/0",
-        "python3 -m pip install protobuf==3.20.* opentelemetry-exporter-otlp-proto-grpc opentelemetry-exporter-otlp-proto-http"
-        + " opentelemetry-exporter-zipkin opentelemetry-exporter-jaeger",
+        # starting ubuntu@24.04, we can't install system-wide packages using `python -m pip install xyz`
+        # use uv to create a venv for tracegen 
+        f"apt update -y && apt install git -y && curl -LsSf https://astral.sh/uv/install.sh | sh && $HOME/.local/bin/uv venv && $HOME/.local/bin/uv pip install {' '.join(tracegen_deps)}",
     )
 
     cmd = (
@@ -276,13 +289,13 @@ def emit_trace(
         f"TRACEGEN_PROTOCOL={proto} "
         f"TRACEGEN_CERT={CA_CERT_PATH if use_cert else ''} "
         f"TRACEGEN_NONCE={nonce or ''} "
-        "python3 tracegen.py"
+        "$HOME/.local/bin/uv run tracegen.py"
     )
 
     logger.info(f"running tracegen with {cmd!r}")
 
-    out = subprocess.run(shlex.split(cmd), text=True, capture_output=True).stdout
-    logger.info(f"tracegen completed; stdout={out!r}")
+    out = subprocess.run(shlex.split(cmd), text=True, capture_output=True, check=True)
+    logger.info(f"tracegen completed; stdout={out.stdout!r}")
 
 
 def _get_endpoint(protocol: str, hostname: str, tls: bool):

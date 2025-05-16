@@ -8,7 +8,7 @@ requires-python = ">=3.10"
 dependencies = [
     "ops",
     "cosl>=0.1.0",
-    # FIXME: remove crossplane once https://github.com/canonical/cos-lib/issues/144 is fixed 
+    # FIXME: remove crossplane once https://github.com/canonical/cos-lib/issues/144 is fixed
     "crossplane",
     "cryptography",
     "jsonschema",
@@ -37,17 +37,11 @@ dev = [
     "requests",
     "minio",
     "tenacity==8.2.3",
-    # tracegen
-    "opentelemetry-exporter-otlp-proto-grpc",
-    "opentelemetry-exporter-zipkin",
-    "opentelemetry-exporter-jaeger",
-    # opentelemetry-exporter-jaeger complains about old generated protos
-    "protobuf==3.20.*",
     # https://github.com/juju/python-libjuju/issues/1184
     "websockets<14.0",
 
 #   LINTING
-    "pyright<1.1.399", # 1.1.399 vendors typeshed that dropped Python 3.8 support
+    "pyright",
     "ruff",
 #   INTERFACE TESTS
     "pytest-interface-tester==3.3.1",
