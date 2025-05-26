@@ -214,6 +214,26 @@ class TempoCoordinatorCharm(CharmBase):
         return socket.getfqdn()
 
     @property
+    def service_hostname(self) -> str:
+        """The FQDN of the k8s service associated with this application.
+        
+        This service load balances traffic across all application units.
+        Falls back to this unit's DNS name if the hostname does not resolve to a Kubernetes-style fqdn. 
+        """
+        # example: 'tempo-0.tempo-headless.default.svc.cluster.local'
+        hostname = self.hostname
+        hostname_parts = hostname.split(".") 
+        # 'svc' is always there in a K8s service fqdn 
+        # ref: https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#services
+        if "svc" not in hostname_parts:
+            logger.debug(f"expected K8s-style fqdn, but got {hostname} instead")
+            return hostname
+        
+        dns_name_parts = hostname_parts[hostname_parts.index("svc"):]
+        dns_name = '.'.join(dns_name_parts) # 'svc.cluster.local'
+        return f"{self.app.name}.{self.model.name}.{dns_name}" # 'tempo.model.svc.cluster.local'
+    
+    @property
     def _external_http_server_url(self) -> str:
         """External url of the http(s) server."""
         return f"{self._most_external_url}:{Tempo.tempo_http_server_port}"
@@ -239,12 +259,7 @@ class TempoCoordinatorCharm(CharmBase):
         external_url = self._external_url
         if external_url:
             return external_url
-        # If we do not have an ingress, then use the pod hostname.
-        # The reason to prefer this over the pod name (which is the actual
-        # hostname visible from the pod) or a K8s service, is that those
-        # are routable virtually exclusively inside the cluster (as they rely)
-        # on the cluster's DNS service, while the ip address is _sometimes_
-        # routable from the outside, e.g., when deploying on MicroK8s on Linux.
+        # If we do not have an ingress, then use the K8s service.
         return self._internal_url
 
     @property
@@ -257,8 +272,8 @@ class TempoCoordinatorCharm(CharmBase):
 
     @property
     def _internal_url(self) -> str:
-        """Return the locally addressable, FQDN based unit address."""
-        return f"{self._scheme}://{self.hostname}"
+        """Return the locally addressable, FQDN based service address."""
+        return f"{self._scheme}://{self.service_hostname}"
 
     @property
     def are_certificates_on_disk(self) -> bool:

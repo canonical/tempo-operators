@@ -60,7 +60,8 @@ def tempo_charm(tmp_path):
                         get_status=lambda _: ActiveStatus(""),
                         is_ready=lambda _: True,
                     ):
-                        yield TempoCoordinatorCharm
+                        with patch("socket.getfqdn", return_value="localhost"):
+                            yield TempoCoordinatorCharm
 
 
 @pytest.fixture(scope="function")
