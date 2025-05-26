@@ -10,7 +10,7 @@ from charms.tempo_coordinator_k8s.v0.tracing import (
     TransportProtocolType,
     receiver_protocol_to_transport_protocol,
 )
-from cosl.coordinated_workers.nginx import (
+from coordinated_workers.nginx import (
     NginxLocationConfig,
     NginxUpstream
 )

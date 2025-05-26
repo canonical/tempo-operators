@@ -22,7 +22,7 @@ TESTER_GRPC_APP_NAME = TESTER_GRPC_METADATA["name"]
 def test_build_deploy_tester(juju: Juju):
     out = pack_charm("./tests/integration/tester/")
     juju.deploy(
-        f"./{out.charm}",
+        f"{out.charm}",
         TESTER_APP_NAME,
         resources=out.resources,
         num_units=3,
@@ -32,7 +32,7 @@ def test_build_deploy_tester(juju: Juju):
 def test_build_deploy_tester_grpc(juju: Juju):
     out = pack_charm("./tests/integration/tester-grpc/")
     juju.deploy(
-        f"./{out.charm}",
+        f"{out.charm}",
         TESTER_GRPC_APP_NAME,
         resources=out.resources,
         num_units=3,

@@ -7,16 +7,16 @@ requires-python = ">=3.10"
 
 dependencies = [
     "ops",
-    "cosl>=0.1.0",
-    # FIXME: remove crossplane once https://github.com/canonical/cos-lib/issues/144 is fixed
-    "crossplane",
-    "cryptography",
-    "jsonschema",
+    "cosl>=1.0.0",
+    "coordinated-workers",
     "pydantic<3",
     # ---PYDEPS---
     # lib/charms/tempo_coordinator_k8s/v0/charm_tracing.py
     "opentelemetry-exporter-otlp-proto-http==1.21.0",
     "jubilant>=0.4.1",
+    # lib/charms/tls_certificates_interface/v3/tls_certificates.py
+    "cryptography",
+    "jsonschema",
 ]
 
 [project.optional-dependencies]

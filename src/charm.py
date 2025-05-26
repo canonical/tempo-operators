@@ -37,8 +37,8 @@ from charms.tempo_coordinator_k8s.v0.tracing import (
     receiver_protocol_to_transport_protocol,
 )
 from charms.traefik_k8s.v0.traefik_route import TraefikRouteRequirer
-from cosl.coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
-from cosl.coordinated_workers.nginx import (
+from coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
+from coordinated_workers.nginx import (
     CA_CERT_PATH,
     CERT_PATH,
     KEY_PATH,

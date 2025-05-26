@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from tempo import Tempo
-from cosl.coordinated_workers.nginx import NginxConfig
+from coordinated_workers.nginx import NginxConfig
 from nginx_config import upstreams, server_ports_to_locations
 
 logger = logging.getLogger(__name__)
@@ -134,12 +134,12 @@ def _assert_config_per_role(source_dict, address, prepared_config, tls, ipv6):
 def mock_resolv_conf(contents: str):
     with tempfile.NamedTemporaryFile() as tf:
         Path(tf.name).write_text(contents)
-        with patch("cosl.coordinated_workers.nginx.RESOLV_CONF_PATH", tf.name):
+        with patch("coordinated_workers.nginx.RESOLV_CONF_PATH", tf.name):
             yield
 
 
 @contextmanager
 def mock_ipv6(enable: bool):
-    with patch("cosl.coordinated_workers.nginx.is_ipv6_enabled", MagicMock(return_value=enable)):
+    with patch("coordinated_workers.nginx.is_ipv6_enabled", MagicMock(return_value=enable)):
         yield
 

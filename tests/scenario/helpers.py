@@ -1,5 +1,5 @@
 import scenario
-from cosl.coordinated_workers.interface import ClusterProviderAppData
+from coordinated_workers.interfaces.cluster import ClusterProviderAppData
 
 
 def get_tempo_config(state: scenario.State):

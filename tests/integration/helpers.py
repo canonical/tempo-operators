@@ -9,7 +9,7 @@ from typing import Optional, Sequence, Union
 import jubilant
 import requests
 import yaml
-from cosl.coordinated_workers.nginx import CA_CERT_PATH
+from coordinated_workers.nginx import CA_CERT_PATH
 from jubilant import Juju
 from minio import Minio
 from pytest_jubilant import pack_charm

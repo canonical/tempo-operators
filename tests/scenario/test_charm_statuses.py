@@ -69,7 +69,7 @@ def test_happy_status(
 
 
 @patch(
-    "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch.get_status",
+    "coordinated_workers.coordinator.KubernetesComputeResourcesPatch.get_status",
     MagicMock(return_value=ops.BlockedStatus("`juju trust` this application")),
 )
 @patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
@@ -94,7 +94,7 @@ def test_k8s_patch_failed(
 
 
 @patch(
-    "cosl.coordinated_workers.coordinator.KubernetesComputeResourcesPatch.get_status",
+    "coordinated_workers.coordinator.KubernetesComputeResourcesPatch.get_status",
     MagicMock(return_value=ops.WaitingStatus("waiting")),
 )
 @patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)

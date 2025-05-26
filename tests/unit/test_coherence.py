@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest as pytest
-from cosl.coordinated_workers.coordinator import Coordinator
+from coordinated_workers.coordinator import Coordinator
 
 from tempo_config import (
     MINIMAL_DEPLOYMENT,
@@ -11,7 +11,7 @@ from tempo_config import (
 )
 
 
-@patch("cosl.coordinated_workers.coordinator.Coordinator.__init__", return_value=None)
+@patch("coordinated_workers.coordinator.Coordinator.__init__", return_value=None)
 @pytest.mark.parametrize(
     "roles, expected",
     (
@@ -34,7 +34,7 @@ def test_coherent(mock_coordinator, roles, expected):
     assert mc.is_coherent is expected
 
 
-@patch("cosl.coordinated_workers.coordinator.Coordinator.__init__", return_value=None)
+@patch("coordinated_workers.coordinator.Coordinator.__init__", return_value=None)
 @pytest.mark.parametrize(
     "roles, expected",
     (

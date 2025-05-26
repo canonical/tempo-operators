@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pydantic
-from cosl.coordinated_workers.coordinator import ClusterRolesConfig
+from coordinated_workers.coordinator import ClusterRolesConfig
 from pydantic import BaseModel, ConfigDict, Field
 
 logger = logging.getLogger(__name__)

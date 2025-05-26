@@ -7,7 +7,7 @@ import pytest
 import scenario
 from charms.tempo_coordinator_k8s.v0.tracing import TracingRequirerAppData
 from charms.tls_certificates_interface.v3.tls_certificates import ProviderCertificate
-from cosl.coordinated_workers.interface import ClusterProvider, ClusterProviderAppData
+from coordinated_workers.interfaces.cluster import ClusterProvider, ClusterProviderAppData
 from scenario import Relation, State
 
 from charm import TempoCoordinatorCharm
