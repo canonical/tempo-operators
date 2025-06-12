@@ -1,38 +1,18 @@
 variable "app_name" {
-  description = "Application name"
+  description = "Name to give the deployed application"
   type        = string
   default     = "tempo"
 }
 
-#Defaulting to latest/edge instead of stable as its not yet released
 variable "channel" {
-  description = "Charm channel"
+  description = "Channel that the charm is deployed from"
   type        = string
-  default     = "latest/edge"
 }
-
 
 variable "config" {
-  description = "Charm config options as in the ones we pass in juju config"
-  type        = map(any)
+  description = "Map of the charm configuration options"
+  type        = map(string)
   default     = {}
-}
-
-variable "model_name" {
-  description = "Model name"
-  type        = string
-}
-
-variable "revision" {
-  description = "Charm revision"
-  type        = number
-  default     = null
-}
-
-variable "units" {
-  description = "Number of units"
-  type        = number
-  default     = 1
 }
 
 # We use constraints to set AntiAffinity in K8s
@@ -43,4 +23,27 @@ variable "constraints" {
   # FIXME: Passing an empty constraints value to the Juju Terraform provider currently
   # causes the operation to fail due to https://github.com/juju/terraform-provider-juju/issues/344
   default = "arch=amd64"
+}
+
+variable "model" {
+  description = "Reference to an existing model resource or data source for the model to deploy to"
+  type        = string
+}
+
+variable "revision" {
+  description = "Revision number of the charm"
+  type        = number
+  default     = null
+}
+
+variable "storage_directives" {
+  description = "Map of storage used by the application, which defaults to 1 GB, allocated by Juju"
+  type        = map(string)
+  default     = {}
+}
+
+variable "units" {
+  description = "Unit count/scale"
+  type        = number
+  default     = 1
 }
