@@ -1,0 +1,208 @@
+name: Integration Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+      - track/**
+  push:
+    branches:
+      - main
+      - track/**
+
+jobs:
+  modes-matrix:
+    name: Detect Changed Files and Define Test Modes
+    runs-on: ubuntu-latest
+    outputs:
+      modes: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+      # check coordinator changes
+      - name: Determine changed files in the coordinator
+        id: coord-changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: coordinator/**
+          files_ignore: |
+            README.md
+            CONTRIBUTING.md
+            INTEGRATING.md
+            CODEOWNERS
+            LICENSE
+            icon.svg
+            .gitignore
+            .github/**
+
+      # check worker changes
+      - name: Determine changed files in the worker
+        id: worker-changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: worker/**
+          files_ignore: |
+            README.md
+            CONTRIBUTING.md
+            INTEGRATING.md
+            CODEOWNERS
+            LICENSE
+            icon.svg
+            .gitignore
+            .github/**
+
+      # check top-level changes
+      - name: Determine changed files in the root level
+        id: root-changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: "*"
+          files_ignore: |
+            README.md
+            CONTRIBUTING.md
+            INTEGRATING.md
+            CODEOWNERS
+            LICENSE
+            icon.svg
+            .gitignore
+            .github/**
+            worker/**
+            coordinator/**
+
+      - name: Determine test modes matrix
+        id: set-matrix
+        run: |
+          modes=()
+          if [[ "${{ steps.root-changed-files.outputs.any_modified }}" == "true" || \
+              ( "${{ steps.coord-changed-files.outputs.any_modified }}" == "true" && "${{ steps.worker-changed-files.outputs.any_modified }}" == "true" ) ]]; then
+            modes+=("local-both")
+          fi
+          if [[ "${{ steps.coord-changed-files.outputs.any_modified }}" == "true" ]]; then
+            modes+=("local-coordinator")
+          fi
+          if [[ "${{ steps.worker-changed-files.outputs.any_modified }}" == "true" ]]; then
+            modes+=("local-worker")
+          fi
+          # convert to JSON array
+          matrix=$(printf '%s\n' "${modes[@]}" | grep -v '^$' | jq -r -ncR '[inputs]')
+          echo "matrix=$matrix"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  pack-charms:
+      name: Pack The Coordinator & Worker Charms
+      needs: [modes-matrix]
+      if: ${{ needs.modes-matrix.outputs.modes != '[]' }}
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+        - name: Setup LXD
+          uses: canonical/setup-lxd@main
+        - name: Install charmcraft
+          run: sudo snap install charmcraft --classic
+        - name: Cache wheels
+          uses: actions/cache@v4
+          with:
+              path: /home/runner/snap/charmcraft/common/cache/charmcraft
+              key: ${{ runner.os }}-wheel-cache-${{ hashFiles('./uv.lock') }}
+              # If the above cache key doesn't match, it's because the uv.lock has changed.
+              # Even so, pre-existing caches may still contain useful cached builds for some
+              # portion of the dependencies, and restore-keys can partially match a cache.
+              restore-keys: |
+                  ${{ runner.os }}-wheel-cache-
+        - name: Run charmcraft pack on the coordinator
+          run: |
+            cd coordinator
+            charmcraft pack -v
+        - name: Run charmcraft pack on the worker
+          run: |
+            cd worker
+            charmcraft pack -v
+        - name: Upload coordinator charm artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: coordinator-charms-tests
+            path: coordinator/*.charm
+        - name: Upload worker charm artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: worker-charms-tests
+            path: worker/*.charm
+
+  integration-matrix:
+      name: Define Integration Tests Matrix
+      runs-on: ubuntu-latest
+      needs: [pack-charms]
+      outputs:
+          suites: ${{ steps.suites.outputs.suites }}
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+        - name: Generate matrix list
+          id: suites
+          run: |
+              list="$(find tests/integration -name 'test_*.py' -printf '%f\n' | jq -r -ncR '[inputs]')"
+              echo "suites=$list"
+              echo "suites=$list" >> "$GITHUB_OUTPUT"
+
+  integration-test:
+      name: Integration Tests (${{ matrix.mode }} | ${{ matrix.suite }})
+      runs-on: ubuntu-latest
+      needs: [modes-matrix, pack-charms, integration-matrix]
+      strategy:
+          fail-fast: false
+          matrix:
+              suite: ${{ fromJSON(needs.integration-matrix.outputs.suites) }}
+              # Run the solution-level integration tests in the following deployment modes.
+              mode: ${{ fromJson(needs.modes-matrix.outputs.modes) }}
+      env:
+          CONCIERGE_JUJU_CHANNEL: 3.6/stable
+          CONCIERGE_MICROK8S_CHANNEL: 1.32-strict/stable
+          CONCIERGE_CHARMCRAFT_CHANNEL: 3.x/candidate
+      steps:
+          - name: Checkout
+            uses: actions/checkout@v4
+          - name: Install dependencies
+            run: |
+              sudo snap install concierge --classic
+              sudo concierge prepare -p microk8s --extra-snaps=astral-uv
+              sudo snap install kubectl --classic
+              juju model-defaults automatically-retry-hooks=true
+          - name: Download coordinator charm artifact
+            uses: actions/download-artifact@v4
+            with:
+              name: coordinator-charms-tests
+              path: ./coordinator
+          - name: Download worker charm artifact
+            uses: actions/download-artifact@v4
+            with:
+              name: worker-charms-tests
+              path: ./worker
+          - name: Run integration tests
+            run: |
+              coord_relative_path="$(find ./coordinator -maxdepth 1 -name '*.charm' | tail -n1)"
+              worker_relative_path="$(find ./worker -maxdepth 1 -name '*.charm' | tail -n1)"
+              channel="2/edge"
+              if [ "${{ matrix.mode }}" = "local-coordinator" ]; then
+                  COORDINATOR_CHARM_PATH="$(realpath "$coord_relative_path")"
+                  export COORDINATOR_CHARM_PATH
+                  WORKER_CHARM_CHANNEL="$channel"
+                  export WORKER_CHARM_CHANNEL
+              elif [ "${{ matrix.mode }}" = "local-worker" ]; then
+                  WORKER_CHARM_PATH="$(realpath "$worker_relative_path")"
+                  export WORKER_CHARM_PATH
+                  COORDINATOR_CHARM_CHANNEL="$channel"
+                  export COORDINATOR_CHARM_CHANNEL
+              elif [ "${{ matrix.mode }}" = "local-both" ]; then
+                  COORDINATOR_CHARM_PATH="$(realpath "$coord_relative_path")"
+                  export COORDINATOR_CHARM_PATH
+                  WORKER_CHARM_PATH="$(realpath "$worker_relative_path")"
+                  export WORKER_CHARM_PATH
+              else
+                  echo "Unknown mode: ${{ matrix.mode }}"
+                  exit 1
+              fi
+              uvx tox -e integration -- -k "${{ matrix.suite }}"
