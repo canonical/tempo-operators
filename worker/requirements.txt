@@ -60,7 +60,7 @@ ops==2.18.1
     # via
     #   tempo-worker-k8s-operator (pyproject.toml)
     #   cosl
-protobuf==4.25.6
+protobuf==4.25.8
     # via
     #   googleapis-common-protos
     #   opentelemetry-proto
