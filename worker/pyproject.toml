@@ -1,0 +1,77 @@
+# Testing tools configuration
+[project]
+name = "tempo-worker-k8s-operator"
+version = "0.1.0"
+requires-python = ">=3.10"
+
+dependencies = [
+    "ops",
+    "cosl>=0.0.56",
+    "pydantic <3",
+    # ---PYDEPS---
+    # lib/charms/tempo_coordinator_k8s/v0/charm_tracing.py
+    "opentelemetry-exporter-otlp-proto-http==1.21.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "coverage[toml]",
+    "ops[testing]",
+    "pyright",
+    "ruff",
+]
+
+[tool.coverage.run]
+branch = true
+parallel = true
+source = ["src"]
+omit = ["tests/**", "lib/**"]
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+log_cli_level = "INFO"
+asyncio_mode = "auto"
+testpaths = [
+    "tests/unit",
+    "tests/scenario"
+]
+addopts = "--tb=native --verbose --capture=no --log-cli-level=INFO"
+
+# Formatting tools configuration
+[tool.black]
+line-length = 99
+target-version = ["py38"]
+
+# Linting tools configuration
+[lint]
+line-length = 99
+select = ["E", "W", "F", "C", "N", "D", "I001"]
+extend-ignore = [
+    "D105", # Missing docstring in magic method
+    "D203",
+    "D204",
+    "D213",
+    "D215",
+    "D400",
+    "D404",
+    "D406",
+    "D407",
+    "D408",
+    "D409",
+    "D413",
+]
+ignore = ["E501", "D107"]
+extend-exclude = ["__pycache__", "*.egg_info"]
+per-file-ignores = { "tests/*" = ["D100", "D101", "D102", "D103", "D104"] }
+
+[pydocstyle]
+convention = "google"
+
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.8"
+pythonPlatform = "Linux"

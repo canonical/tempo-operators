@@ -1,0 +1,23 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+[project]
+name = "pyroscope-k8s"
+version = "0.1"  # this is in fact irrelevant
+requires-python = ">=3.12"
+
+
+[project.optional-dependencies]
+dev = [
+    #INTEGRATION TESTS
+    "jubilant",
+    "pytest-jubilant>=0.2.1",
+    "minio",
+]
+
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+log_cli_level = "INFO"
+markers = ["setup", "teardown"]
+
+
