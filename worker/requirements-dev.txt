@@ -99,7 +99,7 @@ pyyaml==6.0.2
     #   lightkube
     #   ops
     #   ops-scenario
-requests==2.32.3
+requests==2.32.4
     # via opentelemetry-exporter-otlp-proto-http
 ruff==0.9.7
     # via tempo-worker-k8s-operator (pyproject.toml)
