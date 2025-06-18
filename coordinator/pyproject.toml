@@ -1,0 +1,111 @@
+# Copyright 2022 Canonical Ltd.
+# See LICENSE file for licensing details.
+[project]
+name = "tempo-coordinator-k8s"
+version = "0.1"  # this is in fact irrelevant
+requires-python = ">=3.10"
+
+dependencies = [
+    "ops",
+    "cosl>=1.0.0",
+    "coordinated-workers",
+    "pydantic<3",
+    # ---PYDEPS---
+    # lib/charms/tempo_coordinator_k8s/v0/charm_tracing.py
+    "opentelemetry-exporter-otlp-proto-http==1.21.0",
+    "jubilant>=0.4.1",
+    # lib/charms/tls_certificates_interface/v3/tls_certificates.py
+    "cryptography",
+    "jsonschema",
+]
+
+[project.optional-dependencies]
+dev = [
+#   UNIT TESTS
+    "pytest",
+    "pytest-cov",
+    "coverage[toml]",
+    # FIXME: 2.21.0 adds tracing support and breaks some charm-tracing unittests
+    "ops[testing]==2.20.0",
+
+#   CATAN TESTS: see https://github.com/canonical/tempo-coordinator-k8s-operator/issues/145
+#   "catan@git+https://github.com/pietropasotti/catan.git@main"
+
+#   INTEGRATION TESTS
+    "jubilant",
+    "pytest-jubilant>=0.3",
+    "requests",
+    "minio",
+    "tenacity==8.2.3",
+    # https://github.com/juju/python-libjuju/issues/1184
+    "websockets<14.0",
+
+#   LINTING
+    "pyright",
+    "ruff",
+#   INTERFACE TESTS
+    "pytest-interface-tester==3.3.1",
+]
+
+[tool.pyright]
+extraPaths = ["lib"]
+pythonVersion = "3.8"
+pythonPlatform = "All"
+
+[build]
+build-base = "/tmp/build"
+
+[egg_info]
+egg-base = "/tmp"
+
+# Testing tools configuration
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+log_cli_level = "INFO"
+markers = ["setup", "teardown"]
+
+# Formatting tools configuration
+[tool.isort]
+profile = "black"
+
+[tool.black]
+line-length = 99
+target-version = ["py38"]
+
+# Linting tools configuration
+[lint]
+line-length = 99
+select = ["E", "W", "F", "C", "N", "D", "I001"]
+extend-ignore = [
+    "D203",
+    "D204",
+    "D213",
+    "D215",
+    "D400",
+    "D404",
+    "D406",
+    "D407",
+    "D408",
+    "D409",
+    "D413",
+]
+ignore = ["E501", "D107"]
+extend-exclude = ["__pycache__", "*.egg_info", "*integration/tester*"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D100","D101","D102","D103","D104"]
+# Remove charm_tracing.py E402 when _remove_stale_otel_sdk_packages() is removed
+# from the library
+"lib/charms/tempo_coordinator_k8s/v0/charm_tracing.py" = ["E402"]
+
+[lint.mccabe]
+max-complexity = 10
+
+[tool.codespell]
+skip = "build,lib,venv,icon.svg,.tox,.git,.mypy_cache,.ruff_cache,.vscode,.coverage"
