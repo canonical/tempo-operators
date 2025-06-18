@@ -1,0 +1,174 @@
+# This file configures Charmcraft.
+# See https://juju.is/docs/sdk/charmcraft-config for guidance.
+
+type: charm
+name: tempo-worker-k8s
+title: Tempo Charmed Operator worker node
+
+assumes:
+  - k8s-api
+  - juju >= 3.6.0
+
+summary: Tempo for Kubernetes clusters.
+description: |
+  Grafana Tempo is an open source software project that provides a scalable distributed tracing backend.
+  This charm deploys and operates Tempo on Kubernetes clusters.
+
+links:
+  documentation: https://discourse.charmhub.io/t/tempo-worker-k8s-index/15420
+  source: https://github.com/canonical/tempo-worker-k8s-operator
+  issues: https://github.com/canonical/tempo-worker-k8s-operator/issues
+
+
+# relations
+
+requires:
+  tempo-cluster:
+    interface: tempo_cluster
+    optional: false
+    limit: 1
+
+storage:
+  data:
+    type: filesystem
+    description: Common storage point for all components
+
+
+# workloads
+
+containers:
+  tempo:
+    resource: tempo-image
+    mounts:
+      - storage: data
+        location: /data
+
+resources:
+  tempo-image:
+    type: oci-image
+    description: OCI image for Grafana Tempo
+    upstream-source: ghcr.io/canonical/oci-factory/tempo:2.7.1-24.04_5
+
+
+# config
+
+config:
+  options:
+    role-all:
+      type: boolean
+      default: true
+      description: |
+        Configure the application to run with all roles enabled. This is the default configuration. 
+        This is a meta-role that configures the application to enable all other roles. Under the hood, the `all` role
+        is mapped to Tempo's `scalable-single-binary`.
+             
+        Each Tempo application can only have exactly one `role-X` config set to `true` at any given time. 
+        So if you want to configure this app to run with a role other than `all`, remember to set `all` to `false`.
+        Invalid configurations will result in the component to stop working and the app to set blocked status.
+        
+        Note that for a tempo deployment as a whole to be consistent, each role 
+        (except the optional 'metrics-generator') needs to be assigned to at least one worker node. If this condition
+        is not met, the coordinator charm will set blocked status and the deployment will shut down.
+
+    role-querier:
+      type: boolean
+      default: false
+      description: |
+        Configure the application to run as this Tempo role. Each Tempo application can only have exactly one 
+        `role-X` config set to `true`. So if you want to enable a role, remember to set all other roles to `false`.
+        Invalid configurations will result in the component to stop working and the app to set blocked status.
+        
+        Note that for a tempo deployment as a whole to be consistent, each role 
+        (except the optional 'metrics-generator') needs to be assigned to at least one worker node. If this condition
+        is not met, the coordinator charm will set blocked status and the deployment will shut down.
+
+    role-query-frontend:
+      type: boolean
+      default: false
+      description: |
+        Configure the application to run as this Tempo role. Each Tempo application can only have exactly one 
+        `role-X` config set to `true`. So if you want to enable a role, remember to set all other roles to `false`.
+        Invalid configurations will result in the component to stop working and the app to set blocked status.
+        
+        Note that for a tempo deployment as a whole to be consistent, each role 
+        (except the optional 'metrics-generator') needs to be assigned to at least one worker node. If this condition
+        is not met, the coordinator charm will set blocked status and the deployment will shut down.
+
+    role-ingester:
+      type: boolean
+      default: false
+      description: |
+        Configure the application to run as this Tempo role. Each Tempo application can only have exactly one 
+        `role-X` config set to `true`. So if you want to enable a role, remember to set all other roles to `false`.
+        Invalid configurations will result in the component to stop working and the app to set blocked status.
+        
+        Note that for a tempo deployment as a whole to be consistent, each role 
+        (except the optional 'metrics-generator') needs to be assigned to at least one worker node. If this condition
+        is not met, the coordinator charm will set blocked status and the deployment will shut down.
+
+    role-distributor:
+      type: boolean
+      default: false
+      description: |
+        Configure the application to run as this Tempo role. Each Tempo application can only have exactly one 
+        `role-X` config set to `true`. So if you want to enable a role, remember to set all other roles to `false`.
+        Invalid configurations will result in the component to stop working and the app to set blocked status.
+        
+        Note that for a tempo deployment as a whole to be consistent, each role 
+        (except the optional 'metrics-generator') needs to be assigned to at least one worker node. If this condition
+        is not met, the coordinator charm will set blocked status and the deployment will shut down.
+
+    role-compactor:
+      type: boolean
+      default: false
+      description: |
+        Configure the application to run as this Tempo role. Each Tempo application can only have exactly one 
+        `role-X` config set to `true`. So if you want to enable a role, remember to set all other roles to `false`.
+        Invalid configurations will result in the component to stop working and the app to set blocked status.
+        
+        Note that for a tempo deployment as a whole to be consistent, each role 
+        (except the optional 'metrics-generator') needs to be assigned to at least one worker node. If this condition
+        is not met, the coordinator charm will set blocked status and the deployment will shut down.
+
+    role-metrics-generator:
+      type: boolean
+      default: false
+      description: |
+        Configure the application to run as this Tempo role. Each Tempo application can only have exactly one 
+        `role-X` config set to `true`. So if you want to enable a role, remember to set all other roles to `false`.
+        Invalid configurations will result in the component to stop working and the app to set blocked status.
+        
+        Note that for a tempo deployment as a whole to be consistent, each role 
+        (except the optional 'metrics-generator') needs to be assigned to at least one worker node. If this condition
+        is not met, the coordinator charm will set blocked status and the deployment will shut down.
+    cpu_limit:
+      description: |
+        K8s cpu resource limit, e.g. "1" or "500m". Default is unset (no limit). This value is used
+        for the "limits" portion of the resource requirements.
+        See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+      type: string
+    memory_limit:
+      description: |
+        K8s memory resource limit, e.g. "1Gi". Default is unset (no limit). This value is used
+        for the "limits" portion of the resource requirements.
+        See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+      type: string
+      
+# build info
+
+platforms:
+  ubuntu@24.04:amd64:
+
+
+parts:
+  charm:
+    source: .
+    plugin: uv
+    build-snaps: [ astral-uv ]
+    build-packages:
+      - git
+      - cargo
+      - rustc
+    override-build: |
+      craftctl default
+      git describe --always > $CRAFT_PART_INSTALL/version

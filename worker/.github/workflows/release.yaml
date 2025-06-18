@@ -1,0 +1,20 @@
+name: Release Charm
+
+on:
+  push:
+    branches:
+      - main
+      - track/**
+    paths-ignore:
+      - ".github/renovate*"
+      - ".github/workflows/release.yaml"
+      - ".github/workflows/renovate.yaml"
+      - ".github/workflows/update-libs.yaml"
+      - ".gitignore"
+
+jobs:
+  release:
+    uses: canonical/observability/.github/workflows/charm-release.yaml@v1
+    secrets: inherit
+    with:
+      default-track: 2
