@@ -231,7 +231,7 @@ def _tls_ctx(active:bool, juju: Juju, distributed: bool):
     logger.info("adding TLS")
     juju.deploy("self-signed-certificates", SSC_APP)
     juju.integrate(SSC_APP, TEMPO_APP)
-    juju.integrate(SSC_APP, S3_APP)
+    juju.integrate(SSC_APP+":certificates", S3_APP+":certificates")
 
     logger.info("waiting for active...")
     juju.wait(
