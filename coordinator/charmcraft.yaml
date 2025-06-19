@@ -152,9 +152,11 @@ parts:
     plugin: uv
     build-packages: [git] # handy for git+ dependencies during development
     build-snaps: [astral-uv]
-    override-build: |
-      craftctl default
-      git describe --always > $CRAFT_PART_INSTALL/version
+# FIXME: override-build with "git describe --always > $CRAFT_PART_INSTALL/version" causes
+#  charm pack to fail "fatal: not a git repository (or any of the parent directories): .git"
+#    override-build: |
+#      craftctl default
+#      git describe --always > $CRAFT_PART_INSTALL/version
 
 config:
   options:
