@@ -3,8 +3,7 @@
 import logging
 import os
 import subprocess
-from contextlib import contextmanager, nullcontext
-from functools import partial
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Literal, Sequence
 
@@ -16,8 +15,6 @@ from pytest_jubilant import pack_charm, get_resources
 
 from tests.integration.helpers import get_unit_ip_address
 
-ACCESS_KEY = "accesskey"
-SECRET_KEY = "secretkey"
 BUCKET_NAME = "tempo"
 MINIO_APP = "minio"
 SSC_APP = "ssc"
@@ -36,6 +33,13 @@ ALL_ROLES = [
     "metrics_generator",
 ]
 ALL_WORKERS = [f"{WORKER_APP}-" + role for role in ALL_ROLES]
+
+ACCESS_KEY = "accesskey"
+SECRET_KEY = "secretkey"
+S3_CREDENTIALS = {
+    "access-key": ACCESS_KEY,
+    "secret-key": SECRET_KEY,
+}
 
 logger = logging.getLogger(__name__)
 
@@ -153,46 +157,49 @@ def _deploy_distributed_cluster(juju: Juju, roles: Sequence[str] = tuple(ALL_ROL
     _deploy_cluster(juju, all_workers, coordinator_deployed_as=coordinator_deployed_as)
 
 
-def _deploy_s3(juju: Juju):
-    """Deploys S3 integrator and s3 backend applications."""
-    # todo replace with seaweedfs once it has TLS support
-    juju.deploy(S3_APP, channel="edge")
-    keys = {
-        "access-key": ACCESS_KEY,
-        "secret-key": SECRET_KEY,
-    }
-    juju.deploy(MINIO_APP, channel="edge", trust=True, config=keys)
-    logger.info(f"waiting for {MINIO_APP} to become active...")
+def deploy_s3(juju, bucket_name: str, s3_integrator_app: str):
+    logger.info(f"deploying {s3_integrator_app=}")
+    juju.deploy("s3-integrator", s3_integrator_app, channel="2/edge", base="ubuntu@24.04")
+
+    logger.info(f"provisioning {bucket_name=} on {s3_integrator_app=}")
+    minio_addr = get_unit_ip_address(juju, MINIO_APP, 0)
+    mc_client = Minio(
+        f"{minio_addr}:9000",
+        **{key.replace('-', '_'): value for key, value in S3_CREDENTIALS.items()},
+        secure=False,
+    )
+    # create pyroscope bucket
+    found = mc_client.bucket_exists(bucket_name)
+    if not found:
+        mc_client.make_bucket(bucket_name)
+
+    logger.info("configuring s3 integrator...")
+    secret_uri = juju.cli("add-secret", f"{s3_integrator_app}-creds", *(f"{key}={val}" for key, val in S3_CREDENTIALS.items()))
+    juju.cli("grant-secret", f"{s3_integrator_app}-creds", s3_integrator_app)
+
+    # configure s3-integrator
+    juju.config(s3_integrator_app, {
+        "endpoint": f"minio-0.minio-endpoints.{juju.model}.svc.cluster.local:9000",
+        "bucket": bucket_name,
+        "credentials": secret_uri.strip()
+    })
+
+
+def _deploy_and_configure_minio(juju: Juju):
+    juju.deploy(MINIO_APP, channel="edge", trust=True, config=S3_CREDENTIALS)
     juju.wait(
         lambda status: status.apps[MINIO_APP].is_active,
         error=jubilant.any_error,
-        timeout=2000,
-        delay=5
-    )
-    minio_addr = get_unit_ip_address(juju, MINIO_APP, 0)
-
-    mc_client = Minio(
-        f"{minio_addr}:9000",
-        access_key=ACCESS_KEY,
-        secret_key=SECRET_KEY,
-        secure=False,
+        delay=5,
+        successes=3,
+        timeout=2000
     )
 
-    # create tempo bucket
-    found = mc_client.bucket_exists(BUCKET_NAME)
-    if not found:
-        mc_client.make_bucket(BUCKET_NAME)
-
-    # configure s3-integrator
-    juju.config(S3_APP, {
-        "endpoint": f"minio-0.minio-endpoints.{juju.model}.svc.cluster.local:9000",
-        "bucket": BUCKET_NAME,
-    })
-    task = juju.run(S3_APP + "/0", "sync-s3-credentials", params=keys)
-    assert task.status == "completed"
 
 
 def _deploy_cluster(juju: Juju, workers: Sequence[str], coordinator_deployed_as: str = None):
+    logger.info("deploying cluster")
+
     if coordinator_deployed_as:
         coordinator_app = coordinator_deployed_as
     else:
@@ -204,21 +211,21 @@ def _deploy_cluster(juju: Juju, workers: Sequence[str], coordinator_deployed_as:
         )
         coordinator_app = TEMPO_APP
 
-    logger.info(f"deploying S3")
-    _deploy_s3(juju)
-
-    juju.integrate(coordinator_app + ":s3", S3_APP + ":s3-credentials")
     for worker in workers:
-        juju.integrate(coordinator_app, worker)
+        juju.integrate(coordinator_app + ":pyroscope-cluster", worker + ":pyroscope-cluster")
 
-    logger.info("waiting for active...")
+    _deploy_and_configure_minio(juju)
+
+    deploy_s3(juju, bucket_name=BUCKET_NAME, s3_integrator_app=S3_APP)
+    juju.integrate(coordinator_app + ":s3", S3_APP + ":s3-credentials")
+
+    logger.info("waiting for cluster to be active/idle...")
     juju.wait(
         lambda status: jubilant.all_active(status, coordinator_app, *workers, S3_APP),
         timeout=2000,
         delay=5,
         successes=3,
     )
-    logger.info("S3 deployed.")
 
 
 @contextmanager

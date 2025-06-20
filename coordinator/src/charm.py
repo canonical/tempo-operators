@@ -13,6 +13,7 @@ from subprocess import CalledProcessError, getoutput
 from typing import Any, Dict, List, Optional, Set, Tuple, cast, get_args
 
 import ops
+import ops_tracing
 
 # wokeignore:rule=blackbox
 from charms.blackbox_exporter_k8s.v0.blackbox_probes import (
@@ -77,6 +78,23 @@ class TempoCoordinator(Coordinator):
             return super()._workload_tracing_receivers_urls
         # return this instance's endpoints
         return self._charm.requested_receivers_urls()  # type: ignore
+
+    def _setup_charm_tracing(self):
+        """Override regular charm tracing setup because we're likely sending the traces to ourselves."""
+        # if we have an external endpoint, use it
+        # else, we send to localhost
+        endpoint = (
+            self.charm_tracing.get_endpoint("otlp_http")
+            if self.charm_tracing.is_ready()
+            else f"http://localhost:{Tempo.otlp_http_receiver_port}"
+        )
+
+        url = endpoint + "/v1/traces"
+        logger.error(url)
+        ops_tracing.set_destination(
+            url=url,
+            ca=self.cert_handler.ca_cert,
+        )
 
 
 class PeerData(DatabagModel):

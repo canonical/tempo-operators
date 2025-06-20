@@ -4,7 +4,6 @@ from unittest.mock import patch
 
 import pytest
 import yaml
-from charms.tempo_coordinator_k8s.v0.charm_tracing import charm_tracing_disabled
 from scenario import Relation, State
 
 from tempo import Tempo
@@ -24,8 +23,7 @@ def test_external_url_present(context, base_state, s3, all_worker):
     ingress = Relation("ingress", remote_app_data={"external_host": "1.2.3.4", "scheme": "http"})
     state = replace(base_state, relations=[tracing, ingress, s3, all_worker])
 
-    with charm_tracing_disabled():
-        out = context.run(context.on.relation_created(tracing), state)
+    out = context.run(context.on.relation_created(tracing), state)
 
     # THEN external_url is present in tracing relation databag
     tracing_out = out.get_relations(tracing.endpoint)[0]

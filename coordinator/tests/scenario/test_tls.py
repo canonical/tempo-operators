@@ -3,7 +3,6 @@ from dataclasses import replace
 from unittest.mock import patch
 
 import pytest
-from charms.tempo_coordinator_k8s.v0.charm_tracing import charm_tracing_disabled
 from charms.tempo_coordinator_k8s.v0.tracing import (
     TracingProviderAppData,
     TracingRequirerAppData,
@@ -42,7 +41,7 @@ def update_relations_tls_and_verify(
     tracing,
 ):
     state = replace(base_state, relations=relations)
-    with charm_tracing_disabled(), patch.object(
+    with patch.object(
         TempoCoordinatorCharm, "are_certificates_on_disk", local_has_tls
     ):
         out = context.run(context.on.relation_changed(tracing), state)
