@@ -217,8 +217,8 @@ def deploy_distributed_cluster(juju: Juju, roles: Sequence[str], tempo_deployed_
             juju.deploy(
                 "prometheus-k8s",
                 app=PROMETHEUS_APP,
-                revision=244, # what's on edge at april 23, 2025.
-                channel="latest/edge", # we need the channel for the updates
+                revision=247, # what's on 1/stable at june 20, 2025.
+                channel="1/stable",
                 trust=True
             )
 
