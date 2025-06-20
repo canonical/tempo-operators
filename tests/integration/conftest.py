@@ -94,7 +94,7 @@ def charm_and_channel_and_resources(role: Literal["coordinator", "worker"], char
     """
     # deploy charm from charmhub
     if channel_from_env := os.getenv(charm_channel_key):
-        charm = f"pyroscope-{role}-k8s"
+        charm = f"tempo-{role}-k8s"
         logger.info(f"Using published {charm} charm from {channel_from_env}")
         return charm, channel_from_env, None
     # else deploy from a charm packed locally
@@ -120,7 +120,7 @@ def charm_and_channel_and_resources(role: Literal["coordinator", "worker"], char
 
 
 def _deploy_monolithic_cluster(juju: Juju, coordinator_deployed_as=None):
-    """Deploy a pyroscope-monolithic cluster."""
+    """Deploy a tempo-monolithic cluster."""
     worker_charm_url, channel, resources = charm_and_channel_and_resources("worker", "WORKER_CHARM_PATH",
                                                                            "WORKER_CHARM_CHANNEL")
 
@@ -168,7 +168,7 @@ def deploy_s3(juju, bucket_name: str, s3_integrator_app: str):
         **{key.replace('-', '_'): value for key, value in S3_CREDENTIALS.items()},
         secure=False,
     )
-    # create pyroscope bucket
+    # create tempo bucket
     found = mc_client.bucket_exists(bucket_name)
     if not found:
         mc_client.make_bucket(bucket_name)
@@ -212,7 +212,7 @@ def _deploy_cluster(juju: Juju, workers: Sequence[str], coordinator_deployed_as:
         coordinator_app = TEMPO_APP
 
     for worker in workers:
-        juju.integrate(coordinator_app + ":pyroscope-cluster", worker + ":pyroscope-cluster")
+        juju.integrate(coordinator_app, worker)
 
     _deploy_and_configure_minio(juju)
 
