@@ -13,6 +13,8 @@ dev = [
     "pydantic",
     "pytest-jubilant>=0.6",
     "minio",
+    "requests",
+    "tenacity"
 ]
 
 

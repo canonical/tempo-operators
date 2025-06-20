@@ -12,3 +12,4 @@ __pycache__/
 *.tfstate*
 .charm_tracing_buffer*
 requirements*.txt
+consolidated_rules/

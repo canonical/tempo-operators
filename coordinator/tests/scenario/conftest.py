@@ -4,20 +4,10 @@ from shutil import rmtree
 from unittest.mock import MagicMock, patch
 
 import pytest
-from charms.tempo_coordinator_k8s.v0.charm_tracing import charm_tracing_disabled
 from ops import ActiveStatus
 from scenario import Container, Context, PeerRelation, Relation
 
 from charm import PEERS_RELATION_ENDPOINT_NAME, TempoCoordinatorCharm
-
-
-@pytest.fixture(autouse=True)
-def patch_buffer_file_for_charm_tracing(tmp_path):
-    with patch(
-        "charms.tempo_coordinator_k8s.v0.charm_tracing.BUFFER_DEFAULT_CACHE_FILE_NAME",
-        str(tmp_path / "foo.json"),
-    ):
-        yield
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -32,12 +22,6 @@ def cleanup_prometheus_alert_rules():
     )
     if src_path.exists():
         rmtree(src_path)
-
-
-@pytest.fixture(autouse=True, scope="session")
-def disable_charm_tracing():
-    with charm_tracing_disabled():
-        yield
 
 
 @pytest.fixture()

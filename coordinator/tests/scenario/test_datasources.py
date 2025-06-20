@@ -4,15 +4,8 @@ from unittest.mock import patch
 
 import pytest
 import scenario
-from charms.tempo_coordinator_k8s.v0.charm_tracing import charm_tracing_disabled
 from cosl.interfaces.datasource_exchange import DatasourceExchange, GrafanaDatasource
 from scenario import PeerRelation, Relation, State
-
-
-@pytest.fixture(autouse=True, scope="module")
-def disable_charm_tracing():
-    with charm_tracing_disabled():
-        yield
 
 
 def grafana_source_relation(

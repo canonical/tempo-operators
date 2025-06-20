@@ -1,7 +1,6 @@
 import pytest
 from scenario import Relation, State
 
-from charms.tempo_coordinator_k8s.v0.charm_tracing import charm_tracing_disabled
 from charms.tempo_coordinator_k8s.v0.tracing import TracingProviderAppData
 
 
@@ -33,12 +32,11 @@ def test_receiver_api(
         containers=[nginx_container, nginx_prometheus_exporter_container],
     )
 
-    with charm_tracing_disabled():
-        # WHEN any event occurs
-        with context(context.on.update_status(), state) as mgr:
-            charm = mgr.charm
-            assert charm._requested_receivers() == ("otlp_grpc", "otlp_http")
-            state_out = mgr.run()
+    # WHEN any event occurs
+    with context(context.on.update_status(), state) as mgr:
+        charm = mgr.charm
+        assert charm._requested_receivers() == ("otlp_grpc", "otlp_http")
+        state_out = mgr.run()
 
     # THEN both protocols are in the receivers published in the databag (local side)
 
@@ -76,11 +74,10 @@ def test_leader_removes_receivers_on_relation_broken(
     )
 
     # WHEN the charm receives a relation-broken event for the one asking for otlp_grpc
-    with charm_tracing_disabled():
-        with context(context.on.relation_broken(tracing_grpc), state) as mgr:
-            charm = mgr.charm
-            assert charm._requested_receivers() == ("otlp_http",)
-            state_out = mgr.run()
+    with context(context.on.relation_broken(tracing_grpc), state) as mgr:
+        charm = mgr.charm
+        assert charm._requested_receivers() == ("otlp_http",)
+        state_out = mgr.run()
 
     # THEN otlp_grpc is gone from the databag
     r_out = [r for r in state_out.relations if r.id == tracing_http.id][0]

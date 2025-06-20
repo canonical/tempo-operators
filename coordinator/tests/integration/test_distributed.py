@@ -49,7 +49,7 @@ def test_metrics_endpoints(juju):
 
 
 @pytest.mark.teardown
-async def test_teardown(juju: Juju):
+def test_teardown(juju: Juju):
     for worker_name in ALL_WORKERS:
         juju.remove_application(worker_name)
     juju.remove_application(TEMPO_APP)

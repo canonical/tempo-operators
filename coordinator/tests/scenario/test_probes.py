@@ -1,17 +1,9 @@
 from unittest.mock import patch
 
-import pytest
 
 # wokeignore:rule=blackbox
 from charms.blackbox_exporter_k8s.v0.blackbox_probes import ApplicationDataModel
-from charms.tempo_coordinator_k8s.v0.charm_tracing import charm_tracing_disabled
 from scenario import Relation, State
-
-
-@pytest.fixture(autouse=True, scope="module")
-def disable_charm_tracing():
-    with charm_tracing_disabled():
-        yield
 
 
 @patch("socket.getfqdn", lambda: "1.2.3.4")

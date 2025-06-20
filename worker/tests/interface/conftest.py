@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from charms.tempo_coordinator_k8s.v0.charm_tracing import charm_tracing_disabled
 from interface_tester import InterfaceTester
 from ops import ActiveStatus
 from scenario import Container, Mount, State, Exec
@@ -52,25 +51,24 @@ def interface_tester(interface_tester: InterfaceTester):
         with patch("urllib.request.urlopen", new=partial(_urlopen_patch, resp="ready")):
             with patch("lightkube.core.client.GenericSyncClient"):
                 with patch("subprocess.run"):
-                    with charm_tracing_disabled():
-                        interface_tester.configure(
-                            charm_type=TempoWorkerK8SOperatorCharm,
-                            state_template=State(
-                                leader=True,
-                                containers=[
-                                    Container(
-                                        name="tempo",
-                                        can_connect=True,
-                                        mounts={
-                                            "worker-config": Mount(
-                                                location=CONFIG_FILE, source=conf_file
-                                            )
-                                        },
-                                        execs={
-                                            Exec(("update-ca-certificates", "--fresh")),
-                                        },
-                                    )
-                                ],
-                            ),
-                        )
-                        yield interface_tester
+                    interface_tester.configure(
+                        charm_type=TempoWorkerK8SOperatorCharm,
+                        state_template=State(
+                            leader=True,
+                            containers=[
+                                Container(
+                                    name="tempo",
+                                    can_connect=True,
+                                    mounts={
+                                        "worker-config": Mount(
+                                            location=CONFIG_FILE, source=conf_file
+                                        )
+                                    },
+                                    execs={
+                                        Exec(("update-ca-certificates", "--fresh")),
+                                    },
+                                )
+                            ],
+                        ),
+                    )
+                    yield interface_tester
