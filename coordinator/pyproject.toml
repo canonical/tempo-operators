@@ -6,17 +6,8 @@ version = "0.1"  # this is in fact irrelevant
 requires-python = ">=3.10"
 
 dependencies = [
-    "ops",
-    "cosl>=1.0.0",
-    "coordinated-workers",
+    "ops[tracing]",
     "pydantic<3",
-    # ---PYDEPS---
-    # lib/charms/tempo_coordinator_k8s/v0/charm_tracing.py
-    "opentelemetry-exporter-otlp-proto-http==1.21.0",
-    "jubilant>=0.4.1",
-    # lib/charms/tls_certificates_interface/v3/tls_certificates.py
-    "cryptography",
-    "jsonschema",
 ]
 
 [project.optional-dependencies]
@@ -27,12 +18,14 @@ dev = [
     "coverage[toml]",
     # FIXME: 2.21.0 adds tracing support and breaks some charm-tracing unittests
     "ops[testing]==2.20.0",
+    # lib/charms/tempo_coordinator_k8s/v0/charm_tracing.py
+    "opentelemetry-exporter-otlp-proto-http==1.21.0",
 
 #   CATAN TESTS: see https://github.com/canonical/tempo-coordinator-k8s-operator/issues/145
 #   "catan@git+https://github.com/pietropasotti/catan.git@main"
 
 #   INTEGRATION TESTS
-    "jubilant",
+    "jubilant>=0.4.1",
     "pytest-jubilant>=0.3",
     "requests",
     "minio",

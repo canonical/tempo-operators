@@ -23,7 +23,6 @@ from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
 from charms.prometheus_k8s.v1.prometheus_remote_write import (
     PrometheusRemoteWriteConsumer,
 )
-from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
 from charms.tempo_coordinator_k8s.v0.tempo_api import (
     DEFAULT_RELATION_NAME as tempo_api_relation_name,
 )
@@ -87,18 +86,6 @@ class PeerData(DatabagModel):
     """FQDN hostname of this coordinator unit."""
 
 
-@trace_charm(
-    tracing_endpoint="tempo_otlp_http_endpoint",
-    server_cert="server_ca_cert",
-    extra_types=(
-        Tempo,
-        TracingEndpointProvider,
-        Coordinator,
-        ClusterRolesConfig,
-    ),
-    # use PVC path for buffer data, so we don't lose it on pod churn
-    buffer_path=Path("/tempo-data/.charm_tracing_buffer.raw"),
-)
 class TempoCoordinatorCharm(CharmBase):
     """Charmed Operator for Tempo; a distributed tracing backend."""
 
@@ -441,6 +428,8 @@ class TempoCoordinatorCharm(CharmBase):
         # In absence of another Tempo instance, we don't want to lose this instance's charm traces
         elif self.is_workload_ready():
             return f"{self._internal_url}:{self.tempo.receiver_ports['otlp_http']}"
+
+        return None
 
     def requested_receivers_urls(self) -> Dict[str, str]:
         """Endpoints to which the workload (and the worker charm) can push traces to."""

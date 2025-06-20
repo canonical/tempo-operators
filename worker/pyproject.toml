@@ -7,7 +7,7 @@ requires-python = ">=3.10"
 dependencies = [
     "ops",
     "cosl>=1.0.0",
-    "coordinated-workers",
+    "coordinated-workers>=1.0.1",
     "pydantic <3",
     # ---PYDEPS---
     # lib/charms/tempo_coordinator_k8s/v0/charm_tracing.py
