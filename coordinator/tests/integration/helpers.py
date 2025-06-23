@@ -238,8 +238,8 @@ def get_traces(tempo_host: str, service_name="tracegen", tls=True, nonce:Optiona
     return traces
 
 
-# retry up to 10 times, waiting 4 seconds between attempts
-@retry(stop=stop_after_attempt(10), wait=wait_fixed(4))
+# retry up to 20 times, waiting 20 seconds between attempts
+@retry(stop=stop_after_attempt(20), wait=wait_fixed(20))
 def get_traces_patiently(tempo_host, service_name="tracegen", tls=True, nonce:Optional[str] = None):
     logger.info(f"polling {tempo_host} for service {service_name!r} traces...")
     traces = get_traces(tempo_host, service_name=service_name, tls=tls, nonce=nonce)
