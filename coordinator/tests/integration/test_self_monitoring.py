@@ -32,7 +32,13 @@ def test_deploy(juju: Juju, tempo_charm: Path):
     """Build the charm-under-test and deploy it together with related charms."""
     # Deploy the charms and wait for active/idle status
     juju.deploy(tempo_charm, TEMPO_APP, trust=True, resources=TEMPO_RESOURCES)
-    juju.deploy("prometheus-k8s", PROMETHEUS_APP, trust=True)
+    juju.deploy(
+        "prometheus-k8s",
+        app=PROMETHEUS_APP,
+        channel="1/stable",
+        trust=True,
+        revision=247,  # what's on 1/stable as of 23/06/2025
+    )
     juju.integrate(f"{PROMETHEUS_APP}:metrics-endpoint", f"{TEMPO_APP}:metrics-endpoint")
 
     juju.wait(
