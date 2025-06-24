@@ -62,12 +62,13 @@ def test_verify_self_traces_sent_to_remote(juju: Juju):
 
     # Verify traces from `this tempo` are sent to remote instance
     services = get_ingested_traces_service_names(get_app_ip_address(juju, APP_REMOTE_NAME), tls=False)
-    assert services.issuperset({
+    for app in (
         TEMPO_APP, # coordinator charm traces
         WORKER_APP,  # worker charm traces
         APP_REMOTE_NAME, # remote coordinator charm traces
         APP_REMOTE_WORKER_NAME,  # remote worker charm traces
-    }), services
+    ):
+        assert app in services
 
     # adjust back to the default interval time
     juju.cli("model-config", "update-status-hook-interval=5m")
