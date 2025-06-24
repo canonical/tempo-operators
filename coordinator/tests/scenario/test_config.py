@@ -74,7 +74,6 @@ def test_metrics_generator(
 
     with context(context.on.relation_changed(remote_write), state) as mgr:
         charm: TempoCoordinatorCharm = mgr.charm
-        # assert charm.coordinator.cert_handler.server_cert
         config_raw = charm.tempo.config(charm.coordinator)
         config = yaml.safe_load(config_raw)
         assert "metrics_generator" in config

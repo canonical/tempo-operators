@@ -6,8 +6,11 @@ version = "0.1"  # this is in fact irrelevant
 requires-python = ">=3.10"
 
 dependencies = [
-    "coordinated-workers>=1.0.1",
+    "coordinated-workers>=2.0.0",
     "pydantic<3",
+    # ---PYDEPS---,
+    # lib/charms/tls_certificates_interface/v4/tls_certificates.py
+    "cryptography",
 ]
 
 [project.optional-dependencies]

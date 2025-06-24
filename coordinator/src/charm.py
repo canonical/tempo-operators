@@ -89,7 +89,7 @@ class TempoCoordinator(Coordinator):
         url = endpoint + "/v1/traces"
         ops_tracing.set_destination(
             url=url,
-            ca=self.cert_handler.ca_cert,
+            ca=self.tls_config.ca_cert if self.tls_config else None,
         )
 
 
