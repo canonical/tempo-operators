@@ -78,7 +78,7 @@ def get_unit_ip_address(juju: Juju, app_name: str, unit_no: int):
     return juju.status().apps[app_name].units[f"{app_name}/{unit_no}"].address
 
 
-def _deploy_and_configure_minio(juju: Juju, bucket_name:str=BUCKET_NAME):
+def _deploy_and_configure_minio(juju: Juju, bucket_name:str=BUCKET_NAME, s3:str=S3_APP):
     keys = {
         "access-key": ACCESS_KEY,
         "secret-key": SECRET_KEY,
@@ -105,11 +105,11 @@ def _deploy_and_configure_minio(juju: Juju, bucket_name:str=BUCKET_NAME):
         mc_client.make_bucket(bucket_name)
 
     # configure s3-integrator
-    juju.config(S3_APP, {
+    juju.config(s3, {
         "endpoint": f"minio-0.minio-endpoints.{juju.model}.svc.cluster.local:9000",
         "bucket": bucket_name,
     })
-    task = juju.run(S3_APP + "/0", "sync-s3-credentials", params=keys)
+    task = juju.run(s3 + "/0", "sync-s3-credentials", params=keys)
     assert task.status == "completed"
 
 
@@ -168,7 +168,7 @@ def _deploy_cluster(juju: Juju, workers: Sequence[str], s3=S3_APP, coordinator:s
             juju.integrate(PROMETHEUS_APP + ":receive-remote-write",
                            coordinator + ":send-remote-write")
 
-    _deploy_and_configure_minio(juju, bucket_name=bucket_name)
+    _deploy_and_configure_minio(juju, bucket_name=bucket_name, s3=s3)
 
     juju.wait(
         lambda status: jubilant.all_active(status, coordinator, *workers, s3),
