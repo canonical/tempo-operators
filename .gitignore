@@ -12,3 +12,6 @@ __pycache__/
 *.tfstate*
 .charm_tracing_buffer*
 requirements*.txt
+consolidated_rules/
+/coordinator/tests/integration/tester-grpc/lib/
+/coordinator/tests/integration/tester/lib/

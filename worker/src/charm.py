@@ -12,7 +12,6 @@ from ops import CollectStatusEvent
 from ops.charm import CharmBase
 from ops.model import BlockedStatus, ActiveStatus
 
-from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
 from tempo import TempoWorker
 
 logger = logging.getLogger(__name__)
@@ -20,11 +19,6 @@ logger = logging.getLogger(__name__)
 _LEGACY_WORKER_PORTS = 3200, 4317, 4318, 9411, 14268, 7946, 9096, 14250
 
 
-@trace_charm(
-    tracing_endpoint="_charm_tracing_endpoint",
-    server_cert="_charm_tracing_cert",
-    extra_types=[TempoWorker],
-)
 class TempoWorkerK8SOperatorCharm(CharmBase):
     """A Juju Charmed Operator for Tempo."""
 
@@ -49,9 +43,6 @@ class TempoWorkerK8SOperatorCharm(CharmBase):
 
         # event handling
         self.framework.observe(self.on.collect_unit_status, self._on_collect_status)
-        self._charm_tracing_endpoint, self._charm_tracing_cert = (
-            self.worker.charm_tracing_config()
-        )
 
     def _on_collect_status(self, e: CollectStatusEvent):
         # add Tempo worker-specific statuses

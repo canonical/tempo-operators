@@ -13,6 +13,7 @@ from subprocess import CalledProcessError, getoutput
 from typing import Any, Dict, List, Optional, Set, Tuple, cast, get_args
 
 import ops
+import ops_tracing
 
 # wokeignore:rule=blackbox
 from charms.blackbox_exporter_k8s.v0.blackbox_probes import (
@@ -23,7 +24,6 @@ from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
 from charms.prometheus_k8s.v1.prometheus_remote_write import (
     PrometheusRemoteWriteConsumer,
 )
-from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
 from charms.tempo_coordinator_k8s.v0.tempo_api import (
     DEFAULT_RELATION_NAME as tempo_api_relation_name,
 )
@@ -37,7 +37,7 @@ from charms.tempo_coordinator_k8s.v0.tracing import (
     receiver_protocol_to_transport_protocol,
 )
 from charms.traefik_k8s.v0.traefik_route import TraefikRouteRequirer
-from coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
+from coordinated_workers.coordinator import Coordinator
 from coordinated_workers.nginx import (
     CA_CERT_PATH,
     CERT_PATH,
@@ -79,6 +79,19 @@ class TempoCoordinator(Coordinator):
         # return this instance's endpoints
         return self._charm.requested_receivers_urls()  # type: ignore
 
+    def _setup_charm_tracing(self):
+        """Override regular charm tracing setup because we're likely sending the traces to ourselves."""
+        # if we have an external endpoint, use it
+        endpoint = self.charm_tracing.get_endpoint("otlp_http") if self.charm_tracing.is_ready() else None
+        # else, we send to localhost
+        endpoint = endpoint or f"http://localhost:{Tempo.otlp_http_receiver_port}"
+
+        url = endpoint + "/v1/traces"
+        ops_tracing.set_destination(
+            url=url,
+            ca=self.cert_handler.ca_cert,
+        )
+
 
 class PeerData(DatabagModel):
     """Databag model for the "peers" relation between coordinator units."""
@@ -87,18 +100,6 @@ class PeerData(DatabagModel):
     """FQDN hostname of this coordinator unit."""
 
 
-@trace_charm(
-    tracing_endpoint="tempo_otlp_http_endpoint",
-    server_cert="server_ca_cert",
-    extra_types=(
-        Tempo,
-        TracingEndpointProvider,
-        Coordinator,
-        ClusterRolesConfig,
-    ),
-    # use PVC path for buffer data, so we don't lose it on pod churn
-    buffer_path=Path("/tempo-data/.charm_tracing_buffer.raw"),
-)
 class TempoCoordinatorCharm(CharmBase):
     """Charmed Operator for Tempo; a distributed tracing backend."""
 
@@ -441,6 +442,8 @@ class TempoCoordinatorCharm(CharmBase):
         # In absence of another Tempo instance, we don't want to lose this instance's charm traces
         elif self.is_workload_ready():
             return f"{self._internal_url}:{self.tempo.receiver_ports['otlp_http']}"
+
+        return None
 
     def requested_receivers_urls(self) -> Dict[str, str]:
         """Endpoints to which the workload (and the worker charm) can push traces to."""
