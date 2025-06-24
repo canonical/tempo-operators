@@ -12,7 +12,7 @@ import yaml
 from jubilant import Juju
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from coordinator.tests.integration.helpers import deploy_prometheus
+from tests.integration.helpers import deploy_prometheus
 from helpers import run_command, TEMPO_APP
 from tests.integration.helpers import TEMPO_RESOURCES, PROMETHEUS_APP
 

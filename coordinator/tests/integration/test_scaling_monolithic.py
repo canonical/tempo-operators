@@ -31,7 +31,7 @@ def test_scale_tempo_up_stays_blocked(juju: Juju):
 
 @pytest.mark.setup
 def test_tempo_active_when_deploy_s3_and_workers(juju: Juju):
-    deploy_monolithic_cluster(juju, tempo_deployed_as=TEMPO_APP)
+    deploy_monolithic_cluster(juju)
 
 
 @pytest.mark.teardown

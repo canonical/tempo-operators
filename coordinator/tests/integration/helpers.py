@@ -4,7 +4,7 @@ import os
 import shlex
 import subprocess
 from pathlib import Path
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Union, List, cast, Set
 
 import jubilant
 import requests
@@ -151,34 +151,30 @@ def _get_tempo_charm():
         return pth
     raise err  # noqa
 
-def _deploy_cluster(juju: Juju, workers: Sequence[str], tempo_deployed_as: str = None):
-    if tempo_deployed_as:
-        tempo_app = tempo_deployed_as
-    else:
+def _deploy_cluster(juju: Juju, workers: Sequence[str], s3=S3_APP, coordinator:str=TEMPO_APP):
+    if coordinator not in juju.status().apps:
         juju.deploy(
-            _get_tempo_charm(), TEMPO_APP, resources=TEMPO_RESOURCES, trust=True
+            _get_tempo_charm(), coordinator, resources=TEMPO_RESOURCES, trust=True
         )
-        tempo_app = TEMPO_APP
+    juju.deploy(s3, channel="edge")
 
-    juju.deploy(S3_APP, channel="edge")
-
-    juju.integrate(tempo_app + ":s3", S3_APP + ":s3-credentials")
+    juju.integrate(coordinator + ":s3", s3 + ":s3-credentials")
     for worker in workers:
-        juju.integrate(tempo_app + ":tempo-cluster", worker + ":tempo-cluster")
+        juju.integrate(coordinator, worker)
         # if we have an explicit metrics generator worker, we need to integrate with prometheus not to be in blocked
         if "metrics-generator" in worker:
             juju.integrate(PROMETHEUS_APP + ":receive-remote-write",
-                           tempo_app + ":send-remote-write")
+                           coordinator + ":send-remote-write")
 
     _deploy_and_configure_minio(juju)
 
     juju.wait(
-        lambda status: jubilant.all_active(status, tempo_app, *workers, S3_APP),
+        lambda status: jubilant.all_active(status, coordinator, *workers, s3),
         timeout=2000,
     )
 
 
-def deploy_monolithic_cluster(juju: Juju, tempo_deployed_as=None):
+def deploy_monolithic_cluster(juju: Juju, worker:str=WORKER_APP,s3:str=S3_APP, coordinator:str=TEMPO_APP):
     """Deploy a tempo-monolithic cluster.
 
     `param:tempo_app`: tempo-coordinator is already deployed as this app.
@@ -186,12 +182,12 @@ def deploy_monolithic_cluster(juju: Juju, tempo_deployed_as=None):
     tempo_worker_charm_url, channel, resources = tempo_worker_charm_and_channel_and_resources()
     juju.deploy(
         tempo_worker_charm_url,
-        app=WORKER_APP,
+        app=worker,
         channel=channel,
         trust=True,
         resources=resources,
     )
-    _deploy_cluster(juju, [WORKER_APP], tempo_deployed_as=tempo_deployed_as)
+    _deploy_cluster(juju, [worker], coordinator=coordinator, s3=s3)
 
 
 def deploy_prometheus(juju:Juju):
@@ -250,6 +246,20 @@ def get_traces_patiently(tempo_host, service_name="tracegen", tls=True, nonce:Op
     traces = get_traces(tempo_host, service_name=service_name, tls=tls, nonce=nonce)
     assert len(traces) > 0, "no traces found"
     return traces
+
+
+def get_ingested_traces_service_names(tempo_host, tls:bool)->Set[str]:
+    """Fetch all ingested traces tags."""
+    logger.info(f"querying {tempo_host} for tags...")
+
+    url = f"{'https' if tls else 'http'}://{tempo_host}:3200/api/search/tag/service.name/values"
+    req = requests.get(
+        url,
+        verify=False,
+    )
+    assert req.status_code == 200, req.reason
+    tags = cast(List[str], json.loads(req.text)["tagValues"])
+    return set(tags)
 
 
 def emit_trace(

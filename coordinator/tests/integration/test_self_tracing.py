@@ -5,75 +5,71 @@
 from pathlib import Path
 
 import jubilant
+import pytest
 from jubilant import Juju
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 from helpers import (
     WORKER_APP,
     deploy_monolithic_cluster,
     get_app_ip_address,
-    get_traces_patiently, TEMPO_APP,
+    TEMPO_APP,
+    TEMPO_RESOURCES,
+    get_ingested_traces_service_names
 )
-from tests.integration.helpers import TEMPO_RESOURCES
 
 APP_REMOTE_NAME = "tempo-remote"
+APP_REMOTE_WORKER_NAME = "tempo-remote-worker"
+APP_REMOTE_S3 = "tempo-remote-s3"
 
-
-def test_build_and_deploy(juju: Juju, tempo_charm: Path):
+@pytest.mark.setup
+def test_build_and_deploy(juju: Juju):
     # deploy cluster
     deploy_monolithic_cluster(juju)
 
-    # deploy another tempo instance, which will go to blocked as it misses workers and s3
-    juju.deploy(
-        tempo_charm, resources=TEMPO_RESOURCES, app=APP_REMOTE_NAME, trust=True
-    )
-    juju.wait(
-        lambda status: jubilant.all_blocked(status, APP_REMOTE_NAME),
-        timeout=2000
-    )
 
-
-def test_verify_trace_http_self(juju: Juju):
+@retry(stop=stop_after_attempt(10), wait=wait_fixed(10))
+def test_verify_self_traces_collected(juju: Juju):
     # adjust update-status interval to generate a charm tracing span faster
     juju.cli("model-config", "update-status-hook-interval=5s")
 
-    # Verify traces from `tempo` are ingested into self Tempo
-    assert get_traces_patiently(
-        get_app_ip_address(juju, TEMPO_APP),
-        service_name=f"{TEMPO_APP}-charm",
-        tls=False,
-    )
+    # Verify that tempo is ingesting traces from the following services:
+    services = get_ingested_traces_service_names(get_app_ip_address(juju, TEMPO_APP), tls=False)
+    assert services.issuperset({
+        TEMPO_APP, # coordinator charm traces
+        "tempo-scalable-single-binary", # worker's workload traces
+        WORKER_APP  # worker charm traces
+    }), services
 
     # adjust back to the default interval time
     juju.cli("model-config", "update-status-hook-interval=5m")
 
 
-def test_relate_remote_instance(juju: Juju):
+@pytest.mark.setup
+def test_deploy_second_tempo(juju: Juju, tempo_charm: Path):
+    # deploy a second tempo stack
+    deploy_monolithic_cluster(juju, worker=APP_REMOTE_WORKER_NAME, s3=APP_REMOTE_S3, coordinator=APP_REMOTE_NAME)
+
     juju.integrate(TEMPO_APP + ":tracing", APP_REMOTE_NAME + ":self-charm-tracing")
     juju.wait(
-        lambda status: all(status.apps[app].is_active for app in [TEMPO_APP, WORKER_APP]),
+        lambda status: all(status.apps[app].is_active for app in [TEMPO_APP, WORKER_APP, APP_REMOTE_NAME, APP_REMOTE_WORKER_NAME]),
         timeout=1000
     )
 
 
-def test_verify_trace_http_remote(juju: Juju):
+@retry(stop=stop_after_attempt(10), wait=wait_fixed(10))
+def test_verify_self_traces_sent_to_remote(juju: Juju):
     # adjust update-status interval to generate a charm tracing span faster
     juju.cli("model-config", "update-status-hook-interval=5s")
 
-    # Verify traces from `tempo-remote` are ingested into tempo instance
-    assert get_traces_patiently(
-        get_app_ip_address(juju, TEMPO_APP),
-        service_name=f"{APP_REMOTE_NAME}-charm",
-        tls=False,
-    )
+    # Verify traces from `this tempo` are sent to remote instance
+    services = get_ingested_traces_service_names(get_app_ip_address(juju, APP_REMOTE_NAME), tls=False)
+    assert services.issuperset({
+        TEMPO_APP, # coordinator charm traces
+        WORKER_APP,  # worker charm traces
+        APP_REMOTE_NAME, # remote coordinator charm traces
+        APP_REMOTE_WORKER_NAME,  # remote worker charm traces
+    }), services
 
     # adjust back to the default interval time
     juju.cli("model-config", "update-status-hook-interval=5m")
-
-
-def test_workload_traces(juju: Juju):
-    # verify traces from tempo-scalable-single-binary are ingested
-    assert get_traces_patiently(
-        get_app_ip_address(juju, TEMPO_APP),
-        service_name="tempo-scalable-single-binary",
-        tls=False,
-    )
