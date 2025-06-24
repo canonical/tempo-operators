@@ -83,7 +83,9 @@ def _deploy_and_configure_minio(juju: Juju):
         "access-key": ACCESS_KEY,
         "secret-key": SECRET_KEY,
     }
-    juju.deploy(MINIO_APP, channel="edge", trust=True, config=keys)
+    if MINIO_APP not in juju.status().apps:
+        juju.deploy(MINIO_APP, channel="edge", trust=True, config=keys)
+
     juju.wait(
         lambda status: status.apps[MINIO_APP].is_active,
         error=jubilant.any_error,
@@ -156,7 +158,7 @@ def _deploy_cluster(juju: Juju, workers: Sequence[str], s3=S3_APP, coordinator:s
         juju.deploy(
             _get_tempo_charm(), coordinator, resources=TEMPO_RESOURCES, trust=True
         )
-    juju.deploy(s3, channel="edge")
+    juju.deploy("s3-integrator", s3, channel="edge")
 
     juju.integrate(coordinator + ":s3", s3 + ":s3-credentials")
     for worker in workers:
@@ -174,7 +176,7 @@ def _deploy_cluster(juju: Juju, workers: Sequence[str], s3=S3_APP, coordinator:s
     )
 
 
-def deploy_monolithic_cluster(juju: Juju, worker:str=WORKER_APP,s3:str=S3_APP, coordinator:str=TEMPO_APP):
+def deploy_monolithic_cluster(juju: Juju, worker:str=WORKER_APP, s3:str=S3_APP, coordinator:str=TEMPO_APP):
     """Deploy a tempo-monolithic cluster.
 
     `param:tempo_app`: tempo-coordinator is already deployed as this app.
