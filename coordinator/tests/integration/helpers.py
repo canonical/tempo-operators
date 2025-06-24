@@ -78,7 +78,7 @@ def get_unit_ip_address(juju: Juju, app_name: str, unit_no: int):
     return juju.status().apps[app_name].units[f"{app_name}/{unit_no}"].address
 
 
-def _deploy_and_configure_minio(juju: Juju):
+def _deploy_and_configure_minio(juju: Juju, bucket_name:str=BUCKET_NAME):
     keys = {
         "access-key": ACCESS_KEY,
         "secret-key": SECRET_KEY,
@@ -100,14 +100,14 @@ def _deploy_and_configure_minio(juju: Juju):
     )
 
     # create tempo bucket
-    found = mc_client.bucket_exists(BUCKET_NAME)
+    found = mc_client.bucket_exists(bucket_name)
     if not found:
-        mc_client.make_bucket(BUCKET_NAME)
+        mc_client.make_bucket(bucket_name)
 
     # configure s3-integrator
     juju.config(S3_APP, {
         "endpoint": f"minio-0.minio-endpoints.{juju.model}.svc.cluster.local:9000",
-        "bucket": BUCKET_NAME,
+        "bucket": bucket_name,
     })
     task = juju.run(S3_APP + "/0", "sync-s3-credentials", params=keys)
     assert task.status == "completed"
@@ -153,7 +153,7 @@ def _get_tempo_charm():
         return pth
     raise err  # noqa
 
-def _deploy_cluster(juju: Juju, workers: Sequence[str], s3=S3_APP, coordinator:str=TEMPO_APP):
+def _deploy_cluster(juju: Juju, workers: Sequence[str], s3=S3_APP, coordinator:str=TEMPO_APP, bucket_name:str=BUCKET_NAME):
     if coordinator not in juju.status().apps:
         juju.deploy(
             _get_tempo_charm(), coordinator, resources=TEMPO_RESOURCES, trust=True
@@ -168,7 +168,7 @@ def _deploy_cluster(juju: Juju, workers: Sequence[str], s3=S3_APP, coordinator:s
             juju.integrate(PROMETHEUS_APP + ":receive-remote-write",
                            coordinator + ":send-remote-write")
 
-    _deploy_and_configure_minio(juju)
+    _deploy_and_configure_minio(juju, bucket_name=bucket_name)
 
     juju.wait(
         lambda status: jubilant.all_active(status, coordinator, *workers, s3),
@@ -176,7 +176,7 @@ def _deploy_cluster(juju: Juju, workers: Sequence[str], s3=S3_APP, coordinator:s
     )
 
 
-def deploy_monolithic_cluster(juju: Juju, worker:str=WORKER_APP, s3:str=S3_APP, coordinator:str=TEMPO_APP):
+def deploy_monolithic_cluster(juju: Juju, worker:str=WORKER_APP, s3:str=S3_APP, coordinator:str=TEMPO_APP,bucket_name:str=BUCKET_NAME):
     """Deploy a tempo-monolithic cluster.
 
     `param:tempo_app`: tempo-coordinator is already deployed as this app.
@@ -189,7 +189,7 @@ def deploy_monolithic_cluster(juju: Juju, worker:str=WORKER_APP, s3:str=S3_APP, 
         trust=True,
         resources=resources,
     )
-    _deploy_cluster(juju, [worker], coordinator=coordinator, s3=s3)
+    _deploy_cluster(juju, [worker], coordinator=coordinator, s3=s3, bucket_name=bucket_name)
 
 
 def deploy_prometheus(juju:Juju):
@@ -203,14 +203,14 @@ def deploy_prometheus(juju:Juju):
     )
 
 
-def deploy_distributed_cluster(juju: Juju, roles: Sequence[str], tempo_deployed_as=None):
+def deploy_distributed_cluster(juju: Juju, roles: Sequence[str], worker_prefix:str=WORKER_APP, coordinator:str=TEMPO_APP,bucket_name:str=BUCKET_NAME):
     """This assumes tempo-coordinator is already deployed as `param:tempo_app`."""
     tempo_worker_charm_url, channel, resources = tempo_worker_charm_and_channel_and_resources()
 
     all_workers = []
 
     for role in roles:
-        worker_name = f"{WORKER_APP}-{role}"
+        worker_name = f"{worker_prefix}-{role}"
         all_workers.append(worker_name)
 
         juju.deploy(
@@ -225,7 +225,7 @@ def deploy_distributed_cluster(juju: Juju, roles: Sequence[str], tempo_deployed_
         if role == "metrics-generator":
             deploy_prometheus(juju)
 
-    _deploy_cluster(juju, all_workers, tempo_deployed_as=tempo_deployed_as)
+    return _deploy_cluster(juju, all_workers, coordinator=coordinator, bucket_name=bucket_name)
 
 
 def get_traces(tempo_host: str, service_name="tracegen", tls=True, nonce:Optional[str]=None):
