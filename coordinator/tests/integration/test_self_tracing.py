@@ -21,11 +21,6 @@ APP_REMOTE_WORKER_NAME = "tempo-remote-worker"
 APP_REMOTE_S3 = "tempo-remote-s3"
 
 
-WORKER_CHARM_TRACING_SUFFIX = "-charm"
-# FIXME: remove this in the next PR
-#  (as the change to the worker charm will be released)
-
-
 @pytest.mark.setup
 def test_build_and_deploy(juju: Juju):
     # deploy cluster
@@ -42,7 +37,7 @@ def test_verify_self_traces_collected(juju: Juju):
 
     for svc in (
         TEMPO_APP, # coordinator charm traces
-        WORKER_APP+WORKER_CHARM_TRACING_SUFFIX,  # worker charm traces
+        WORKER_APP,  # worker charm traces
         "tempo-scalable-single-binary", # worker's workload traces
     ):
         assert svc in services
@@ -73,9 +68,9 @@ def test_verify_self_traces_sent_to_remote(juju: Juju):
     services = get_ingested_traces_service_names(get_app_ip_address(juju, APP_REMOTE_NAME), tls=False)
     for svc in (
         TEMPO_APP, # coordinator charm traces
-        WORKER_APP+WORKER_CHARM_TRACING_SUFFIX,  # worker charm traces
+        WORKER_APP,  # worker charm traces
         APP_REMOTE_NAME, # remote coordinator charm traces
-        APP_REMOTE_WORKER_NAME+WORKER_CHARM_TRACING_SUFFIX,  # remote worker charm traces
+        APP_REMOTE_WORKER_NAME,  # remote worker charm traces
     ):
         assert svc in services
 
