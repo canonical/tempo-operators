@@ -56,7 +56,7 @@ def test_deploy_second_tempo(juju: Juju, tempo_charm: Path):
     # deploy a second tempo stack
     deploy_monolithic_cluster(juju, worker=APP_REMOTE_WORKER_NAME, s3=APP_REMOTE_S3, coordinator=APP_REMOTE_NAME)
 
-    juju.integrate(TEMPO_APP + ":tracing", APP_REMOTE_NAME + ":self-charm-tracing")
+    juju.integrate(TEMPO_APP + ":self-charm-tracing", APP_REMOTE_NAME + ":tracing")
     juju.wait(
         lambda status: all(status.apps[app].is_active for app in [TEMPO_APP, WORKER_APP, APP_REMOTE_NAME, APP_REMOTE_WORKER_NAME]),
         timeout=1000

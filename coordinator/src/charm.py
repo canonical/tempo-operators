@@ -82,7 +82,7 @@ class TempoCoordinator(Coordinator):
     def _setup_charm_tracing(self):
         """Override regular charm tracing setup because we're likely sending the traces to ourselves."""
         # if we have an external endpoint, use it
-        endpoint = self.charm_tracing.get_endpoint("otlp_http")if self.charm_tracing.is_ready() else None
+        endpoint = self.charm_tracing.get_endpoint("otlp_http") if self.charm_tracing.is_ready() else None
         # else, we send to localhost
         endpoint = endpoint or f"http://localhost:{Tempo.otlp_http_receiver_port}"
 
