@@ -87,7 +87,6 @@ class TempoCoordinator(Coordinator):
         endpoint = endpoint or f"http://localhost:{Tempo.otlp_http_receiver_port}"
 
         url = endpoint + "/v1/traces"
-        logger.error(url)
         ops_tracing.set_destination(
             url=url,
             ca=self.cert_handler.ca_cert,

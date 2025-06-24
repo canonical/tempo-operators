@@ -11,7 +11,8 @@ def test_self_monitoring_charm_tracing(deployment: Juju, distributed, tls):
     tempo_ip = get_unit_ip_address(deployment, TEMPO_APP, 0)
     application_tags = requests.get(
         f"http{'s' if tls else ''}://{tempo_ip}:3200/api/search/tag/juju_application/values",
-        verify=False).json()
+        verify=False,
+    ).json()
 
-    apps = {TEMPO_APP, *(ALL_WORKERS if distributed else (WORKER_APP, ))}
-    assert apps.issubset(application_tags['tagValues']), application_tags['tagValues']
+    apps = {TEMPO_APP, *(ALL_WORKERS if distributed else (WORKER_APP,))}
+    assert apps.issubset(application_tags["tagValues"]), application_tags["tagValues"]

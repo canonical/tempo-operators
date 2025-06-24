@@ -194,6 +194,17 @@ def deploy_monolithic_cluster(juju: Juju, tempo_deployed_as=None):
     _deploy_cluster(juju, [WORKER_APP], tempo_deployed_as=tempo_deployed_as)
 
 
+def deploy_prometheus(juju:Juju):
+    """Deploy a pinned revision of prometheus that we know to work."""
+    juju.deploy(
+        "prometheus-k8s",
+        app=PROMETHEUS_APP,
+        revision=247, # what's on 1/stable at june 20, 2025.
+        channel="1/stable",
+        trust=True
+    )
+
+
 def deploy_distributed_cluster(juju: Juju, roles: Sequence[str], tempo_deployed_as=None):
     """This assumes tempo-coordinator is already deployed as `param:tempo_app`."""
     tempo_worker_charm_url, channel, resources = tempo_worker_charm_and_channel_and_resources()
@@ -214,13 +225,7 @@ def deploy_distributed_cluster(juju: Juju, roles: Sequence[str], tempo_deployed_
         )
 
         if role == "metrics-generator":
-            juju.deploy(
-                "prometheus-k8s",
-                app=PROMETHEUS_APP,
-                revision=247, # what's on 1/stable at june 20, 2025.
-                channel="1/stable",
-                trust=True
-            )
+            deploy_prometheus(juju)
 
     _deploy_cluster(juju, all_workers, tempo_deployed_as=tempo_deployed_as)
 
