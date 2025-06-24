@@ -4,7 +4,6 @@
 
 from pathlib import Path
 
-import jubilant
 import pytest
 from jubilant import Juju
 from tenacity import retry, stop_after_attempt, wait_fixed
@@ -14,7 +13,6 @@ from helpers import (
     deploy_monolithic_cluster,
     get_app_ip_address,
     TEMPO_APP,
-    TEMPO_RESOURCES,
     get_ingested_traces_service_names
 )
 
