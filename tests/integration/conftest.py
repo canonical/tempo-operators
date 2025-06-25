@@ -3,9 +3,9 @@
 import logging
 import os
 import subprocess
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 from pathlib import Path
-from typing import Literal, Sequence
+from typing import Literal, Sequence, List
 
 import jubilant
 from jubilant import Juju
@@ -22,6 +22,9 @@ S3_APP = "s3-integrator"
 WORKER_APP = "tempo-worker"
 TEMPO_APP = "tempo"
 TRAEFIK_APP = "trfk"
+PROMETHEUS_APP = "prometheus"
+LOKI_APP = "loki"
+
 # we don't import this from the coordinator module because that'd mean we need to
 # bring in the whole charm's dependencies just to run the integration tests
 ALL_ROLES = [
@@ -45,27 +48,33 @@ logger = logging.getLogger(__name__)
 
 
 def pytest_addoption(parser):
-    group = parser.getgroup("test-config")
-    group.addoption(
+    parser.addoption(
         "--tls",
-        dest="tls",
         action="store",
-        default="0",
-        help="Run tests with tls enabled.",
+        choices=["true", "false"],
+        default="false",
+        help="Enable TLS (true/false)",
     )
-    group.addoption(
-        "--distributed",
-        dest="distributed",
+    parser.addoption(
+        "--monolithic",
         action="store",
-        default="0",
-        help="Run tests with distributed deployment mode enabled.",
+        choices=["true", "false"],
+        default="false",
+        help="Enable monolithic mode (true/false)",
+    )
+    parser.addoption(
+        "--ingress",
+        action="store",
+        choices=["true", "false"],
+        default="false",
+        help="Enable ingress (true/false)",
     )
 
 
 @fixture(scope="session")
 def coordinator_charm():
     """Pyroscope coordinator used for integration testing."""
-    return charm_and_channel_and_resources(
+    return _charm_and_channel_and_resources(
         "coordinator", "COORDINATOR_CHARM_PATH", "COORDINATOR_CHARM_CHANNEL"
     )
 
@@ -73,7 +82,7 @@ def coordinator_charm():
 @fixture(scope="session")
 def worker_charm():
     """Pyroscope worker used for integration testing."""
-    return charm_and_channel_and_resources(
+    return _charm_and_channel_and_resources(
         "worker", "WORKER_CHARM_PATH", "WORKER_CHARM_CHANNEL"
     )
 
@@ -81,16 +90,27 @@ def worker_charm():
 @fixture(scope="session")
 def tls(pytestconfig):
     """Run with or without tls."""
-    return pytestconfig.getoption("tls") == "1"
+    return pytestconfig.getoption("tls") == "true"
 
 
 @fixture(scope="session")
-def distributed(pytestconfig):
-    """Run in monolithic or fully distributed mode."""
-    return pytestconfig.getoption("distributed") == "1"
+def ingress(pytestconfig):
+    """Run with or without ingress."""
+    return pytestconfig.getoption("ingress") == "true"
 
 
-def charm_and_channel_and_resources(
+@fixture(scope="session")
+def monolithic(pytestconfig):
+    """Run in monolithic or fully monolithic mode."""
+    return pytestconfig.getoption("monolithic") == "true"
+
+
+@fixture(scope="session")
+def all_tempo_apps(monolithic):
+    return (WORKER_APP,) if monolithic else ALL_WORKERS
+
+
+def _charm_and_channel_and_resources(
     role: Literal["coordinator", "worker"], charm_path_key: str, charm_channel_key: str
 ):
     """Pyrosocope coordinator or worker charm used for integration testing.
@@ -126,7 +146,7 @@ def charm_and_channel_and_resources(
 
 def _deploy_monolithic_cluster(juju: Juju, coordinator_deployed_as=None):
     """Deploy a tempo-monolithic cluster."""
-    worker_charm_url, channel, resources = charm_and_channel_and_resources(
+    worker_charm_url, channel, resources = _charm_and_channel_and_resources(
         "worker", "WORKER_CHARM_PATH", "WORKER_CHARM_CHANNEL"
     )
 
@@ -143,8 +163,8 @@ def _deploy_monolithic_cluster(juju: Juju, coordinator_deployed_as=None):
 def _deploy_distributed_cluster(
     juju: Juju, roles: Sequence[str] = tuple(ALL_ROLES), coordinator_deployed_as=None
 ):
-    """Deploy a tempo distributed cluster."""
-    worker_charm_url, channel, resources = charm_and_channel_and_resources(
+    """Deploy a tempo monolithic cluster."""
+    worker_charm_url, channel, resources = _charm_and_channel_and_resources(
         "worker", "WORKER_CHARM_PATH", "WORKER_CHARM_CHANNEL"
     )
 
@@ -222,7 +242,7 @@ def _deploy_cluster(
     if coordinator_deployed_as:
         coordinator_app = coordinator_deployed_as
     else:
-        coordinator_charm_url, channel, resources = charm_and_channel_and_resources(
+        coordinator_charm_url, channel, resources = _charm_and_channel_and_resources(
             "coordinator", "COORDINATOR_CHARM_PATH", "COORDINATOR_CHARM_CHANNEL"
         )
         juju.deploy(
@@ -252,7 +272,7 @@ def _deploy_cluster(
 
 
 @contextmanager
-def _tls_ctx(active: bool, juju: Juju, distributed: bool):
+def _tls_ctx(active: bool, juju: Juju, all_tempo_apps: List[str]):
     """Context manager to set up tls integration for tempo and s3 integrator."""
     if not active:  # a bit ugly, but nicer than using a nullcontext
         yield
@@ -260,13 +280,11 @@ def _tls_ctx(active: bool, juju: Juju, distributed: bool):
 
     logger.info("adding TLS")
     juju.deploy("self-signed-certificates", SSC_APP)
-    juju.integrate(SSC_APP + ":certificates", S3_APP + ":certificates")
+    juju.integrate(TEMPO_APP + ":certificates", SSC_APP)
 
     logger.info("waiting for active...")
     juju.wait(
-        lambda status: jubilant.all_active(
-            status, TEMPO_APP, *(ALL_WORKERS if distributed else (WORKER_APP,)), S3_APP
-        ),
+        lambda status: jubilant.all_active(status, *all_tempo_apps, S3_APP),
         timeout=2000,
         delay=5,
         successes=3,
@@ -278,24 +296,77 @@ def _tls_ctx(active: bool, juju: Juju, distributed: bool):
     juju.remove_application(SSC_APP)
 
 
-@fixture(scope="module")
-def deployment(tls, distributed, juju, coordinator_charm, worker_charm, pytestconfig):
-    if not pytestconfig.getoption("--no-setup"):
-        if distributed:
-            logger.info("deploying distributed cluster...")
+@contextmanager
+def _ingress_ctx(active: bool, juju: Juju, all_tempo_apps: List[str], tls: bool):
+    """Context manager to set up ingress integration for tempo and workers."""
+    if not active:  # a bit ugly, but nicer than using a nullcontext
+        yield
+        return
+
+    logger.info("adding ingress")
+    juju.deploy("traefik-k8s", TRAEFIK_APP)
+    juju.integrate(TRAEFIK_APP + ":traefik-route", TEMPO_APP)
+    if tls:
+        juju.integrate(TRAEFIK_APP + ":certificates", SSC_APP)
+
+    logger.info("waiting for active...")
+    juju.wait(
+        lambda status: jubilant.all_active(status, *all_tempo_apps, TRAEFIK_APP),
+        timeout=2000,
+        delay=5,
+        successes=3,
+    )
+    logger.info("ingress ready")
+
+    yield
+
+    juju.remove_application(TRAEFIK_APP)
+
+
+@contextmanager
+def _monolithic_ctx(monolithic, juju, setup, teardown, all_tempo_apps):
+    if setup:
+        if monolithic:
+            logger.info("deploying monolithic cluster...")
             _deploy_distributed_cluster(juju)
         else:
             logger.info("deploying monolithic cluster...")
             _deploy_monolithic_cluster(juju)
         logger.info("cluster deployed.")
 
-    with _tls_ctx(tls, juju=juju, distributed=distributed):
-        yield juju
+    yield
 
-    if not pytestconfig.getoption("--no-teardown"):
+    if teardown:
         logger.info("tearing down all apps...")
-        for app_to_remove in {
-            TEMPO_APP,
-            *(ALL_WORKERS if distributed else (WORKER_APP,)),
-        }:
-            juju.remove_application(app_to_remove)
+        for app in all_tempo_apps:
+            juju.remove_application(app)
+
+
+@fixture(scope="module", autouse=True)
+def deployment_context(
+    tls: bool,
+    monolithic: bool,
+    ingress: bool,
+    coordinator_charm: str,
+    worker_charm: str,
+    pytestconfig,
+    all_tempo_apps: List[str],
+    juju: Juju,
+):
+    """Setup and teardown each test module depending on the parameters that the tests are running with.
+
+    Can be monolithic or distributed, can have tls or no tls, can have ingress or no ingress.
+    In any combination.
+    """
+    with _monolithic_ctx(
+        monolithic,
+        juju=juju,
+        setup=not pytestconfig.getoption("--no-setup"),
+        teardown=not pytestconfig.getoption("--no-teardown"),
+        all_tempo_apps=all_tempo_apps,
+    ):
+        with _tls_ctx(tls, juju=juju, all_tempo_apps=all_tempo_apps):
+            with _ingress_ctx(
+                ingress, juju=juju, all_tempo_apps=all_tempo_apps, tls=tls
+            ):
+                yield juju
