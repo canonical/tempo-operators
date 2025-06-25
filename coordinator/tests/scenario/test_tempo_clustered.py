@@ -1,4 +1,3 @@
-import datetime
 import json
 from dataclasses import replace
 from unittest.mock import MagicMock, patch
@@ -6,8 +5,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 import scenario
 from charms.tempo_coordinator_k8s.v0.tracing import TracingRequirerAppData
-from charms.tls_certificates_interface.v3.tls_certificates import ProviderCertificate
 from coordinated_workers.interfaces.cluster import ClusterProvider, ClusterProviderAppData
+from coordinated_workers.coordinator import TLSConfig
 from scenario import Relation, State
 
 from charm import TempoCoordinatorCharm
@@ -18,7 +17,6 @@ from tests.scenario.helpers import get_tempo_config
 @pytest.fixture(scope="function")
 def coordinator_with_initial_config():
     new_coordinator_mock = MagicMock()
-    new_coordinator_mock.return_value.tls_available = False
     new_coordinator_mock.return_value.hostname = "tempo-test-0.test.cluster.svc.local"
     new_coordinator_mock.return_value._s3_config = {
         "access_key_id": "key",
@@ -27,7 +25,7 @@ def coordinator_with_initial_config():
         "insecure": True,
         "secret_access_key": "soverysecret",
     }
-    new_coordinator_mock.return_value.cluster.gather_addresses.return_value = {"localhost"}
+    new_coordinator_mock.return_value.cluster.gather_addresses.return_value = ("localhost",)
     new_coordinator_mock.return_value.cluster.gather_addresses_by_role.return_value = {
         "query-frontend": {"localhost"},
         "distributor": {"localhost"},
@@ -60,23 +58,14 @@ def certs_relation():
 
 MOCK_SERVER_CERT = "SERVER_CERT-foo"
 MOCK_CA_CERT = "CA_CERT-foo"
+MOCK_PRIVATE_KEY = "PRIVATE_KEY-foo"
 
 
 @pytest.fixture(autouse=True)
 def patch_certs():
-    cert = ProviderCertificate(
-        relation_id=42,
-        application_name="tempo",
-        csr="CSR",
-        certificate=MOCK_SERVER_CERT,
-        ca=MOCK_CA_CERT,
-        chain=[],
-        revoked=False,
-        expiry_time=datetime.datetime(2050, 4, 1),
-    )
     with patch(
-        "charms.observability_libs.v1.cert_handler.CertHandler.get_cert",
-        new=lambda _: cert,
+        "coordinated_workers.coordinator.Coordinator.tls_config", 
+        TLSConfig(private_key=MOCK_PRIVATE_KEY, server_cert=MOCK_SERVER_CERT, ca_cert=MOCK_CA_CERT),
     ):
         yield
 
@@ -86,7 +75,8 @@ def state_with_certs(
     context, s3, certs_relation, nginx_container, nginx_prometheus_exporter_container
 ):
     return context.run(
-        context.on.relation_joined(certs_relation),
+        # unlike cert_handler v1, tls_certificates v4 creates the secret on relation_created
+        context.on.relation_created(certs_relation),
         scenario.State(
             leader=True,
             relations=[s3, certs_relation],
@@ -98,9 +88,7 @@ def state_with_certs(
 def test_certs_ready(context, state_with_certs):
     with context(context.on.update_status(), state_with_certs) as mgr:
         charm: TempoCoordinatorCharm = mgr.charm
-        assert charm.coordinator.cert_handler.server_cert == MOCK_SERVER_CERT
-        assert charm.coordinator.cert_handler.ca_cert == MOCK_CA_CERT
-        assert charm.coordinator.cert_handler.private_key
+        assert charm.coordinator.tls_available
 
 
 def test_cluster_relation(context, state_with_certs, all_worker):
@@ -133,7 +121,7 @@ def test_tempo_restart_on_ingress_v2_changed(
     nginx_container,
     nginx_prometheus_exporter_container,
 ):
-    mock_cluster.return_value = {"localhost"}
+    mock_cluster.return_value = ("localhost",)
 
     # GIVEN
     # the remote end requests an otlp_grpc endpoint

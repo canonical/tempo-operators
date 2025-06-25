@@ -30,8 +30,7 @@ def tempo_charm():
 def copy_charm_libs_into_tester_charm():
     """Ensure the tester charm has the libraries it uses."""
     libraries = [
-        "observability_libs/v1/cert_handler.py",
-        "tls_certificates_interface/v3/tls_certificates.py",
+        "tls_certificates_interface/v4/tls_certificates.py",
         "tempo_coordinator_k8s/v0/charm_tracing.py",
         "tempo_coordinator_k8s/v0/tracing.py",
     ]
