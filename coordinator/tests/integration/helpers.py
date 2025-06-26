@@ -37,6 +37,8 @@ WORKER_APP = "tempo-worker"
 TEMPO_APP = "tempo"
 SSC_APP = "ssc"
 TRAEFIK_APP = "trfk"
+# default worker charm channel when running in CI or without the WORKER_CHARM_PATH envvar set.
+WORKER_CHARM_CHANNEL = "2/edge"
 
 ALL_ROLES = [role.value for role in TempoRole.all_nonmeta()]
 ALL_WORKERS = [f"{WORKER_APP}-" + role for role in ALL_ROLES]
@@ -127,7 +129,7 @@ def tempo_worker_charm_and_channel_and_resources():
             None,
             get_resources(worker_charm_path.parent),
         )
-    return "tempo-worker-k8s", "edge", None
+    return "tempo-worker-k8s", WORKER_CHARM_CHANNEL, None
 
 
 def get_resources(path: Union[str, Path]):
