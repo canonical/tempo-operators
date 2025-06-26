@@ -3,7 +3,7 @@
 import logging
 import os
 import subprocess
-from contextlib import contextmanager, ExitStack
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Literal, Sequence, List
 
