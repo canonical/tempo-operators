@@ -1,0 +1,8 @@
+--tls=true  --monolithic=true   --ingress=true
+--tls=false --monolithic=true   --ingress=true
+--tls=true  --monolithic=false  --ingress=true
+--tls=false --monolithic=false  --ingress=true
+--tls=true  --monolithic=true   --ingress=false
+--tls=false --monolithic=true   --ingress=false
+--tls=true  --monolithic=false  --ingress=false
+--tls=false --monolithic=false  --ingress=false
