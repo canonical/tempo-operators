@@ -33,7 +33,7 @@ ALL_ROLES = [
     "compactor",
     "metrics_generator",
 ]
-ALL_WORKERS = [f"{WORKER_APP}-" + role for role in ALL_ROLES]
+ALL_WORKERS = [f"{WORKER_APP}-" + role.replace("_", "-") for role in ALL_ROLES]
 
 ACCESS_KEY = "accesskey"
 SECRET_KEY = "secretkey"
@@ -169,7 +169,7 @@ def _deploy_distributed_cluster(
     all_workers = []
 
     for role in roles or ALL_ROLES:
-        worker_name = f"{WORKER_APP}-{role}"
+        worker_name = f"{WORKER_APP}-{role.replace('_', '-')}"
         all_workers.append(worker_name)
 
         juju.deploy(
