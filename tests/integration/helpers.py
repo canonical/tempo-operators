@@ -28,9 +28,9 @@ from tests.integration.conftest import (
     LOKI_APP,
 )
 
-TRACEGEN_SCRIPT_PATH = Path() / "scripts" / "tracegen.py"
+TRACEGEN_SCRIPT_PATH = Path() / "coordinator" / "scripts" / "tracegen.py"
 
-METADATA = yaml.safe_load(Path("./charmcraft.yaml").read_text())
+METADATA = yaml.safe_load(Path("./coordinator/charmcraft.yaml").read_text())
 TEMPO_RESOURCES = {
     image_name: image_meta["upstream-source"]
     for image_name, image_meta in METADATA["resources"].items()

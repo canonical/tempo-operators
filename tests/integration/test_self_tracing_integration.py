@@ -2,8 +2,6 @@
 # Copyright 2024 Ubuntu
 # See LICENSE file for licensing details.
 
-from pathlib import Path
-
 import pytest
 from jubilant import Juju
 from tenacity import retry, stop_after_attempt, wait_fixed
