@@ -14,7 +14,8 @@ dev = [
     "pytest-jubilant>=0.6",
     "minio",
     "requests",
-    "tenacity"
+    "tenacity",
+    "coordinated-workers>=2.0.0",
 ]
 
 
