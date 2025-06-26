@@ -2,7 +2,14 @@ import requests
 from jubilant import Juju, all_active, any_error
 from tenacity import stop_after_delay, wait_fixed, retry
 
-from tests.integration.conftest import TEMPO_APP, ALL_WORKERS, WORKER_APP, LOKI_APP, PROMETHEUS_APP, SSC_APP
+from tests.integration.conftest import (
+    TEMPO_APP,
+    ALL_WORKERS,
+    WORKER_APP,
+    LOKI_APP,
+    PROMETHEUS_APP,
+    SSC_APP,
+)
 from tests.integration.helpers import (
     get_unit_ip_address,
     get_traces_patiently,
@@ -38,7 +45,7 @@ def test_relate_self_monitoring_stack(juju: Juju, workers, tls):
     juju.integrate(TEMPO_APP + ":logging", LOKI_APP + ":logging")
 
     if tls:
-        juju.integrate(PROMETHEUS_APP+":certificates", SSC_APP)
+        juju.integrate(PROMETHEUS_APP + ":certificates", SSC_APP)
 
     # THEN the coordinator, all workers, and the monitoring stack are all in active/idle state
     juju.wait(

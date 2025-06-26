@@ -13,8 +13,6 @@ from minio import Minio
 from pytest import fixture
 from pytest_jubilant import pack_charm, get_resources
 
-from tests.integration.helpers import get_unit_ip_address
-
 BUCKET_NAME = "tempo"
 MINIO_APP = "minio"
 SSC_APP = "ssc"
@@ -193,7 +191,8 @@ def deploy_s3(juju, bucket_name: str, s3_integrator_app: str):
     )
 
     logger.info(f"provisioning {bucket_name=} on {s3_integrator_app=}")
-    minio_addr = get_unit_ip_address(juju, MINIO_APP, 0)
+    # do not use helpers.get_unit_ip_address to avoid circular deps
+    minio_addr = juju.status().apps[MINIO_APP].units[f"{MINIO_APP}/0"].address
     mc_client = Minio(
         f"{minio_addr}:9000",
         **{key.replace("-", "_"): value for key, value in S3_CREDENTIALS.items()},

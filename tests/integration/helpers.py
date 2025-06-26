@@ -227,6 +227,7 @@ def deploy_prometheus(juju: Juju):
         trust=True,
     )
 
+
 def deploy_loki(juju: Juju):
     """Deploy a pinned revision of loki that we know to work."""
     juju.deploy(
