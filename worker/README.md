@@ -7,7 +7,7 @@
 ## Description
 
 The Tempo Worker charm provides a scalable long-term storage using [Tempo](https://github.com/grafana/tempo).
-This charm is part of the Tempo HA deployment, and is meant to be deployed together with the [tempo-coordinator-k8s](https://github.com/canonical/tempo-coordinator-k8s-operator) charm.
+This charm is part of the Tempo HA deployment, and is meant to be deployed together with the [tempo-coordinator-k8s](https://charmhub.io/tempo-coordinator-k8s) charm. See [Tempo HA documentation](https://discourse.charmhub.io/t/charmed-tempo-ha/15531) for more details.
 
 A Tempo Worker can assume any role that the Tempo binary can take on, and it should always be related to a Tempo Coordinator.
 
