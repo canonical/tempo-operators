@@ -161,15 +161,16 @@ def _deploy_monolithic_cluster(juju: Juju, coordinator_deployed_as=None):
 def _deploy_distributed_cluster(
     juju: Juju, roles: Sequence[str] = tuple(ALL_ROLES), coordinator_deployed_as=None
 ):
-    """Deploy a tempo monolithic cluster."""
+    """Deploy a tempo distributed cluster."""
     worker_charm_url, channel, resources = _charm_and_channel_and_resources(
         "worker", "WORKER_CHARM_PATH", "WORKER_CHARM_CHANNEL"
     )
 
     all_workers = []
 
-    for role in roles or ALL_ROLES:
-        worker_name = f"{WORKER_APP}-{role.replace('_', '-')}"
+    for role in roles:
+        role_sanitised = role.replace("_", "-")
+        worker_name = f"{WORKER_APP}-{role_sanitised}"
         all_workers.append(worker_name)
 
         juju.deploy(
@@ -177,7 +178,7 @@ def _deploy_distributed_cluster(
             app=worker_name,
             channel=channel,
             trust=True,
-            config={"role-all": False, f"role-{role}": True},
+            config={"role-all": False, f"role-{role_sanitised}": True},
             resources=resources,
         )
 
@@ -327,10 +328,10 @@ def _monolithic_ctx(monolithic, juju, setup, teardown, all_tempo_apps):
     if setup:
         if monolithic:
             logger.info("deploying monolithic cluster...")
-            _deploy_distributed_cluster(juju)
-        else:
-            logger.info("deploying monolithic cluster...")
             _deploy_monolithic_cluster(juju)
+        else:
+            logger.info("deploying distributed cluster...")
+            _deploy_distributed_cluster(juju)
         logger.info("cluster deployed.")
 
     yield
@@ -346,8 +347,6 @@ def deployment_context(
     tls: bool,
     monolithic: bool,
     ingress: bool,
-    coordinator_charm: str,
-    worker_charm: str,
     pytestconfig,
     all_tempo_apps: List[str],
     juju: Juju,
