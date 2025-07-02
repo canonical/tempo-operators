@@ -308,12 +308,12 @@ class TempoCoordinatorCharm(CharmBase):
         """A catalogue application entry for this Tempo instance."""
         return CatalogueItem(
             # use app.name in case there are multiple Tempo applications deployed.
-            name=self.app.name,
+            name=f"Tempo ({self.app.name})",
             icon="transit-connection-variant",
             # Unlike Prometheus, Tempo doesn't have a sophisticated web UI.
-            # Instead, we'll show the current cluster members and their health status.
+            # Instead, we'll show the current status.
             # ref: https://grafana.com/docs/tempo/latest/api_docs/
-            url=f"{self._most_external_url}:3200/memberlist",
+            url=f"{self._most_external_url}:3200/status",
             description=(
                 "Tempo is a distributed tracing backend by Grafana, supporting Jaeger, "
                 "Zipkin, and OpenTelemetry protocols."
