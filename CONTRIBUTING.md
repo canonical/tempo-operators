@@ -84,6 +84,7 @@ juju deploy --trust \
 juju deploy --trust \
     ./worker/tempo-worker-k8s_ubuntu-24.04-amd64.charm \
     --resource tempo-image=ghcr.io/canonical/oci-factory/tempo:2.7.1-24.04_5 tempo-worker
+    
 # alternatively, with jhack: https://github.com/canonical/jhack?tab=readme-ov-file#deploy
 # cd ./coordinator; jhack deploy -- --trust 
 # cd ./worker; jhack deploy -- --trust    
