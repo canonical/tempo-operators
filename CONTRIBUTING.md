@@ -76,15 +76,17 @@ juju add-model dev
 # Enable DEBUG logging
 juju model-config logging-config="<root>=INFO;unit=DEBUG"
 # Deploy the charms
-juju deploy ./coordinator/tempo-coordinator-k8s_ubuntu-24.04-amd64.charm \
+juju deploy --trust \ 
+    ./coordinator/tempo-coordinator-k8s_ubuntu-24.04-amd64.charm \
     --resource nginx-image=ubuntu/nginx:1.24-24.04_beta \
-    --resource nginx-prometheus-exporter-image=nginx/nginx-prometheus-exporter:1.1.0
+    --resource nginx-prometheus-exporter-image=nginx/nginx-prometheus-exporter:1.1.0 tempo
     
-juju deploy ./worker/tempo-worker-k8s_ubuntu-24.04-amd64.charm \
-    --resource tempo-image=ghcr.io/canonical/oci-factory/tempo:2.7.1-24.04_5 
+juju deploy --trust \
+    ./worker/tempo-worker-k8s_ubuntu-24.04-amd64.charm \
+    --resource tempo-image=ghcr.io/canonical/oci-factory/tempo:2.7.1-24.04_5 tempo-worker
 # alternatively, with jhack: https://github.com/canonical/jhack?tab=readme-ov-file#deploy
-# cd ./coordinator; jhack deploy     
-# cd ./worker; jhack deploy     
+# cd ./coordinator; jhack deploy -- --trust 
+# cd ./worker; jhack deploy -- --trust    
 ```
 
 Tempo requires an integration with S3 to function.
