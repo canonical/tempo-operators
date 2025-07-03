@@ -30,6 +30,20 @@ tox --notest -e unit
 source .tox/unit/bin/activate
 ```
 
+### Container images
+
+We are using the following images built by [oci-factory](https://github.com/canonical/oci-factory):
+- `ubuntu/tempo`
+  - [source](https://github.com/canonical/tempo-rock)
+  - [dockerhub](https://hub.docker.com/r/ubuntu/tempo)
+- `ubuntu/nginx`
+  - [source](https://github.com/canonical/nginx-rock)
+  - [dockerhub](https://hub.docker.com/r/ubuntu/nginx)
+- `nginx/nginx-prometheus-exporter`
+  - (upstream image) (WIP: https://github.com/canonical/nginx-prometheus-exporter-rock)
+  - [dockerhub](https://hub.docker.com/r/nginx/nginx-prometheus-exporter)
+
+
 ### Testing
 
 ```shell
