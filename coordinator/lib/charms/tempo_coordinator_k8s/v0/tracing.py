@@ -383,7 +383,7 @@ class Receiver(BaseModel):
     )
 
 
-class TracingProviderAppData(DatabagModel):  # noqa: D101 # type:ignore
+class TracingProviderAppData(DatabagModel):  # noqa: D101
     """Application databag model for the tracing provider."""
 
     receivers: List[Receiver] = Field(
@@ -392,7 +392,7 @@ class TracingProviderAppData(DatabagModel):  # noqa: D101 # type:ignore
     )
 
 
-class TracingRequirerAppData(DatabagModel):  # noqa: D101 # type:ignore
+class TracingRequirerAppData(DatabagModel):  # noqa: D101
     """Application databag model for the tracing requirer."""
 
     receivers: List[ReceiverProtocol]
