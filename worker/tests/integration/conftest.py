@@ -1,32 +1,17 @@
-import os
-from pathlib import Path
-
+# Copyright 2021 Canonical Ltd.
+# See LICENSE file for licensing details.
 import logging
-import pytest
-import subprocess
-from pytest_jubilant import pack_charm
 
+from pytest import fixture
+from helpers import get_charm
 
 logger = logging.getLogger(__name__)
 
-@pytest.fixture(scope="session")
-def tempo_worker_charm():
-    return _tempo_worker_charm()
+@fixture(scope="session")
+def charm():
+    """Charm used for integration testing.
 
-def _tempo_worker_charm() -> Path:
-    """Tempo worker charm used for integration testing."""
-    if charm_file := os.environ.get("CHARM_PATH"):
-        return Path(charm_file)
-
-    # Intermittent issue where charmcraft fails to build the charm for an unknown reason.
-    # Retry building the charm
-    for _ in range(3):
-        logger.info("packing...")
-        try:
-            pth = pack_charm().charm.absolute()
-        except subprocess.CalledProcessError:
-            logger.warning("Failed to build tempo-worker. Trying again!")
-            continue
-        os.environ["CHARM_PATH"] = str(pth)
-        return pth
-    raise err  # noqa
+    Build once per session and reuse it in all integration tests to save some minutes/hours.
+    You can also set `CHARM_PATH` env variable to use an already existing built charm.
+    """
+    return get_charm()
