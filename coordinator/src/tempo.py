@@ -171,6 +171,7 @@ class Tempo:
         ]
 
         config = tempo_config.MetricsGenerator(
+            ring=self._build_ring(),
             storage=tempo_config.MetricsGeneratorStorage(
                 path=self.metrics_generator_wal_path,
                 remote_write=remote_write_instances,
@@ -244,6 +245,7 @@ class Tempo:
     def _build_compactor_config(self):
         """Build compactor config"""
         return tempo_config.Compactor(
+            ring=self._build_ring(),
             compaction=tempo_config.Compaction(
                 # blocks in this time window will be compacted together
                 compaction_window="1h",
@@ -278,7 +280,8 @@ class Tempo:
             # replication_factor=3 to ensure that the Tempo cluster can still be
             # functional if one of the ingesters is down.
             lifecycler=tempo_config.Lifecycler(
-                ring=tempo_config.Ring(
+                ring=tempo_config.IngesterRing(
+                    kvstore=self._build_memberlist_kvstore(),
                     replication_factor=(
                         3 if ingester_addresses and len(ingester_addresses) >= 3 else 1
                     )
@@ -332,4 +335,10 @@ class Tempo:
             if proto in receivers_set:
                 config["jaeger"]["protocols"][config_field_name] = _build_receiver_config(proto)
 
-        return tempo_config.Distributor(receivers=config)
+        return tempo_config.Distributor(ring=self._build_ring(), receivers=config)
+
+    def _build_memberlist_kvstore(self):
+        return tempo_config.Kvstore(store="memberlist")
+
+    def _build_ring(self):
+        return tempo_config.Ring(kvstore=self._build_memberlist_kvstore())
