@@ -177,20 +177,22 @@ def _get_tempo_charm():
         return pth
     raise err  # noqa
 
-def _deploy_cluster(juju: Juju, workers: Sequence[str], s3=S3_APP, coordinator:str=TEMPO_APP, bucket_name:str=BUCKET_NAME):
-    if coordinator not in juju.status().apps:
+def _deploy_cluster(juju: Juju, workers: Sequence[str], coordinator_deployed_as: str = None,):
+    logger.info("deploying cluster")
+    if coordinator_deployed_as:
+        coordinator_app = coordinator_deployed_as
+    else:
         juju.deploy(
-            _get_tempo_charm(), coordinator, resources=TEMPO_RESOURCES, trust=True
+            _get_tempo_charm(), TEMPO_APP, resources=TEMPO_RESOURCES, trust=True
         )
-    # latest revision of s3-integrator creates buckets under relation name, we pin to a working version
-    juju.deploy("s3-integrator", s3, channel=INTEGRATION_TESTERS_CHANNEL, base="ubuntu@24.04", revision=157)
+        coordinator_app = TEMPO_APP
 
     for worker in workers:
-        juju.integrate(coordinator, worker)
+        juju.integrate(coordinator_app, worker)
         # if we have an explicit metrics generator worker, we need to integrate with prometheus not to be in blocked
         if "metrics-generator" in worker:
             juju.integrate(PROMETHEUS_APP + ":receive-remote-write",
-                           coordinator + ":send-remote-write")
+                           coordinator_app + ":send-remote-write")
 
     _deploy_and_configure_minio(juju)
 
@@ -198,7 +200,7 @@ def _deploy_cluster(juju: Juju, workers: Sequence[str], s3=S3_APP, coordinator:s
     juju.integrate(coordinator + ":s3", s3 + ":s3-credentials")
 
     juju.wait(
-        lambda status: jubilant.all_active(status, coordinator, *workers, s3),
+        lambda status: jubilant.all_active(status, coordinator_app, *workers, s3),
         timeout=2000,
         delay=5,
         successes=3,
@@ -210,12 +212,12 @@ def deploy_monolithic_cluster(juju: Juju, worker:str=WORKER_APP, s3:str=S3_APP, 
     tempo_worker_charm_url, channel, resources = tempo_worker_charm_and_channel_and_resources()
     juju.deploy(
         tempo_worker_charm_url,
-        app=worker,
+        app=WORKER_APP,
         channel=channel,
         trust=True,
         resources=resources,
     )
-    _deploy_cluster(juju, [worker], coordinator=coordinator, s3=s3, bucket_name=bucket_name)
+    _deploy_cluster(juju, [WORKER_APP], coordinator_deployed_as=coordinator_deployed_as)
 
 
 def deploy_prometheus(juju:Juju):
@@ -251,7 +253,7 @@ def deploy_distributed_cluster(juju: Juju, roles: Sequence[str], worker:str=WORK
         if role == "metrics-generator":
             deploy_prometheus(juju)
 
-    return _deploy_cluster(juju, all_workers, coordinator=coordinator, bucket_name=bucket_name)
+    return _deploy_cluster(juju, all_workers, coordinator_deployed_as=coordinator_deployed_as)
 
 
 def get_traces(tempo_host: str, service_name="tracegen", tls=True, nonce:Optional[str]=None):
