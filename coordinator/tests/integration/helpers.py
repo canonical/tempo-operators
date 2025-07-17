@@ -200,7 +200,7 @@ def _deploy_cluster(juju: Juju, workers: Sequence[str], coordinator_deployed_as:
     juju.integrate(coordinator + ":s3", s3 + ":s3-credentials")
 
     juju.wait(
-        lambda status: jubilant.all_active(status, coordinator_app, *workers, s3),
+        lambda status: jubilant.all_active(status, coordinator_app, *workers, S3_APP),
         timeout=2000,
         delay=5,
         successes=3,
