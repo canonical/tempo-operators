@@ -182,6 +182,8 @@ def _deploy_cluster(juju: Juju, workers: Sequence[str], s3=S3_APP, coordinator:s
         juju.deploy(
             _get_tempo_charm(), coordinator, resources=TEMPO_RESOURCES, trust=True
         )
+    # latest revision of s3-integrator creates buckets under relation name, we pin to a working version
+    juju.deploy("s3-integrator", s3, channel=INTEGRATION_TESTERS_CHANNEL, base="ubuntu@24.04", revision=157)
 
     for worker in workers:
         juju.integrate(coordinator, worker)

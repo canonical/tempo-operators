@@ -338,6 +338,8 @@ class Tempo:
         return tempo_config.Distributor(ring=self._build_ring(), receivers=config)
 
     def _build_memberlist_kvstore(self):
+        # explicitly set store to memberlist for the compactor, distributor, ingester, and metrics-generator
+        # if not set, they may default to a different store, fail to join the ring, and cause silent issues.
         return tempo_config.Kvstore(store="memberlist")
 
     def _build_ring(self):
