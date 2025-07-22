@@ -68,9 +68,11 @@ class Tempo:
         self,
         requested_receivers: Callable[[], "Tuple[ReceiverProtocol, ...]"],
         retention_period_hours: int,
+        remote_write_endpoints: Callable[[], List[Dict[str, Any]]]
     ):
         self._receivers_getter = requested_receivers
         self._retention_period_hours = retention_period_hours
+        self._remote_write_endpoints_getter = remote_write_endpoints
 
     def config(
         self,
@@ -92,7 +94,6 @@ class Tempo:
             querier=self._build_querier_config(coordinator.cluster.gather_addresses_by_role()),
             storage=self._build_storage_config(coordinator._s3_config),
             metrics_generator=self._build_metrics_generator_config(
-                coordinator.remote_write_endpoints_getter(),  # type: ignore
                 coordinator.tls_available,
             ),
         )
@@ -149,8 +150,9 @@ class Tempo:
         )
 
     def _build_metrics_generator_config(
-        self, remote_write_endpoints: List[Dict[str, Any]], use_tls=False
+        self, use_tls=False
     ):
+        remote_write_endpoints = self._remote_write_endpoints_getter()
         if len(remote_write_endpoints) == 0:
             return None
 

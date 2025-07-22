@@ -117,6 +117,7 @@ class TempoCoordinatorCharm(CharmBase):
         self.tempo = Tempo(
             requested_receivers=self._requested_receivers,
             retention_period_hours=self._trace_retention_period_hours,
+            remote_write_endpoints=self._remote_write_endpoints,
         )
 
         # keep this above the coordinator definition
@@ -148,7 +149,7 @@ class TempoCoordinatorCharm(CharmBase):
             workers_config=self.tempo.config,
             resources_requests=self.get_resources_requests,
             container_name="charm",
-            remote_write_endpoints=self.remote_write_endpoints,  # type: ignore
+            remote_write_endpoints=self._remote_write_endpoints,  # type: ignore
             worker_ports=self._get_worker_ports,
             workload_tracing_protocols=["otlp_http"],
             catalogue_item=self._catalogue_item,
@@ -337,7 +338,7 @@ class TempoCoordinatorCharm(CharmBase):
         # add Tempo coordinator-specific statuses
         if (
             "metrics-generator" in self.coordinator.cluster.gather_roles()
-            and not self.remote_write_endpoints()
+            and not self._remote_write_endpoints()
         ):
             e.add_status(
                 ops.ActiveStatus(
@@ -587,7 +588,7 @@ class TempoCoordinatorCharm(CharmBase):
         """Returns a dictionary for the "requests" portion of the resources requirements."""
         return {"cpu": "50m", "memory": "100Mi"}
 
-    def remote_write_endpoints(self):
+    def _remote_write_endpoints(self) -> List[Dict[str, str]]:
         """Return a sorted list of remote-write endpoints."""
         return sorted(self._remote_write.endpoints, key=lambda x: x["url"])
 
