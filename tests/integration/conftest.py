@@ -40,6 +40,7 @@ S3_CREDENTIALS = {
     "access-key": ACCESS_KEY,
     "secret-key": SECRET_KEY,
 }
+INTEGRATION_TESTERS_CHANNEL = "2/edge"
 
 logger = logging.getLogger(__name__)
 
@@ -168,8 +169,14 @@ def _deploy_distributed_cluster(
 
 def deploy_s3(juju, bucket_name: str, s3_integrator_app: str):
     logger.info(f"deploying {s3_integrator_app=}")
+
     juju.deploy(
-        "s3-integrator", s3_integrator_app, channel="2/edge", base="ubuntu@24.04"
+        "s3-integrator",
+        s3_integrator_app,
+        channel=INTEGRATION_TESTERS_CHANNEL,
+        base="ubuntu@24.04",
+        # latest revision of s3-integrator creates buckets under relation name, we pin to a working version
+        revision=157,
     )
 
     logger.info(f"provisioning {bucket_name=} on {s3_integrator_app=}")
