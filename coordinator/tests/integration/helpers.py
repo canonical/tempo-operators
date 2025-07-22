@@ -178,7 +178,6 @@ def _get_tempo_charm():
     raise err  # noqa
 
 def _deploy_cluster(juju: Juju, workers: Sequence[str], s3=S3_APP, coordinator:str=TEMPO_APP, bucket_name:str=BUCKET_NAME):
-    logger.info("deploying cluster")
     if coordinator not in juju.status().apps:
         juju.deploy(
             _get_tempo_charm(), coordinator, resources=TEMPO_RESOURCES, trust=True
