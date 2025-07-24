@@ -209,8 +209,8 @@ wheels = [
 
 [[package]]
 name = "coordinated-workers"
-version = "2.0.3"
-source = { registry = "https://pypi.org/simple" }
+version = "2.0.4"
+source = { git = "https://github.com/canonical/cos-coordinated-workers?rev=TAP-359#633773b019cc4ea6b3ba5c5cd012d4e671f3473d" }
 dependencies = [
     { name = "cosl" },
     { name = "crossplane" },
@@ -218,10 +218,6 @@ dependencies = [
     { name = "lightkube" },
     { name = "ops", extra = ["tracing"] },
     { name = "pydantic" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/2a/37/38c30c2ca8328f394470132c11ae3390d806da1965a7e5c191f6b2df2aeb/coordinated_workers-2.0.3.tar.gz", hash = "sha256:7ea0d60747cf26c177be5fe4f6007e3b74e618fb6b0c06906bf62624316e16bc", size = 136040, upload_time = "2025-07-21T13:42:22.031Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f6/c8/7b093c89633116a351d0f78bd08c27f46da6577979c5be59e0754e12c06c/coordinated_workers-2.0.3-py3-none-any.whl", hash = "sha256:ebbd6ccf83911d665290f577246325fd958b88669450493310829ea97ade126a", size = 45623, upload_time = "2025-07-21T13:42:20.812Z" },
 ]
 
 [[package]]
@@ -481,7 +477,7 @@ wheels = [
 
 [[package]]
 name = "minio"
-version = "7.2.15"
+version = "7.2.16"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "argon2-cffi" },
@@ -490,9 +486,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9e/68/86a1cef80396e6a35a6fc4fafee5d28578c1a137bddd3ca2aa86f9b26a22/minio-7.2.15.tar.gz", hash = "sha256:5247df5d4dca7bfa4c9b20093acd5ad43e82d8710ceb059d79c6eea970f49f79", size = 138040, upload_time = "2025-01-19T08:57:26.626Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f4/a0/33ea2e18d5169817950edc13eba58cd781cedefe9f6696cae26aa2d75882/minio-7.2.16.tar.gz", hash = "sha256:81e365c8494d591d8204a63ee7596bfdf8a7d06ad1b1507d6b9c1664a95f299a", size = 139149, upload_time = "2025-07-21T20:11:15.911Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fb/6f/3690028e846fe432bfa5ba724a0dc37ec9c914965b7733e19d8ca2c4c48d/minio-7.2.15-py3-none-any.whl", hash = "sha256:c06ef7a43e5d67107067f77b6c07ebdd68733e5aa7eed03076472410ca19d876", size = 95075, upload_time = "2025-01-19T08:57:24.169Z" },
+    { url = "https://files.pythonhosted.org/packages/89/a3/00260f8df72b51afa1f182dd609533c77fa2407918c4c2813d87b4a56725/minio-7.2.16-py3-none-any.whl", hash = "sha256:9288ab988ca57c181eb59a4c96187b293131418e28c164392186c2b89026b223", size = 95750, upload_time = "2025-07-21T20:11:14.139Z" },
 ]
 
 [[package]]
@@ -829,15 +825,15 @@ wheels = [
 
 [[package]]
 name = "pytest-jubilant"
-version = "0.7.1"
+version = "0.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jubilant" },
     { name = "pytest" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/21/20/a35203e1ba501c0eeb826917b023e3c8d06ee965741ac8245155e7628f84/pytest_jubilant-0.7.1.tar.gz", hash = "sha256:0a69a352d9da01b2e02331ef392baee1127f58f0529cf5ae9660a2bcf7f62b09", size = 11734, upload_time = "2025-07-07T13:31:32.521Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/83/84/4b9c2a05b5f792b452db06ab0d6543c13676281423435df9cc800478c2a5/pytest_jubilant-0.8.tar.gz", hash = "sha256:dbc8bc51f03682864f6807023b757de13e802f62486d7874b0fce0ccc16aba13", size = 12453, upload_time = "2025-07-24T08:46:40.072Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2e/d9/4544a16eb660da6d467f2565ca5be2c520df8a2d0611f8d657ddb92498a4/pytest_jubilant-0.7.1-py3-none-any.whl", hash = "sha256:1d89321ed6728fa412c5bd6112856e42c7f5e5905587657bd53b2158f7488bfd", size = 11811, upload_time = "2025-07-07T13:31:31.151Z" },
+    { url = "https://files.pythonhosted.org/packages/97/34/5c19a43e6c9964bb7233bc61e869a51156a244686005a062e8817e4feb25/pytest_jubilant-0.8-py3-none-any.whl", hash = "sha256:77a34642c1179a2b142c3d007dab3897d8096de93d47b7caf843d3d140ffbfad", size = 12124, upload_time = "2025-07-24T08:46:38.562Z" },
 ]
 
 [[package]]
@@ -962,7 +958,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "coordinated-workers", specifier = ">=2.0.0" },
+    { name = "coordinated-workers", git = "https://github.com/canonical/cos-coordinated-workers?rev=TAP-359" },
     { name = "coverage", extras = ["toml"], marker = "extra == 'dev'" },
     { name = "cryptography" },
     { name = "jubilant", marker = "extra == 'dev'" },

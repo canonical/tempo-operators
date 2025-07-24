@@ -24,7 +24,7 @@ resources:
   nginx-image:
     type: oci-image
     description: OCI image for nginx
-    upstream-source: ubuntu/nginx:1.24-24.04_beta
+    upstream-source: ghcr.io/canonical/nginx@sha256:389f4cc2acb544a028711e2c244f209a0033c0752b7b7f4135a0cd05ded0efa3 # 1.27.5 rock 
   nginx-prometheus-exporter-image:
     type: oci-image
     description: OCI image for nginx-prometheus-exporter
