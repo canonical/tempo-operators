@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Literal, Sequence
 
 import jubilant
+import pytest
 from jubilant import Juju
 from minio import Minio
 from pytest import fixture
@@ -45,24 +46,6 @@ INTEGRATION_TESTERS_CHANNEL = "2/edge"
 logger = logging.getLogger(__name__)
 
 
-def pytest_addoption(parser):
-    group = parser.getgroup("test-config")
-    group.addoption(
-        "--tls",
-        dest="tls",
-        action="store",
-        default="0",
-        help="Run tests with tls enabled.",
-    )
-    group.addoption(
-        "--distributed",
-        dest="distributed",
-        action="store",
-        default="0",
-        help="Run tests with distributed deployment mode enabled.",
-    )
-
-
 @fixture(scope="session")
 def coordinator_charm():
     """Pyroscope coordinator used for integration testing."""
@@ -77,18 +60,6 @@ def worker_charm():
     return charm_and_channel_and_resources(
         "worker", "WORKER_CHARM_PATH", "WORKER_CHARM_CHANNEL"
     )
-
-
-@fixture(scope="session")
-def tls(pytestconfig):
-    """Run with or without tls."""
-    return pytestconfig.getoption("tls") == "1"
-
-
-@fixture(scope="session")
-def distributed(pytestconfig):
-    """Run in monolithic or fully distributed mode."""
-    return pytestconfig.getoption("distributed") == "1"
 
 
 def charm_and_channel_and_resources(
@@ -285,9 +256,19 @@ def _tls_ctx(active: bool, juju: Juju, distributed: bool):
     juju.remove_application(SSC_APP)
 
 
-@fixture(scope="module")
-def deployment(tls, distributed, juju, coordinator_charm, worker_charm, pytestconfig):
-    if not pytestconfig.getoption("--no-setup"):
+@pytest.fixture
+def do_setup(pytestconfig):
+    return not pytestconfig.getoption("--no-setup")
+
+
+@pytest.fixture
+def do_teardown(pytestconfig):
+    return not pytestconfig.getoption("--no-teardown")
+
+
+@contextmanager
+def deployment_factory(tls, distributed, juju, do_setup, do_teardown):
+    if do_setup:
         if distributed:
             logger.info("deploying distributed cluster...")
             _deploy_distributed_cluster(juju)
@@ -299,7 +280,7 @@ def deployment(tls, distributed, juju, coordinator_charm, worker_charm, pytestco
     with _tls_ctx(tls, juju=juju, distributed=distributed):
         yield juju
 
-    if not pytestconfig.getoption("--no-teardown"):
+    if do_teardown:
         logger.info("tearing down all apps...")
         for app_to_remove in {
             TEMPO_APP,

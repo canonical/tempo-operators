@@ -7,9 +7,9 @@ from utils import assert_charm_traces_ingested
 
 @pytest.fixture
 def deployment(juju, do_setup, do_teardown):
-    # set up a monolithic deployment with no tls and no ingress
+    # set up a monolithic deployment with tls and no ingress
     with deployment_factory(
-        tls=False,
+        tls=True,
         distributed=False,
         juju=juju,
         do_setup=do_setup,
