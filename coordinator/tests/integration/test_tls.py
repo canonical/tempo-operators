@@ -30,13 +30,19 @@ logger = logging.getLogger(__name__)
 def test_setup(juju: Juju):
     # deploy cluster
     juju.deploy("self-signed-certificates", app=SSC_APP)
-    juju.deploy("traefik-k8s", app=TRAEFIK_APP, channel="edge", trust=True)
+    juju.deploy(
+        "traefik-k8s", app=TRAEFIK_APP, channel="edge", trust=True
+    )
+
+    juju.integrate(
+        SSC_APP + ":certificates", TRAEFIK_APP + ":certificates"
+    )
 
     # this will wait for tempo, worker and s3 to be ready
     deploy_monolithic_cluster(juju)
 
     juju.integrate(TEMPO_APP + ":certificates", SSC_APP + ":certificates")
-    juju.integrate(TRAEFIK_APP + ":certificates", SSC_APP + ":certificates")
+    juju.integrate(TEMPO_APP + ":ingress", TRAEFIK_APP + ":traefik-route")
 
     juju.wait(
         lambda status: jubilant.all_active(status, SSC_APP, TRAEFIK_APP),
@@ -95,16 +101,6 @@ def test_force_enable_protocols(juju: Juju):
         error=jubilant.any_error,
         timeout=2000,
         # wait for an idle period
-        delay=10,
-        successes=3,
-    )
-
-def test_ingress_integration(juju: Juju):
-    juju.integrate(TRAEFIK_APP + ":traefik-route", TEMPO_APP + ":ingress")
-    juju.wait(
-        lambda status: jubilant.all_active(status, TEMPO_APP, WORKER_APP, TRAEFIK_APP),
-        error=jubilant.any_error,
-        timeout=2000,
         delay=10,
         successes=3,
     )
