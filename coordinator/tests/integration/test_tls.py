@@ -1,5 +1,4 @@
 import logging
-from pathlib import Path
 
 import jubilant
 import pytest
@@ -28,53 +27,51 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.setup
-def test_build_and_deploy(juju: Juju, tempo_charm: Path):
+def test_setup(juju: Juju):
     # deploy cluster
     juju.deploy("self-signed-certificates", app=SSC_APP)
-    juju.deploy(
-        "traefik-k8s", app=TRAEFIK_APP, channel="edge", trust=True
-    )
-
-    juju.integrate(
-        SSC_APP + ":certificates", TRAEFIK_APP + ":certificates"
-    )
+    juju.deploy("traefik-k8s", app=TRAEFIK_APP, channel="edge", trust=True)
 
     # this will wait for tempo, worker and s3 to be ready
     deploy_monolithic_cluster(juju)
 
     juju.integrate(TEMPO_APP + ":certificates", SSC_APP + ":certificates")
-    juju.integrate(TEMPO_APP + ":ingress", TRAEFIK_APP + ":traefik-route")
+    juju.integrate(TRAEFIK_APP + ":certificates", SSC_APP + ":certificates")
 
     juju.wait(
         lambda status: jubilant.all_active(status, SSC_APP, TRAEFIK_APP),
         error=jubilant.any_error,
         timeout=2000,
+        delay=10,
+        successes=3,
     )
 
-@pytest.mark.setup
-def test_relate_ssc(juju: Juju):
+def test_scale_coordinator_up(juju: Juju):
+    juju.cli("add-unit", TEMPO_APP, "-n", "2")
     juju.wait(
-        lambda status: jubilant.all_active(status, TEMPO_APP, SSC_APP, TRAEFIK_APP, WORKER_APP),
+        lambda status: jubilant.all_active(status,  TEMPO_APP, WORKER_APP),
         error=jubilant.any_error,
         timeout=2000,
+        delay=10,
+        successes=3,
     )
 
-
-def test_verify_trace_http_no_tls_fails(juju: Juju, nonce):
+@pytest.mark.parametrize("unit", (0,1,2))
+def test_verify_trace_http_no_tls_fails(juju: Juju, nonce, unit):
     # IF tempo is related to SSC
     # WHEN we emit an http trace, **unsecured**
-    tempo_endpoint = get_tempo_internal_endpoint(juju, tls=False, protocol="otlp_http")
+    tempo_endpoint = get_tempo_internal_endpoint(juju, tls=False, protocol="otlp_http", unit=unit)
     emit_trace(tempo_endpoint, juju, nonce=nonce)  # this should fail
 
     # THEN we can verify it's not been ingested
     with pytest.raises(tenacity.RetryError):
         get_traces_patiently(get_app_ip_address(juju, TEMPO_APP), nonce=nonce)
 
-
-def test_verify_traces_otlp_http_tls(juju: Juju, nonce):
+@pytest.mark.parametrize("unit", (0,1,2))
+def test_verify_traces_otlp_http_tls(juju: Juju, nonce, unit):
     protocol = "otlp_http"
     service_name = f"tracegen-{protocol}"
-    tempo_endpoint = get_tempo_internal_endpoint(juju, protocol=protocol, tls=True)
+    tempo_endpoint = get_tempo_internal_endpoint(juju, protocol=protocol, tls=True, unit=unit)
     # WHEN we emit a trace secured with TLS
     emit_trace(
         tempo_endpoint,
@@ -98,10 +95,19 @@ def test_force_enable_protocols(juju: Juju):
         error=jubilant.any_error,
         timeout=2000,
         # wait for an idle period
-        delay=5,
+        delay=10,
         successes=3,
     )
 
+def test_ingress_integration(juju: Juju):
+    juju.integrate(TRAEFIK_APP + ":traefik-route", TEMPO_APP + ":ingress")
+    juju.wait(
+        lambda status: jubilant.all_active(status, TEMPO_APP, WORKER_APP, TRAEFIK_APP),
+        error=jubilant.any_error,
+        timeout=2000,
+        delay=10,
+        successes=3,
+    )
 
 @pytest.mark.skip(reason="SSL error on jaeger_thrift_http") # TODO https://github.com/canonical/tempo-coordinator-k8s-operator/issues/176
 @pytest.mark.parametrize("protocol", protocols_endpoints.keys())

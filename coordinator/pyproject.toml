@@ -6,8 +6,7 @@ version = "0.1"  # this is in fact irrelevant
 requires-python = ">=3.10"
 
 dependencies = [
-    # TODO: use a tagged version 
-    "coordinated-workers@git+https://github.com/canonical/cos-coordinated-workers@TAP-359",
+    "coordinated-workers",
     "pydantic<3",
     # ---PYDEPS---,
     # lib/charms/tls_certificates_interface/v4/tls_certificates.py
