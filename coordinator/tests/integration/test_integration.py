@@ -3,7 +3,7 @@ from pathlib import Path
 
 import jubilant
 import pytest
-from pytest_jubilant import pack_charm
+from pytest_jubilant import pack, get_resources
 import yaml
 from jubilant import Juju
 
@@ -20,21 +20,25 @@ TESTER_GRPC_APP_NAME = TESTER_GRPC_METADATA["name"]
 
 @pytest.mark.setup
 def test_build_deploy_tester(juju: Juju):
-    out = pack_charm("./tests/integration/tester/")
+    path = "./tests/integration/tester/"
+    charm = pack(path).absolute()
+    resources = get_resources(path)
     juju.deploy(
-        f"{out.charm}",
+        charm,
         TESTER_APP_NAME,
-        resources=out.resources,
+        resources=resources,
         num_units=3,
     )
 
 @pytest.mark.setup
 def test_build_deploy_tester_grpc(juju: Juju):
-    out = pack_charm("./tests/integration/tester-grpc/")
+    path = "./tests/integration/tester-grpc/"
+    charm = pack(path).absolute()
+    resources = get_resources(path)
     juju.deploy(
-        f"{out.charm}",
+        charm,
         TESTER_GRPC_APP_NAME,
-        resources=out.resources,
+        resources=resources,
         num_units=3,
     )
 

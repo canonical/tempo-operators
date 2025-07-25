@@ -355,8 +355,8 @@ def get_tempo_ingressed_endpoint(hostname, protocol: str, tls: bool):
     return _get_endpoint(protocol, hostname, tls)
 
 
-def get_tempo_internal_endpoint(juju: Juju, protocol: str, tls: bool):
-    hostname = f"{TEMPO_APP}-0.{TEMPO_APP}-endpoints.{juju.model}.svc.cluster.local"
+def get_tempo_internal_endpoint(juju: Juju, protocol: str, tls: bool, unit: int = 0):
+    hostname = f"{TEMPO_APP}-{unit}.{TEMPO_APP}-endpoints.{juju.model}.svc.cluster.local"
     return _get_endpoint(protocol, hostname, tls)
 
 

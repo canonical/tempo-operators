@@ -110,7 +110,7 @@ def _assert_config_per_role(source_dict, address, prepared_config, tls, ipv6):
     # as entire config is in a format that's hard to parse (and crossplane returns a string), we look for servers,
     # upstreams and correct proxy/grpc_pass instructions.
     for port in source_dict.values():
-        assert f"server {address}:{port};" in prepared_config
+        assert f"server {address}:{port} resolve;" in prepared_config
         assert f"listen {port}" in prepared_config
         assert (
             (f"listen [::]:{port}" in prepared_config)

@@ -18,7 +18,7 @@ See [Deploy Tempo on top of COS-Lite](https://discourse.charmhub.io/t/tutorial-d
 
 ## OCI Images
 
-This charm, by default, deploys `ubuntu/nginx:1.24-24.04_beta` and `nginx/nginx-prometheus-exporter:1.1.0`.
+This charm, by default, deploys `ghcr.io/canonical/nginx@sha256:6415a2c5f25f1d313c87315a681bdc84be80f3c79c304c6744737f9b34207993` and `nginx/nginx-prometheus-exporter:1.1.0`.
 
 ## Contributing
 
