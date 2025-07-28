@@ -4,7 +4,7 @@ from pathlib import Path
 import logging
 import pytest
 import subprocess
-from pytest_jubilant import pack_charm
+from pytest_jubilant import pack
 
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ def _tempo_worker_charm() -> Path:
     for _ in range(3):
         logger.info("packing...")
         try:
-            pth = pack_charm().charm.absolute()
+            pth = pack()
         except subprocess.CalledProcessError:
             logger.warning("Failed to build tempo-worker. Trying again!")
             continue
