@@ -2,7 +2,7 @@ import pytest
 from jubilant import Juju
 
 from tests.integration.conftest import deployment_factory
-from utils import assert_charm_traces_ingested
+from assertions import assert_charm_traces_ingested
 
 
 @pytest.fixture
