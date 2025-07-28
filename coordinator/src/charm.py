@@ -180,6 +180,11 @@ class TempoCoordinatorCharm(CharmBase):
             source_type="tempo",
             source_url=self._external_http_server_url,
             extra_fields=self._build_grafana_source_extra_fields(),
+            refresh_event=[
+                self.coordinator.cluster.on.changed,
+                self.on[self.coordinator._certificates.relationship_name].relation_changed,
+            ],
+            is_ingress_per_app=self.ingress.is_ready(),
         )
 
         # wokeignore:rule=blackbox
