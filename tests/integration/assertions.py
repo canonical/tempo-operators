@@ -1,12 +1,13 @@
 from tests.integration.conftest import ALL_WORKERS, WORKER_APP, TEMPO_APP
 from tests.integration.helpers import get_unit_ip_address
+from tenacity import retry, stop_after_delay, wait_fixed
 
 from jubilant import Juju
 import requests
 
 
 @retry(stop=stop_after_delay(2000), wait=wait_fixed(10))  # noqa: F821
-def assert_charm_traces_ingested(deployment:Juju, tls:bool, distributed:bool):
+def assert_charm_traces_ingested(deployment: Juju, tls: bool, distributed: bool):
     """Verify charm tracing for all tempo components."""
     # get tempo's IP
     tempo_ip = get_unit_ip_address(deployment, TEMPO_APP, 0)

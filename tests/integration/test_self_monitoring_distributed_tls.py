@@ -13,7 +13,7 @@ def deployment(juju, do_setup, do_teardown):
         distributed=True,
         juju=juju,
         do_setup=do_setup,
-        do_teardown=do_teardown
+        do_teardown=do_teardown,
     ) as juju:
         yield juju
 
