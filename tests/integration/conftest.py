@@ -123,7 +123,8 @@ def _deploy_distributed_cluster(
     all_workers = []
 
     for role in roles or ALL_ROLES:
-        worker_name = f"{WORKER_APP}-{role.replace('_', '-')}"
+        role_sanitized = role.replace('_', '-')
+        worker_name = f"{WORKER_APP}-{role_sanitized}"
         all_workers.append(worker_name)
 
         juju.deploy(
@@ -131,7 +132,7 @@ def _deploy_distributed_cluster(
             app=worker_name,
             channel=channel,
             trust=True,
-            config={"role-all": False, f"role-{role}": True},
+            config={"role-all": False, f"role-{role_sanitized}": True},
             resources=resources,
         )
 
