@@ -34,7 +34,7 @@ ALL_ROLES = [
     "compactor",
     "metrics_generator",
 ]
-ALL_WORKERS = [f"{WORKER_APP}-" + role.replace('_', '-') for role in ALL_ROLES]
+ALL_WORKERS = [f"{WORKER_APP}-" + role.replace("_", "-") for role in ALL_ROLES]
 
 ACCESS_KEY = "accesskey"
 SECRET_KEY = "secretkey"
@@ -113,15 +113,16 @@ def _deploy_monolithic_cluster(juju: Juju, coordinator_deployed_as=None):
     _deploy_cluster(juju, [WORKER_APP], coordinator_deployed_as=coordinator_deployed_as)
 
 
-def deploy_prometheus(juju:Juju):
+def deploy_prometheus(juju: Juju):
     """Deploy a pinned revision of prometheus that we know to work."""
     juju.deploy(
         "prometheus-k8s",
         app=PROMETHEUS_APP,
-        revision=254, # what's on 2/edge at July 17, 2025.
+        revision=254,  # what's on 2/edge at July 17, 2025.
         channel=INTEGRATION_TESTERS_CHANNEL,
-        trust=True
+        trust=True,
     )
+
 
 def _deploy_distributed_cluster(
     juju: Juju, roles: Sequence[str] = tuple(ALL_ROLES), coordinator_deployed_as=None
@@ -134,7 +135,7 @@ def _deploy_distributed_cluster(
     all_workers = []
 
     for role in roles or ALL_ROLES:
-        role_sanitized = role.replace('_', '-')
+        role_sanitized = role.replace("_", "-")
         worker_name = f"{WORKER_APP}-{role_sanitized}"
         all_workers.append(worker_name)
 
@@ -146,6 +147,8 @@ def _deploy_distributed_cluster(
             config={"role-all": False, f"role-{role_sanitized}": True},
             resources=resources,
         )
+
+    deploy_prometheus(juju)
 
     _deploy_cluster(juju, all_workers, coordinator_deployed_as=coordinator_deployed_as)
 
@@ -228,8 +231,10 @@ def _deploy_cluster(
         juju.integrate(coordinator_app, worker)
         # if we have an explicit metrics generator worker, we need to integrate with prometheus not to be in blocked
         if "metrics-generator" in worker:
-            juju.integrate(PROMETHEUS_APP + ":receive-remote-write",
-                           coordinator_app + ":send-remote-write")
+            juju.integrate(
+                PROMETHEUS_APP + ":receive-remote-write",
+                coordinator_app + ":send-remote-write",
+            )
 
     _deploy_and_configure_minio(juju)
 
@@ -239,7 +244,7 @@ def _deploy_cluster(
     logger.info("waiting for cluster to be active/idle...")
     juju.wait(
         lambda status: jubilant.all_active(status, coordinator_app, *workers, S3_APP),
-        timeout=5000,
+        timeout=3000,
         delay=5,
         successes=3,
     )
@@ -254,7 +259,7 @@ def _tls_ctx(active: bool, juju: Juju, distributed: bool):
 
     logger.info("adding TLS")
     juju.deploy("self-signed-certificates", SSC_APP)
-    juju.integrate(SSC_APP + ":certificates", S3_APP + ":certificates")
+    juju.integrate(SSC_APP + ":certificates", TEMPO_APP + ":certificates")
 
     logger.info("waiting for active...")
     juju.wait(
