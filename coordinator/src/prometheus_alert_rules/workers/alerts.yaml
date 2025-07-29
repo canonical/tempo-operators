@@ -9,7 +9,7 @@ groups:
       message: |
         There are {{ $value }} queued up queries in {{ $labels.juju_unit }}/{{ $labels.juju_model }} {{ $labels.job }}.
     expr: |
-      sum by (cluster, namespace, job) (min_over_time(tempo_query_frontend_queue_length[1m])) > 0
+      sum by (instance, job) (min_over_time(tempo_query_frontend_queue_length[1m])) > 0
     for: 5m
     labels:
       severity: critical
@@ -37,7 +37,7 @@ groups:
       severity: warning
     annotations:
       summary: Tempo too many outstanding compaction blocks (instance {{ $labels.instance }})
-      description: "The {{ $labels.job }} is having too many outstanding compaction blocks for tenant {{ $labels.tenant }}, increase compactor's CPU or add more compactors."
+      description: "There are too many outstanding compaction blocks for tenant {{ $labels.tenant }}, increase compactor's CPU or add more compactors."
   - alert: TempoDiscardedSpans
     expr:  100 * sum by (instance,job)(rate(tempo_discarded_spans_total[5m])) / sum by (instance,job)(rate(tempo_distributor_spans_received_total[5m]))  > 5
     for: "5m"
@@ -118,25 +118,14 @@ groups:
     annotations:
       summary: Tempo kv store request errors (instance {{ $labels.instance }})
       description: "The {{ $labels.job }} {{ $labels.route }} KV store requests is experiencing {{ printf \"%.2f\" $value }}% error rate."
-  - alert: TempoTargetMissing
-    expr: up == 0
-    for: 5m
-    labels:
-      severity: critical
-    annotations:
-      summary: Host `{{ $labels.instance }}` is down.
-      description: >-
-        Host '{{ $labels.instance }}' is down.
-          VALUE = {{ $value }}
-          LABELS = {{ $labels }}
   - alert: TempoNoTenantIndexBuilders
-    expr: sum by (tenant,job,instance) (tempodb_blocklist_tenant_index_builder{instance=~".*compactor.*"}) == 0 and  max by (tenant,job,instance)(tempodb_blocklist_length{instance=~".*compactor.*"}) > 0
+    expr: sum by (tenant) (tempodb_blocklist_tenant_index_builder{instance=~".*compactor.*"}) == 0 and  max by (tenant)(tempodb_blocklist_length{instance=~".*compactor.*"}) > 0
     for: 5m
     labels:
       severity: critical
     annotations:
-      summary: Tempo tenant index builder failing (instance {{ $labels.instance }})
-      description: "The {{ $labels.job }} is having no tenant index builders for tenant {{ $labels.tenant }}. Tenant index will quickly become stale."
+      summary: No tenant index builders
+      description: No tenant index builders for tenant {{ $labels.tenant }}. Tenant index will quickly become stale.
   - alert: TempoRequestErrors
     expr: 100 * sum(rate(tempo_request_duration_seconds_count{status_code=~"5.."}[5m])) by (route,job,instance) / sum(rate(tempo_request_duration_seconds_count[5m])) by (route,job,instance)  > 10
     for: "15m"

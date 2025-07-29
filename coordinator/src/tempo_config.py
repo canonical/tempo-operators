@@ -126,14 +126,19 @@ class Kvstore(BaseModel):
 class Ring(BaseModel):
     """Ring schema."""
 
-    kvstore: Optional[Kvstore] = None
+    kvstore: Kvstore
+
+class IngesterRing(BaseModel):
+    """Ingester ring schema."""
+
+    kvstore: Kvstore
     replication_factor: int
 
 
 class Lifecycler(BaseModel):
     """Lifecycler schema."""
 
-    ring: Ring
+    ring: IngesterRing
 
 
 class Memberlist(BaseModel):
@@ -168,7 +173,7 @@ class Client(BaseModel):
 class Distributor(BaseModel):
     """Distributor schema."""
 
-    ring: Optional[Ring] = None
+    ring: Ring
     receivers: Dict[str, Any]
 
 
@@ -230,7 +235,7 @@ class Compaction(BaseModel):
 class Compactor(BaseModel):
     """Compactor schema."""
 
-    ring: Optional[Ring] = None
+    ring: Ring
     compaction: Compaction
 
 
@@ -333,7 +338,7 @@ class MetricsGeneratorStorage(BaseModel):
 class MetricsGenerator(BaseModel):
     """Metrics Generator schema."""
 
-    ring: Optional[Ring] = None
+    ring: Ring
     storage: MetricsGeneratorStorage
 
     # processor-specific config depends on the processor type

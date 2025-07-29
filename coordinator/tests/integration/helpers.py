@@ -12,7 +12,7 @@ import yaml
 from coordinated_workers.nginx import CA_CERT_PATH
 from jubilant import Juju
 from minio import Minio
-from pytest_jubilant import pack_charm
+from pytest_jubilant import pack
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from tempo_config import TempoRole
@@ -169,7 +169,7 @@ def _get_tempo_charm():
     for _ in range(3):
         logger.info("packing...")
         try:
-            pth = pack_charm().charm.absolute()
+            pth = pack()
         except subprocess.CalledProcessError:
             logger.warning("Failed to build Tempo coordinator. Trying again!")
             continue
