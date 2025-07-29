@@ -11,7 +11,7 @@ import jubilant
 from jubilant import Juju
 from minio import Minio
 from pytest import fixture
-from pytest_jubilant import pack_charm, get_resources
+from pytest_jubilant import pack, get_resources
 
 from tests.integration.helpers import get_unit_ip_address
 
@@ -116,7 +116,7 @@ def charm_and_channel_and_resources(
     for _ in range(3):
         logger.info(f"packing Tempo {role} charm...")
         try:
-            pth = pack_charm(Path() / role).charm.absolute()
+            pth = pack(Path() / role)
         except subprocess.CalledProcessError:
             logger.warning(f"Failed to build Tempo {role}. Trying again!")
             continue
