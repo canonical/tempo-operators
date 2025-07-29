@@ -16,6 +16,7 @@ from pytest_jubilant import pack, get_resources
 
 from tests.integration.helpers import get_unit_ip_address
 
+PROMETHEUS_APP = "prometheus"
 BUCKET_NAME = "tempo"
 MINIO_APP = "minio"
 SSC_APP = "ssc"
@@ -111,6 +112,16 @@ def _deploy_monolithic_cluster(juju: Juju, coordinator_deployed_as=None):
     )
     _deploy_cluster(juju, [WORKER_APP], coordinator_deployed_as=coordinator_deployed_as)
 
+
+def deploy_prometheus(juju:Juju):
+    """Deploy a pinned revision of prometheus that we know to work."""
+    juju.deploy(
+        "prometheus-k8s",
+        app=PROMETHEUS_APP,
+        revision=254, # what's on 2/edge at July 17, 2025.
+        channel=INTEGRATION_TESTERS_CHANNEL,
+        trust=True
+    )
 
 def _deploy_distributed_cluster(
     juju: Juju, roles: Sequence[str] = tuple(ALL_ROLES), coordinator_deployed_as=None
@@ -215,6 +226,10 @@ def _deploy_cluster(
 
     for worker in workers:
         juju.integrate(coordinator_app, worker)
+        # if we have an explicit metrics generator worker, we need to integrate with prometheus not to be in blocked
+        if "metrics-generator" in worker:
+            juju.integrate(PROMETHEUS_APP + ":receive-remote-write",
+                           coordinator_app + ":send-remote-write")
 
     _deploy_and_configure_minio(juju)
 
