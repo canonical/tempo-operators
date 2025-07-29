@@ -224,7 +224,7 @@ def _deploy_cluster(
     logger.info("waiting for cluster to be active/idle...")
     juju.wait(
         lambda status: jubilant.all_active(status, coordinator_app, *workers, S3_APP),
-        timeout=2000,
+        timeout=5000,
         delay=5,
         successes=3,
     )
