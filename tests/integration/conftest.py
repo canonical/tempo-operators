@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Literal, Sequence
 
 import jubilant
+import pytest
 from jubilant import Juju
 from minio import Minio
 from pytest import fixture
@@ -15,6 +16,7 @@ from pytest_jubilant import pack, get_resources
 
 from tests.integration.helpers import get_unit_ip_address
 
+PROMETHEUS_APP = "prometheus"
 BUCKET_NAME = "tempo"
 MINIO_APP = "minio"
 SSC_APP = "ssc"
@@ -32,7 +34,7 @@ ALL_ROLES = [
     "compactor",
     "metrics_generator",
 ]
-ALL_WORKERS = [f"{WORKER_APP}-" + role for role in ALL_ROLES]
+ALL_WORKERS = [f"{WORKER_APP}-" + role.replace("_", "-") for role in ALL_ROLES]
 
 ACCESS_KEY = "accesskey"
 SECRET_KEY = "secretkey"
@@ -43,24 +45,6 @@ S3_CREDENTIALS = {
 INTEGRATION_TESTERS_CHANNEL = "2/edge"
 
 logger = logging.getLogger(__name__)
-
-
-def pytest_addoption(parser):
-    group = parser.getgroup("test-config")
-    group.addoption(
-        "--tls",
-        dest="tls",
-        action="store",
-        default="0",
-        help="Run tests with tls enabled.",
-    )
-    group.addoption(
-        "--distributed",
-        dest="distributed",
-        action="store",
-        default="0",
-        help="Run tests with distributed deployment mode enabled.",
-    )
 
 
 @fixture(scope="session")
@@ -77,18 +61,6 @@ def worker_charm():
     return charm_and_channel_and_resources(
         "worker", "WORKER_CHARM_PATH", "WORKER_CHARM_CHANNEL"
     )
-
-
-@fixture(scope="session")
-def tls(pytestconfig):
-    """Run with or without tls."""
-    return pytestconfig.getoption("tls") == "1"
-
-
-@fixture(scope="session")
-def distributed(pytestconfig):
-    """Run in monolithic or fully distributed mode."""
-    return pytestconfig.getoption("distributed") == "1"
 
 
 def charm_and_channel_and_resources(
@@ -121,7 +93,7 @@ def charm_and_channel_and_resources(
             logger.warning(f"Failed to build Tempo {role}. Trying again!")
             continue
         os.environ[charm_path_key] = str(pth)
-        return pth, None, get_resources(pth.parent / role)
+        return pth, None, get_resources(Path().parent / role)
     raise subprocess.CalledProcessError
 
 
@@ -141,6 +113,17 @@ def _deploy_monolithic_cluster(juju: Juju, coordinator_deployed_as=None):
     _deploy_cluster(juju, [WORKER_APP], coordinator_deployed_as=coordinator_deployed_as)
 
 
+def deploy_prometheus(juju: Juju):
+    """Deploy a pinned revision of prometheus that we know to work."""
+    juju.deploy(
+        "prometheus-k8s",
+        app=PROMETHEUS_APP,
+        revision=254,  # what's on 2/edge at July 17, 2025.
+        channel=INTEGRATION_TESTERS_CHANNEL,
+        trust=True,
+    )
+
+
 def _deploy_distributed_cluster(
     juju: Juju, roles: Sequence[str] = tuple(ALL_ROLES), coordinator_deployed_as=None
 ):
@@ -152,7 +135,8 @@ def _deploy_distributed_cluster(
     all_workers = []
 
     for role in roles or ALL_ROLES:
-        worker_name = f"{WORKER_APP}-{role}"
+        role_sanitized = role.replace("_", "-")
+        worker_name = f"{WORKER_APP}-{role_sanitized}"
         all_workers.append(worker_name)
 
         juju.deploy(
@@ -160,9 +144,11 @@ def _deploy_distributed_cluster(
             app=worker_name,
             channel=channel,
             trust=True,
-            config={"role-all": False, f"role-{role}": True},
+            config={"role-all": False, f"role-{role_sanitized}": True},
             resources=resources,
         )
+
+    deploy_prometheus(juju)
 
     _deploy_cluster(juju, all_workers, coordinator_deployed_as=coordinator_deployed_as)
 
@@ -243,6 +229,12 @@ def _deploy_cluster(
 
     for worker in workers:
         juju.integrate(coordinator_app, worker)
+        # if we have an explicit metrics generator worker, we need to integrate with prometheus not to be in blocked
+        if "metrics-generator" in worker:
+            juju.integrate(
+                PROMETHEUS_APP + ":receive-remote-write",
+                coordinator_app + ":send-remote-write",
+            )
 
     _deploy_and_configure_minio(juju)
 
@@ -252,7 +244,7 @@ def _deploy_cluster(
     logger.info("waiting for cluster to be active/idle...")
     juju.wait(
         lambda status: jubilant.all_active(status, coordinator_app, *workers, S3_APP),
-        timeout=2000,
+        timeout=3000,
         delay=5,
         successes=3,
     )
@@ -267,7 +259,7 @@ def _tls_ctx(active: bool, juju: Juju, distributed: bool):
 
     logger.info("adding TLS")
     juju.deploy("self-signed-certificates", SSC_APP)
-    juju.integrate(SSC_APP + ":certificates", S3_APP + ":certificates")
+    juju.integrate(SSC_APP + ":certificates", TEMPO_APP + ":certificates")
 
     logger.info("waiting for active...")
     juju.wait(
@@ -285,9 +277,19 @@ def _tls_ctx(active: bool, juju: Juju, distributed: bool):
     juju.remove_application(SSC_APP)
 
 
-@fixture(scope="module")
-def deployment(tls, distributed, juju, coordinator_charm, worker_charm, pytestconfig):
-    if not pytestconfig.getoption("--no-setup"):
+@pytest.fixture
+def do_setup(pytestconfig):
+    return not pytestconfig.getoption("--no-setup")
+
+
+@pytest.fixture
+def do_teardown(pytestconfig):
+    return not pytestconfig.getoption("--no-teardown")
+
+
+@contextmanager
+def deployment_factory(tls, distributed, juju, do_setup, do_teardown):
+    if do_setup:
         if distributed:
             logger.info("deploying distributed cluster...")
             _deploy_distributed_cluster(juju)
@@ -299,7 +301,7 @@ def deployment(tls, distributed, juju, coordinator_charm, worker_charm, pytestco
     with _tls_ctx(tls, juju=juju, distributed=distributed):
         yield juju
 
-    if not pytestconfig.getoption("--no-teardown"):
+    if do_teardown:
         logger.info("tearing down all apps...")
         for app_to_remove in {
             TEMPO_APP,
