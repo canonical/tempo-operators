@@ -217,7 +217,7 @@ class TempoCoordinatorCharm(CharmBase):
         return socket.getfqdn()
 
     @property
-    def service_hostname(self) -> str:
+    def app_hostname(self) -> str:
         """The FQDN of the k8s service associated with this application.
         
         This service load balances traffic across all application units.
@@ -276,7 +276,7 @@ class TempoCoordinatorCharm(CharmBase):
     @property
     def _internal_url(self) -> str:
         """Return the locally addressable, FQDN based service address."""
-        return f"{self._scheme}://{self.service_hostname}"
+        return f"{self._scheme}://{self.app_hostname}"
 
     @property
     def are_certificates_on_disk(self) -> bool:
@@ -559,7 +559,7 @@ class TempoCoordinatorCharm(CharmBase):
             )
         else:
             url = (
-                self.hostname
+                self.app_hostname
                 if protocol_type == TransportProtocolType.grpc
                 else self._internal_url
             )
