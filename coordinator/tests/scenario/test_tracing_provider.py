@@ -1,3 +1,4 @@
+from unittest.mock import PropertyMock, patch
 import pytest
 from scenario import Relation, State
 
@@ -8,7 +9,7 @@ from charms.tempo_coordinator_k8s.v0.tracing import TracingProviderAppData
 def test_receiver_api(
         context, s3, all_worker, nginx_container, nginx_prometheus_exporter_container, leader
 ):
-    # GIVEN two incoming tracing relations asking for otel grpc and http respectively
+    # GIVEN two incoming tracing relations asking for otlp grpc and http respectively
     tracing_grpc = Relation(
         "tracing",
         remote_app_data={"receivers": '["otlp_grpc"]'},
@@ -84,3 +85,33 @@ def test_leader_removes_receivers_on_relation_broken(
     assert sorted(
         [r.protocol.name for r in TracingProviderAppData.load(r_out.local_app_data).receivers]
     ) == ["otlp_http"]
+
+@patch("charm.TempoCoordinatorCharm.app_hostname", PropertyMock(return_value="app.hostname"))
+def test_publish_receivers( context, s3, all_worker, nginx_container, nginx_prometheus_exporter_container):
+    # GIVEN two incoming tracing relations asking for otlp grpc and http respectively
+    tracing_grpc = Relation(
+        "tracing",
+        remote_app_data={"receivers": '["otlp_grpc"]'},
+    )
+    tracing_http = Relation(
+        "tracing",
+        remote_app_data={"receivers": '["otlp_http"]'},
+    )
+
+    # AND a leader unit
+    state = State(
+        leader=True,
+        relations=[tracing_grpc, tracing_http, s3, all_worker],
+        containers=[nginx_container, nginx_prometheus_exporter_container],
+    )
+
+    # WHEN a relation_changed event occurs
+    state_out =  context.run(context.on.relation_changed(tracing_http), state)
+
+    # THEN, two receiver endpoints should be published using the mocked value of app_hostname
+    relation_out = state_out.get_relation(tracing_http.id)
+    assert sorted(
+        [r.url for r in TracingProviderAppData.load(relation_out.local_app_data).receivers]
+    ) == ["app.hostname:4317", "http://app.hostname:4318"]
+
+
