@@ -218,24 +218,10 @@ class TempoCoordinatorCharm(CharmBase):
 
     @property
     def app_hostname(self) -> str:
-        """The FQDN of the k8s service associated with this application.
-        
-        This service load balances traffic across all application units.
-        Falls back to this unit's DNS name if the hostname does not resolve to a Kubernetes-style fqdn. 
-        """
-        # example: 'tempo-0.tempo-headless.default.svc.cluster.local'
-        hostname = self.hostname
-        hostname_parts = hostname.split(".") 
-        # 'svc' is always there in a K8s service fqdn 
-        # ref: https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#services
-        if "svc" not in hostname_parts:
-            logger.debug(f"expected K8s-style fqdn, but got {hostname} instead")
-            return hostname
-        
-        dns_name_parts = hostname_parts[hostname_parts.index("svc"):]
-        dns_name = '.'.join(dns_name_parts) # 'svc.cluster.local'
-        return f"{self.app.name}.{self.model.name}.{dns_name}" # 'tempo.model.svc.cluster.local'
-    
+        """Application-level fqdn."""
+        return Coordinator.app_hostname(hostname=self.hostname,
+                                         app_name=self.app.name,
+                                         model_name=self.model.name)
     @property
     def _external_http_server_url(self) -> str:
         """External url of the http(s) server."""
