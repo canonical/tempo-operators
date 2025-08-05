@@ -1,0 +1,59 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-ast
+      - id: check-builtin-literals
+      - id: check-docstring-first
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-toml
+      - id: debug-statements
+      - id: trailing-whitespace
+  - repo: local
+    hooks:
+      - id: fmt
+        name: fmt
+        entry: tox -e fmt --
+        language: system
+  - repo: local
+    hooks:
+      - id: static-charm
+        name: static-charm
+        entry: tox -e static-charm --
+        language: system
+  - repo: local
+    hooks:
+      - id: static-lib
+        name: static-lib
+        entry: tox -e static-lib --
+        language: system
+  - repo: https://github.com/asottile/blacken-docs
+    rev: 1.13.0
+    hooks:
+      - id: blacken-docs
+        additional_dependencies: [black==23.3]
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: "v2.7.1"
+    hooks:
+      - id: prettier
+        additional_dependencies:
+          - prettier@2.7.1
+          - "@prettier/plugin-xml@2.2"
+        args: ["--print-width=120", "--prose-wrap=always"]
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.33.0
+    hooks:
+      - id: markdownlint
+  - repo: local
+    hooks:
+      - id: changelogs-rst
+        name: Changelog filenames
+        language: fail
+        entry: "changelog files must be named ####.(feature|bugfix|doc|removal|misc).rst"
+        #        exclude: ^docs/changelog/(\d+\.(feature|bugfix|doc|removal|misc).rst|template.jinja2)
+        files: ^docs/changelog/
+  - repo: meta
+    hooks:
+      - id: check-hooks-apply
+      - id: check-useless-excludes

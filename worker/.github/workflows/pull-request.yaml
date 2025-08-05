@@ -1,0 +1,20 @@
+name: Pull Requests
+
+on:
+  pull_request:
+    branches:
+      - main
+      - track/**
+  push:
+    branches:
+      - "renovate/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pull-request:
+    name: PR
+    uses: canonical/observability/.github/workflows/charm-pull-request.yaml@v1
+    secrets: inherit
