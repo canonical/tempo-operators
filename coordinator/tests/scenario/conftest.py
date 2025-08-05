@@ -11,17 +11,14 @@ from charm import PEERS_RELATION_ENDPOINT_NAME, TempoCoordinatorCharm
 
 
 @pytest.fixture(autouse=True, scope="session")
-def cleanup_prometheus_alert_rules():
-    # some tests trigger the charm to generate prometheus alert rules file in src/prometheus_alert_rules/consolidated_rules; clean it up
+def cleanup_rendered_alert_rules():
+    # some tests trigger the charm to generate alert rules file in src/(loki|prometheus)_alert_rules/consolidated_rules; clean it up
     yield
-    src_path = (
-        Path(__file__).parent.parent.parent
-        / "src"
-        / "prometheus_alert_rules"
-        / "consolidated_rules"
-    )
-    if src_path.exists():
-        rmtree(src_path)
+    src_dir = Path(__file__).parent.parent.parent / "src"
+    for alerts_dir in ("prometheus_alert_rules", "loki_alert_rules"):
+        consolidated_dir = src_dir / alerts_dir / "consolidated_rules"
+        if consolidated_dir.exists():
+            rmtree(consolidated_dir)
 
 
 @pytest.fixture()
