@@ -49,14 +49,14 @@ jobs:
   pull-request-coordinator:
     needs: charms-changed
     if: needs.charms-changed.outputs.coordinator_changed == 'true'
-    uses: canonical/observability/.github/workflows/charm-pull-request.yaml@v1
+    uses: canonical/observability/.github/workflows/charm-pull-request.yaml@enable-debug
     secrets: inherit
     with:
       charm-path: coordinator
   pull-request-worker:
     needs: charms-changed
     if: needs.charms-changed.outputs.worker_changed == 'true'
-    uses: canonical/observability/.github/workflows/charm-pull-request.yaml@v1
+    uses: canonical/observability/.github/workflows/charm-pull-request.yaml@enable-debug
     secrets: inherit
     with:
       charm-path: worker

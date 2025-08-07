@@ -205,4 +205,10 @@ jobs:
                   echo "Unknown mode: ${{ matrix.mode }}"
                   exit 1
               fi
-              uvx tox -e integration -- -k "${{ matrix.suite }}"
+              uvx tox -e integration -- -k "${{ matrix.suite }}" --keep-models
+          - name: Open SSH session on failure
+            if: ${{ failure() }}
+            uses: mxschmitt/action-tmate@v3
+            with:
+              timeout-minutes: 30
+              limit-access-to-actor: true
