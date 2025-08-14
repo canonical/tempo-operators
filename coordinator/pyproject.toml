@@ -31,7 +31,7 @@ dev = [
     "minio",
     "tenacity==8.2.3",
     # https://github.com/juju/python-libjuju/issues/1184
-    "websockets<14.0",
+    "websockets<15.1",
 
 #   LINTING
     "pyright",
