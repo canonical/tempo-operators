@@ -29,7 +29,7 @@ dev = [
     "pytest-jubilant",
     "requests",
     "minio",
-    "tenacity==8.2.3",
+    "tenacity==8.5.0",
     # https://github.com/juju/python-libjuju/issues/1184
     "websockets<14.0",
 
