@@ -743,8 +743,9 @@ class TracingEndpointRequirer(Object):
         """Construct a tracing requirer for a Tempo charm.
 
         If your application supports pushing traces to a distributed tracing backend, the
-        `TracingEndpointRequirer` object enables your charm to easily access endpoint information
-        exchanged over a `tracing` relation interface.
+        `TracingEndpointRequirer` object enables your charm to:
+        * access endpoint information provided over the `tracing` relation interface
+        * send the protocols you intend to use to the related tracing provider
 
         Args:
             charm: a `CharmBase` object that manages this
