@@ -198,13 +198,13 @@ config:
       default: false
     cpu_limit:
       description: |
-        K8s cpu resource limit, e.g. "1" or "500m". Default is unset (no limit). This value is used
-        for the "limits" portion of the resource requirements.
-        See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+        K8s cpu resource limit for the nginx container deployed by the coordinator, 
+        e.g. "1" or "500m". Default is unset (no limit). This is DEPRECATED and will be removed in track 2.
+        The right way to do this now is to set constraints using the juju API.
       type: string
     memory_limit:
       description: |
-        K8s memory resource limit, e.g. "1Gi". Default is unset (no limit). This value is used
-        for the "limits" portion of the resource requirements.
-        See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+        K8s memory resource limit for the nginx container deployed by the coordinator, 
+        e.g. "1Gi". Default is unset (no limit). This is DEPRECATED and will be removed in track 2.
+        The right way to do this now is to set constraints using the juju API.
       type: string
