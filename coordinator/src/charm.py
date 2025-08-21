@@ -148,7 +148,7 @@ class TempoCoordinatorCharm(CharmBase):
             ),
             workers_config=self.tempo.config,
             resources_requests=self.get_resources_requests,
-            container_name="charm",
+            container_name="nginx",
             remote_write_endpoints=self._remote_write_endpoints,  # type: ignore
             worker_ports=self._get_worker_ports,
             workload_tracing_protocols=["otlp_http"],
