@@ -147,7 +147,7 @@ class TempoCoordinatorCharm(CharmBase):
                 server_ports_to_locations=server_ports_to_locations(),
             ),
             workers_config=self.tempo.config,
-            # we set the resource request to the nginx container
+            # set the resource request for the nginx container
             resources_requests=self.get_resources_requests,
             container_name="nginx",
             remote_write_endpoints=self._remote_write_endpoints,  # type: ignore
