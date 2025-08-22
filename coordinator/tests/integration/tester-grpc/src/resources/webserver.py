@@ -79,14 +79,18 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         self.app_name = app_name
         INFO.labels(app_name=self.app_name).inc()
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         method = request.method
         path, is_handled_path = self.get_path(request)
 
         if not is_handled_path:
             return await call_next(request)
 
-        REQUESTS_IN_PROGRESS.labels(method=method, path=path, app_name=self.app_name).inc()
+        REQUESTS_IN_PROGRESS.labels(
+            method=method, path=path, app_name=self.app_name
+        ).inc()
         REQUESTS.labels(method=method, path=path, app_name=self.app_name).inc()
         before_time = time.perf_counter()
         try:
@@ -94,7 +98,10 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         except BaseException as e:
             status_code = HTTP_500_INTERNAL_SERVER_ERROR
             EXCEPTIONS.labels(
-                method=method, path=path, exception_type=type(e).__name__, app_name=self.app_name
+                method=method,
+                path=path,
+                exception_type=type(e).__name__,
+                app_name=self.app_name,
             ).inc()
             raise e from None
         else:
@@ -109,9 +116,14 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             ).observe(after_time - before_time, exemplar={"TraceID": trace_id})
         finally:
             RESPONSES.labels(
-                method=method, path=path, status_code=status_code, app_name=self.app_name
+                method=method,
+                path=path,
+                status_code=status_code,
+                app_name=self.app_name,
             ).inc()
-            REQUESTS_IN_PROGRESS.labels(method=method, path=path, app_name=self.app_name).dec()
+            REQUESTS_IN_PROGRESS.labels(
+                method=method, path=path, app_name=self.app_name
+            ).dec()
 
         return response
 
@@ -128,7 +140,9 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
 def init_overlord():
     logging.debug("Initing as overlord.")
     # manual instrumentation for overlord node
-    resource = Resource.create(attributes={"service.name": APP_NAME, "compose_service": APP_NAME})
+    resource = Resource.create(
+        attributes={"service.name": APP_NAME, "compose_service": APP_NAME}
+    )
 
     provider = TracerProvider(resource=resource)
     processor = BatchSpanProcessor(OTLPSpanExporter(endpoint=TEMPO_ENDPOINT))
@@ -169,7 +183,9 @@ def init_overlord():
                         id_, value_ = resp.text.split("=")
                     except:  # noqa
                         id_ = value_ = None
-                        print(f"error handling response from {url}: invalid text: {resp.text}")
+                        print(
+                            f"error handling response from {url}: invalid text: {resp.text}"
+                        )
 
                     child_span.add_event(
                         "log",
@@ -190,7 +206,9 @@ def init_subordinate():
 
     @app.get("/metrics")
     def metrics():
-        return Response(generate_latest(REGISTRY), headers={"Content-Type": CONTENT_TYPE_LATEST})
+        return Response(
+            generate_latest(REGISTRY), headers={"Content-Type": CONTENT_TYPE_LATEST}
+        )
 
     @app.get("/query/{var}")
     async def query(var: str):
@@ -218,7 +236,9 @@ def init_subordinate():
         tracer = TracerProvider(resource=resource)
         trace.set_tracer_provider(tracer)
 
-        tracer.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
+        tracer.add_span_processor(
+            BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
+        )
 
         if log_correlation:
             LoggingInstrumentor().instrument(set_logging_format=True)

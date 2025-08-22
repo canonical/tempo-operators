@@ -128,6 +128,7 @@ class Ring(BaseModel):
 
     kvstore: Kvstore
 
+
 class IngesterRing(BaseModel):
     """Ingester ring schema."""
 
@@ -211,7 +212,9 @@ class TLS(BaseModel):
     cert_file: str
     key_file: str
     client_ca_file: str
-    client_auth_type: ClientAuthTypeEnum = ClientAuthTypeEnum.VERIFY_CLIENT_CERT_IF_GIVEN
+    client_auth_type: ClientAuthTypeEnum = (
+        ClientAuthTypeEnum.VERIFY_CLIENT_CERT_IF_GIVEN
+    )
 
 
 class Server(BaseModel):

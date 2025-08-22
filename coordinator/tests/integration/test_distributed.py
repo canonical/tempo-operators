@@ -9,7 +9,10 @@ from helpers import (
     TEMPO_APP,
     deploy_distributed_cluster,
     emit_trace,
-    get_tempo_application_endpoint, get_app_ip_address, ALL_ROLES, ALL_WORKERS,
+    get_tempo_application_endpoint,
+    get_app_ip_address,
+    ALL_ROLES,
+    ALL_WORKERS,
 )
 from tempo import Tempo
 from tests.integration.helpers import get_traces_patiently
@@ -37,7 +40,9 @@ def test_trace_ingestion(juju):
 
 
 def get_metrics(ip: str, port: int):
-    proc = subprocess.run(shlex.split(f"curl {ip}:{port}/metrics"), text=True, capture_output=True)
+    proc = subprocess.run(
+        shlex.split(f"curl {ip}:{port}/metrics"), text=True, capture_output=True
+    )
     return proc.stdout
 
 

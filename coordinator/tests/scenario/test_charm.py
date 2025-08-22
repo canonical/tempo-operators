@@ -17,13 +17,26 @@ def test_smoke(context, base_state):
     context.run(context.on.start(), base_state)
 
 
-@pytest.mark.parametrize(("hostname", "expected_app_hostname"),
-                                    (("tempo-0.tempo-headless.test.svc.cluster.local", "tempo-coordinator-k8s.test.svc.cluster.local"),
-                                    ("tempo-0.tempo-headless.test.svc.custom.domain","tempo-coordinator-k8s.test.svc.custom.domain"),
-                                    ("tempo-0.tempo-headless.test.svc.custom.svc.domain","tempo-coordinator-k8s.test.svc.custom.svc.domain"),
-                                    ("localhost", "localhost"),
-                                    ("my.custom.domain", "my.custom.domain"),
-                                    ("192.0.2.1", "192.0.2.1")))
+@pytest.mark.parametrize(
+    ("hostname", "expected_app_hostname"),
+    (
+        (
+            "tempo-0.tempo-headless.test.svc.cluster.local",
+            "tempo-coordinator-k8s.test.svc.cluster.local",
+        ),
+        (
+            "tempo-0.tempo-headless.test.svc.custom.domain",
+            "tempo-coordinator-k8s.test.svc.custom.domain",
+        ),
+        (
+            "tempo-0.tempo-headless.test.svc.custom.svc.domain",
+            "tempo-coordinator-k8s.test.svc.custom.svc.domain",
+        ),
+        ("localhost", "localhost"),
+        ("my.custom.domain", "my.custom.domain"),
+        ("192.0.2.1", "192.0.2.1"),
+    ),
+)
 def test_app_hostname(context, hostname, expected_app_hostname):
     # GIVEN a hostname
     state = State(model=Model(name="test"))
@@ -32,5 +45,5 @@ def test_app_hostname(context, hostname, expected_app_hostname):
         with context(context.on.update_status(), state) as mgr:
             charm = mgr.charm
             # THEN if hostname is a valid k8s pod fqdn, app_hostname is set to the k8s service fqdn
-            # else app_hostname is set to whatever value hostname has 
+            # else app_hostname is set to whatever value hostname has
             assert expected_app_hostname == charm.app_hostname

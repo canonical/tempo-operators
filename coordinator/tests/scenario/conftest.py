@@ -98,7 +98,8 @@ def remote_write():
 @pytest.fixture(scope="function")
 def peer():
     return PeerRelation(
-        endpoint=PEERS_RELATION_ENDPOINT_NAME, peers_data={1: {"fqdn": json.dumps("1.2.3.4")}}
+        endpoint=PEERS_RELATION_ENDPOINT_NAME,
+        peers_data={1: {"fqdn": json.dumps("1.2.3.4")}},
     )
 
 

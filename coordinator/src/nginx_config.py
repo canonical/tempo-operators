@@ -10,16 +10,12 @@ from charms.tempo_coordinator_k8s.v0.tracing import (
     TransportProtocolType,
     receiver_protocol_to_transport_protocol,
 )
-from coordinated_workers.nginx import (
-    NginxLocationConfig,
-    NginxUpstream
-)
+from coordinated_workers.nginx import NginxLocationConfig, NginxUpstream
 
 from tempo import Tempo
 from tempo_config import TempoRole
 
 logger = logging.getLogger(__name__)
-
 
 
 def upstreams() -> List[NginxUpstream]:
@@ -35,6 +31,7 @@ def upstreams() -> List[NginxUpstream]:
 
     return upstreams
 
+
 def server_ports_to_locations() -> Dict[int, List[NginxLocationConfig]]:
     locations = {}
     all_protocol_ports = {**Tempo.receiver_ports, **Tempo.server_ports}
@@ -47,18 +44,15 @@ def server_ports_to_locations() -> Dict[int, List[NginxLocationConfig]]:
 
     return locations
 
+
 def _is_protocol_grpc(protocol: str) -> bool:
     """
     Return True if the given protocol is gRPC
     """
     if (
         protocol == "tempo_grpc"
-        or receiver_protocol_to_transport_protocol.get(
-            cast(ReceiverProtocol, protocol)
-        )
+        or receiver_protocol_to_transport_protocol.get(cast(ReceiverProtocol, protocol))
         == TransportProtocolType.grpc
     ):
         return True
     return False
-
-

@@ -68,7 +68,7 @@ class Tempo:
         self,
         requested_receivers: Callable[[], "Tuple[ReceiverProtocol, ...]"],
         retention_period_hours: int,
-        remote_write_endpoints: Callable[[], List[Dict[str, Any]]]
+        remote_write_endpoints: Callable[[], List[Dict[str, Any]]],
     ):
         self._receivers_getter = requested_receivers
         self._retention_period_hours = retention_period_hours
@@ -88,10 +88,16 @@ class Tempo:
             distributor=self._build_distributor_config(
                 self._receivers_getter(), coordinator.tls_available
             ),
-            ingester=self._build_ingester_config(coordinator.cluster.gather_addresses_by_role()),
-            memberlist=self._build_memberlist_config(coordinator.cluster.gather_addresses()),
+            ingester=self._build_ingester_config(
+                coordinator.cluster.gather_addresses_by_role()
+            ),
+            memberlist=self._build_memberlist_config(
+                coordinator.cluster.gather_addresses()
+            ),
             compactor=self._build_compactor_config(),
-            querier=self._build_querier_config(coordinator.cluster.gather_addresses_by_role()),
+            querier=self._build_querier_config(
+                coordinator.cluster.gather_addresses_by_role()
+            ),
             storage=self._build_storage_config(coordinator._s3_config),
             metrics_generator=self._build_metrics_generator_config(
                 coordinator.tls_available,
@@ -117,7 +123,9 @@ class Tempo:
 
             config.memberlist = config.memberlist.model_copy(update=tls_config)
 
-        return yaml.dump(config.model_dump(mode="json", by_alias=True, exclude_none=True))
+        return yaml.dump(
+            config.model_dump(mode="json", by_alias=True, exclude_none=True)
+        )
 
     def _build_tls_config(self, workers_addrs: Tuple[str, ...]):
         """Build TLS config to be used by Tempo's internal clients to communicate with each other."""
@@ -149,9 +157,7 @@ class Tempo:
             )
         )
 
-    def _build_metrics_generator_config(
-        self, use_tls=False
-    ):
+    def _build_metrics_generator_config(self, use_tls=False):
         remote_write_endpoints = self._remote_write_endpoints_getter()
         if len(remote_write_endpoints) == 0:
             return None
@@ -227,7 +233,9 @@ class Tempo:
 
         Use query-frontend workers' service fqdn to loadbalance across query-frontend worker instances if any.
         """
-        query_frontend_addresses = roles_addresses.get(tempo_config.TempoRole.query_frontend)
+        query_frontend_addresses = roles_addresses.get(
+            tempo_config.TempoRole.query_frontend
+        )
         if not query_frontend_addresses:
             svc_addr = "localhost"
         else:
@@ -254,7 +262,7 @@ class Tempo:
                 # total trace retention
                 block_retention=f"{self._retention_period_hours}h",
                 compacted_block_retention="1h",
-            )
+            ),
         )
 
     def _build_memberlist_config(
@@ -264,7 +272,9 @@ class Tempo:
         return tempo_config.Memberlist(
             abort_if_cluster_join_fails=False,
             bind_port=self.memberlist_port,
-            join_members=([f"{peer}:{self.memberlist_port}" for peer in peers] if peers else []),
+            join_members=(
+                [f"{peer}:{self.memberlist_port}" for peer in peers] if peers else []
+            ),
         )
 
     def _build_ingester_config(self, roles_addresses: Dict[str, Set[str]]):
@@ -284,7 +294,7 @@ class Tempo:
                     kvstore=self._build_memberlist_kvstore(),
                     replication_factor=(
                         3 if ingester_addresses and len(ingester_addresses) >= 3 else 1
-                    )
+                    ),
                 ),
             ),
         )
@@ -326,14 +336,18 @@ class Tempo:
 
         for proto, config_field_name in {("otlp_http", "http"), ("otlp_grpc", "grpc")}:
             if proto in receivers_set:
-                config["otlp"]["protocols"][config_field_name] = _build_receiver_config(proto)
+                config["otlp"]["protocols"][config_field_name] = _build_receiver_config(
+                    proto
+                )
 
         for proto, config_field_name in {
             ("jaeger_thrift_http", "thrift_http"),
             ("jaeger_grpc", "grpc"),
         }:
             if proto in receivers_set:
-                config["jaeger"]["protocols"][config_field_name] = _build_receiver_config(proto)
+                config["jaeger"]["protocols"][config_field_name] = (
+                    _build_receiver_config(proto)
+                )
 
         return tempo_config.Distributor(ring=self._build_ring(), receivers=config)
 

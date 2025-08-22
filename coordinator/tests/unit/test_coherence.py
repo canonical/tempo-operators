@@ -23,7 +23,6 @@ from tempo_config import (
     ),
 )
 def test_coherent(mock_coordinator, roles, expected):
-
     mc = Coordinator(None, None, "", "", 0, None, None, None)
     cluster_mock = MagicMock()
     cluster_mock.gather_roles = MagicMock(return_value=roles)
