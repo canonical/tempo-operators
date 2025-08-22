@@ -99,7 +99,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 3
+LIBPATCH = 4
 
 PYDEPS = ["pydantic>=2"]
 
@@ -109,7 +109,9 @@ DEFAULT_RELATION_NAME = "tempo-api"
 
 # Define a custom type that accepts AnyHttpUrl and string, but converts to AnyHttpUrl and raises an exception if the
 # string is not a valid URL
-AnyHttpUrlOrStrUrl = Annotated[Union[AnyHttpUrl, str], AfterValidator(lambda v: AnyHttpUrl(v))]
+AnyHttpUrlOrStrUrl = Annotated[
+    Union[AnyHttpUrl, str], AfterValidator(lambda v: AnyHttpUrl(v))
+]
 
 
 class TempoApiUrls(BaseModel):

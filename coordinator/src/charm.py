@@ -116,7 +116,9 @@ class TempoCoordinatorCharm(CharmBase):
 
         # INTEGRATIONS
         self.ingress = TraefikRouteRequirer(
-            self, self.model.get_relation("ingress"), "ingress"   # type: ignore
+            self,
+            self.model.get_relation("ingress"),
+            "ingress",  # type: ignore
         )
         self.tracing = TracingEndpointProvider(
             self, external_url=self._most_external_url
