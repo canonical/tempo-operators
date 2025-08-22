@@ -363,5 +363,6 @@ def get_tempo_internal_endpoint(juju: Juju, protocol: str, tls: bool, unit: int 
 def get_tempo_application_endpoint(tempo_ip: str, protocol: str, tls: bool):
     return _get_endpoint(protocol, tempo_ip, tls)
 
+
 def get_ingress_proxied_hostname(juju: Juju):
-    return juju.run(TRAEFIK_APP+"/0", 'show-proxied-endpoints').results['proxied-endpoints']['traefik']['url']
+    return json.loads(juju.run(TRAEFIK_APP+"/0", 'show-proxied-endpoints').results['proxied-endpoints'])['traefik']['url']

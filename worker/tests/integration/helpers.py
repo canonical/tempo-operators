@@ -17,14 +17,17 @@ TEMPO_APP = "tempo"
 METADATA = yaml.safe_load(Path("./charmcraft.yaml").read_text())
 
 WORKER_RESOURCES = {
-    image_name: image_meta["upstream-source"] for image_name, image_meta in METADATA["resources"].items()
+    image_name: image_meta["upstream-source"]
+    for image_name, image_meta in METADATA["resources"].items()
 }
 
 logger = logging.getLogger(__name__)
 
+
 def get_unit_ip_address(juju: Juju, app_name: str, unit_no: int):
     """Return a juju unit's IP address."""
     return juju.status().apps[app_name].units[f"{app_name}/{unit_no}"].address
+
 
 def _deploy_and_configure_minio(juju: Juju):
     keys = {
@@ -51,12 +54,16 @@ def _deploy_and_configure_minio(juju: Juju):
         mc_client.make_bucket(BUCKET_NAME)
 
     # configure s3-integrator
-    juju.config(S3_APP, {
-        "endpoint": f"minio-0.minio-endpoints.{juju.model}.svc.cluster.local:9000",
-        "bucket": BUCKET_NAME,
-    })
+    juju.config(
+        S3_APP,
+        {
+            "endpoint": f"minio-0.minio-endpoints.{juju.model}.svc.cluster.local:9000",
+            "bucket": BUCKET_NAME,
+        },
+    )
     task = juju.run(S3_APP + "/0", "sync-s3-credentials", params=keys)
     assert task.status == "completed"
+
 
 def deploy_minio_and_s3(juju: Juju):
     juju.deploy(S3_APP, channel="edge")
