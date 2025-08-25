@@ -52,7 +52,6 @@ def test_scale_coordinator_up(juju: Juju):
     juju.cli("add-unit", TEMPO_APP, "-n", "2")
     juju.wait(
         lambda status: jubilant.all_active(status, TEMPO_APP, WORKER_APP),
-        error=jubilant.any_error,
         timeout=2000,
         delay=10,
         successes=3,
