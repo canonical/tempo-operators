@@ -133,7 +133,7 @@ class TempoCoordinatorCharm(CharmBase):
             remote_write_endpoints=self._remote_write_endpoints,
         )
 
-        # keep this above the coordinator definition
+        # keep this above the coordinator definition foo
         self.framework.observe(self.on.collect_unit_status, self._on_collect_status)
 
         self.coordinator = TempoCoordinator(

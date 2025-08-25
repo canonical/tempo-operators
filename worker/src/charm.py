@@ -26,7 +26,7 @@ class TempoWorkerK8SOperatorCharm(CharmBase):
         super().__init__(*args)
         self.worker = TempoWorker(self)
 
-        # if the worker has received some ports from the coordinator,
+        # if the worker has received some ports from the coordinator, bar
         # it's in charge of ensuring they're opened.
         if not self.worker.cluster.get_worker_ports():
             # legacy behaviour fallback: older interface versions didn't tell us which
