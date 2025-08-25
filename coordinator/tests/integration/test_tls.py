@@ -42,7 +42,6 @@ def test_setup(juju: Juju):
 
     juju.wait(
         lambda status: jubilant.all_active(status, SSC_APP, TRAEFIK_APP),
-        error=jubilant.any_error,
         timeout=2000,
         delay=10,
         successes=3,
