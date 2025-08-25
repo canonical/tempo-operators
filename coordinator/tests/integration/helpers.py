@@ -414,4 +414,4 @@ def get_ingress_proxied_hostname(juju: Juju):
         juju.run(TRAEFIK_APP + "/0", "show-proxied-endpoints").results[
             "proxied-endpoints"
         ]
-    )[TRAEFIK_APP]["url"].split("http://")[1]
+    )[TRAEFIK_APP]["url"].split("://")[1]
