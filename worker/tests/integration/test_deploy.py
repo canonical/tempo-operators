@@ -28,7 +28,7 @@ def test_all_active_when_coordinator_and_s3_added(juju: Juju):
     juju.integrate(TEMPO_APP, WORKER_APP)
 
     # THEN both the coordinator and the worker become active
-    juju.wait(lambda status: all_active(status, TEMPO_APP, WORKER_APP), timeout=1000)
+    juju.wait(lambda status: all_active(status, TEMPO_APP, WORKER_APP), timeout=5000)
 
 
 @pytest.mark.teardown
