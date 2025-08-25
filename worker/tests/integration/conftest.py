@@ -9,9 +9,11 @@ from pytest_jubilant import pack
 
 logger = logging.getLogger(__name__)
 
+
 @pytest.fixture(scope="session")
 def tempo_worker_charm():
     return _tempo_worker_charm()
+
 
 def _tempo_worker_charm() -> Path:
     """Tempo worker charm used for integration testing."""

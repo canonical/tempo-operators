@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 sample_dns_ip = "198.18.0.0"
 
 
-
 @pytest.mark.parametrize(
     "addresses",
     (
@@ -53,12 +52,16 @@ sample_dns_ip = "198.18.0.0"
         },
     ),
 )
-def test_nginx_config_is_parsed_with_workers(context, nginx_container, coordinator, addresses):
+def test_nginx_config_is_parsed_with_workers(
+    context, nginx_container, coordinator, addresses
+):
     coordinator.cluster.gather_addresses_by_role.return_value = addresses
 
-    nginx = NginxConfig("localhost",upstreams(), server_ports_to_locations())
+    nginx = NginxConfig("localhost", upstreams(), server_ports_to_locations())
 
-    prepared_config = nginx.get_config(coordinator.cluster.gather_addresses_by_role(), False)
+    prepared_config = nginx.get_config(
+        coordinator.cluster.gather_addresses_by_role(), False
+    )
     assert isinstance(prepared_config, str)
 
 
@@ -93,17 +96,23 @@ def test_nginx_config_contains_upstreams_and_proxy_pass(
 
     with mock_ipv6(ipv6):
         with mock_resolv_conf(f"nameserver {sample_dns_ip}"):
-            nginx = NginxConfig("localhost",upstreams(), server_ports_to_locations())
+            nginx = NginxConfig("localhost", upstreams(), server_ports_to_locations())
 
-    prepared_config = nginx.get_config(coordinator.cluster.gather_addresses_by_role(), tls)
+    prepared_config = nginx.get_config(
+        coordinator.cluster.gather_addresses_by_role(), tls
+    )
     assert f"resolver {sample_dns_ip};" in prepared_config
 
     for role, addresses in addresses.items():
         for address in addresses:
             if role == "distributor":
-                _assert_config_per_role(Tempo.receiver_ports, address, prepared_config, tls, ipv6)
+                _assert_config_per_role(
+                    Tempo.receiver_ports, address, prepared_config, tls, ipv6
+                )
             if role == "query-frontend":
-                _assert_config_per_role(Tempo.server_ports, address, prepared_config, tls, ipv6)
+                _assert_config_per_role(
+                    Tempo.server_ports, address, prepared_config, tls, ipv6
+                )
 
 
 def _assert_config_per_role(source_dict, address, prepared_config, tls, ipv6):
@@ -140,6 +149,7 @@ def mock_resolv_conf(contents: str):
 
 @contextmanager
 def mock_ipv6(enable: bool):
-    with patch("coordinated_workers.nginx.is_ipv6_enabled", MagicMock(return_value=enable)):
+    with patch(
+        "coordinated_workers.nginx.is_ipv6_enabled", MagicMock(return_value=enable)
+    ):
         yield
-

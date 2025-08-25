@@ -5,7 +5,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 import scenario
 from charms.tempo_coordinator_k8s.v0.tracing import TracingRequirerAppData
-from coordinated_workers.interfaces.cluster import ClusterProvider, ClusterProviderAppData
+from coordinated_workers.interfaces.cluster import (
+    ClusterProvider,
+    ClusterProviderAppData,
+)
 from coordinated_workers.coordinator import TLSConfig
 from scenario import Relation, State
 
@@ -25,7 +28,9 @@ def coordinator_with_initial_config():
         "insecure": True,
         "secret_access_key": "soverysecret",
     }
-    new_coordinator_mock.return_value.cluster.gather_addresses.return_value = ("localhost",)
+    new_coordinator_mock.return_value.cluster.gather_addresses.return_value = (
+        "localhost",
+    )
     new_coordinator_mock.return_value.cluster.gather_addresses_by_role.return_value = {
         "query-frontend": {"localhost"},
         "distributor": {"localhost"},
@@ -35,7 +40,9 @@ def coordinator_with_initial_config():
 
 
 @pytest.fixture
-def all_worker_with_initial_config(all_worker: Relation, coordinator_with_initial_config):
+def all_worker_with_initial_config(
+    all_worker: Relation, coordinator_with_initial_config
+):
     initial_config = Tempo(lambda: ("otlp_http",), 720, lambda: []).config(
         coordinator_with_initial_config.return_value
     )
@@ -64,8 +71,12 @@ MOCK_PRIVATE_KEY = "PRIVATE_KEY-foo"
 @pytest.fixture(autouse=True)
 def patch_certs():
     with patch(
-        "coordinated_workers.coordinator.Coordinator.tls_config", 
-        TLSConfig(private_key=MOCK_PRIVATE_KEY, server_cert=MOCK_SERVER_CERT, ca_cert=MOCK_CA_CERT),
+        "coordinated_workers.coordinator.Coordinator.tls_config",
+        TLSConfig(
+            private_key=MOCK_PRIVATE_KEY,
+            server_cert=MOCK_SERVER_CERT,
+            ca_cert=MOCK_CA_CERT,
+        ),
     ):
         yield
 
@@ -101,7 +112,9 @@ def test_cluster_relation(context, state_with_certs, all_worker):
 
     assert local_app_data.ca_cert == MOCK_CA_CERT
     assert local_app_data.server_cert == MOCK_SERVER_CERT
-    secret = [s for s in state_out.secrets if s.id == local_app_data.privkey_secret_id][0]
+    secret = [s for s in state_out.secrets if s.id == local_app_data.privkey_secret_id][
+        0
+    ]
 
     # certhandler's vault uses revision 0 to store an uninitialized-vault marker
     assert secret.latest_content["private-key"]
@@ -144,7 +157,7 @@ def test_tempo_restart_on_ingress_v2_changed(
     # THEN
     # Tempo pushes a new config to the all_worker
     new_config = get_tempo_config(state_out)
-    expected_config = Tempo(lambda: ["otlp_http", requested_protocol], 720, lambda: []).config(
-        coordinator_with_initial_config.return_value
-    )
+    expected_config = Tempo(
+        lambda: ["otlp_http", requested_protocol], 720, lambda: []
+    ).config(coordinator_with_initial_config.return_value)
     assert new_config == expected_config

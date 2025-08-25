@@ -63,7 +63,10 @@ def prep_ca_facade(catan: Catan):
     catan.run_action(
         scenario.Action(
             "update",
-            params={"endpoint": json.dumps("provides-certificates"), "app_data": json.dumps("")},
+            params={
+                "endpoint": json.dumps("provides-certificates"),
+                "app_data": json.dumps(""),
+            },
         ),
         catan.get_app("ca"),
     )

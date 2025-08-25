@@ -49,8 +49,12 @@ class TempoTesterGrpcCharm(CharmBase):
         self.framework.observe(self.on.config_changed, self._update)
 
         # Peer relation events
-        self.framework.observe(self.on[self._peer_relation_name].relation_joined, self._update)
-        self.framework.observe(self.on[self._peer_relation_name].relation_changed, self._update)
+        self.framework.observe(
+            self.on[self._peer_relation_name].relation_joined, self._update
+        )
+        self.framework.observe(
+            self.on[self._peer_relation_name].relation_changed, self._update
+        )
         self.framework.observe(self.tracing.on.endpoint_changed, self._update)
 
     @property
@@ -84,7 +88,9 @@ class TempoTesterGrpcCharm(CharmBase):
             logger.info("pushing webserver source...")
             container.push("/webserver.py", webserver_source)
 
-        self.unit.status = MaintenanceStatus("installing software in workload container")
+        self.unit.status = MaintenanceStatus(
+            "installing software in workload container"
+        )
         # we install the webserver dependencies; in a production environment, these
         # would typically be baked in the workload OCI image.
         webserver_dependencies_path = resources / "webserver-dependencies.txt"
@@ -104,7 +110,9 @@ class TempoTesterGrpcCharm(CharmBase):
             "HOST": self.config["host"],
             "APP_NAME": self.app.name,
             "TEMPO_ENDPOINT": (
-                self.tracing.get_endpoint("otlp_grpc") if self.tracing.is_ready() else ""
+                self.tracing.get_endpoint("otlp_grpc")
+                if self.tracing.is_ready()
+                else ""
             ),
         }
         logging.info(f"Initing pebble layer with env: {str(env)}")
@@ -148,7 +156,9 @@ class TempoTesterGrpcCharm(CharmBase):
             logger.error("Cannot (re)start service: service does not (yet) exist.")
             return False
 
-        logger.info(f"pebble env, {self.container.get_plan().services.get('tester').environment}")
+        logger.info(
+            f"pebble env, {self.container.get_plan().services.get('tester').environment}"
+        )
 
         self.container.restart(self._service_name)
         logger.info(f"restarted {self._service_name}")
@@ -170,7 +180,9 @@ class TempoTesterGrpcCharm(CharmBase):
             logger.info("container.add_layer")
             self.container.add_layer(self._layer_name, overlay, combine=True)
 
-            service_exists = self.container.get_plan().services.get("tester", None) is not None
+            service_exists = (
+                self.container.get_plan().services.get("tester", None) is not None
+            )
             if service_exists and restart:
                 self._restart_service()
 
@@ -202,7 +214,9 @@ class TempoTesterGrpcCharm(CharmBase):
         """
 
         # if bind_address := check_output(["unit-get", "private-address"]).decode().strip()
-        if bind_address := self.model.get_binding(self._peer_relation_name).network.bind_address:
+        if bind_address := self.model.get_binding(
+            self._peer_relation_name
+        ).network.bind_address:
             bind_address = str(bind_address)
         return bind_address
 

@@ -21,23 +21,19 @@ dev = [
     "coverage[toml]",
     "ops[testing,tracing]",
 
-#   CATAN TESTS: see https://github.com/canonical/tempo-coordinator-k8s-operator/issues/145
-#   "catan@git+https://github.com/pietropasotti/catan.git@main"
-
 #   INTEGRATION TESTS
     "jubilant",
     "pytest-jubilant",
     "requests",
     "minio",
-    "tenacity==8.2.3",
-    # https://github.com/juju/python-libjuju/issues/1184
-    "websockets<14.0",
+    "tenacity",
 
 #   LINTING
     "pyright",
     "ruff",
+
 #   INTERFACE TESTS
-    "pytest-interface-tester==3.3.1",
+    "pytest-interface-tester",
 ]
 
 [tool.pyright]

@@ -129,7 +129,6 @@ def test_service_graph_with_complete_or_missing_rels(
     nginx_container,
     nginx_prometheus_exporter_container,
 ):
-
     relations = [
         PeerRelation("peers", peers_data={1: {}, 2: {}}),
         s3,
@@ -187,13 +186,21 @@ def test_no_service_graph_with_wrong_grafana(
         grafana_datasource_exchange_relation(
             remote_name="prometheus1",
             datasources=[
-                {"type": "prometheus", "uid": "prometheus_1", "grafana_uid": "grafana_1"}
+                {
+                    "type": "prometheus",
+                    "uid": "prometheus_1",
+                    "grafana_uid": "grafana_1",
+                }
             ],
         ),
         grafana_datasource_exchange_relation(
             remote_name="prometheus2",
             datasources=[
-                {"type": "prometheus", "uid": "prometheus_2", "grafana_uid": "grafana_3"}
+                {
+                    "type": "prometheus",
+                    "uid": "prometheus_2",
+                    "grafana_uid": "grafana_3",
+                }
             ],
         ),
         remote_write_relation(remote_name="prometheus2"),
@@ -234,8 +241,16 @@ def test_service_graph_with_multiple_apps_and_units(
         grafana_datasource_exchange_relation(
             remote_name="prometheus1",
             datasources=[
-                {"type": "prometheus", "uid": "prometheus_1", "grafana_uid": "grafana_1"},
-                {"type": "prometheus", "uid": "prometheus_2", "grafana_uid": "grafana_1"},
+                {
+                    "type": "prometheus",
+                    "uid": "prometheus_1",
+                    "grafana_uid": "grafana_1",
+                },
+                {
+                    "type": "prometheus",
+                    "uid": "prometheus_2",
+                    "grafana_uid": "grafana_1",
+                },
             ],
         ),
         remote_write_relation(remote_name="prometheus1"),

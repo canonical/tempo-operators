@@ -6,7 +6,10 @@ from functools import partial
 from unittest.mock import patch, MagicMock
 import yaml
 import pytest
-from coordinated_workers.interfaces.cluster import ClusterRequirerAppData, ClusterRequirer
+from coordinated_workers.interfaces.cluster import (
+    ClusterRequirerAppData,
+    ClusterRequirer,
+)
 from ops.model import ActiveStatus
 from scenario import Container, Relation, State, Mount
 
@@ -24,6 +27,7 @@ from cosl.juju_topology import JujuTopology
 def patch_urllib_request():
     with patch("urllib.request.urlopen", new=partial(_urlopen_patch, resp="ready")):
         yield
+
 
 @pytest.fixture(autouse=True)
 def patch_stop():
@@ -99,7 +103,7 @@ def test_pebble_ready_plan(ctx, workload_tracing_receivers, expected_env, role):
             "ready": {
                 "http": {"url": f"http://{host}:3200/ready"},
                 "override": "replace",
-                "threshold": 3
+                "threshold": 3,
             }
         },
         "services": {
@@ -108,11 +112,15 @@ def test_pebble_ready_plan(ctx, workload_tracing_receivers, expected_env, role):
                 "summary": "tempo worker process",
                 "command": f"/bin/tempo -config.file=/etc/worker/config.yaml -target {role if role != 'all' else 'scalable-single-binary'}",
                 "startup": "enabled",
+                "environment": {
+                    k: "" for k in ("http_proxy", "https_proxy", "no_proxy")
+                },
             }
         },
     }
+
     if expected_env:
-        expected_plan["services"]["tempo"]["environment"] = expected_env
+        expected_plan["services"]["tempo"]["environment"].update(expected_env)
 
     state_out = ctx.run(
         ctx.on.pebble_ready(tempo_container),

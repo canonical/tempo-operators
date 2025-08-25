@@ -9,7 +9,8 @@ from charms.tempo_coordinator_k8s.v0.tracing import (
     EndpointChangedEvent,
     EndpointRemovedEvent,
     ProtocolNotRequestedError,
-    TracingEndpointRequirer, DataAccessPermissionError,
+    TracingEndpointRequirer,
+    DataAccessPermissionError,
 )
 from tempo import Tempo
 
@@ -28,7 +29,10 @@ class MyCharm(CharmBase):
 def context():
     return Context(
         charm_type=MyCharm,
-        meta={"name": "jolly", "requires": {"tracing": {"interface": "tracing", "limit": 1}}},
+        meta={
+            "name": "jolly",
+            "requires": {"tracing": {"interface": "tracing", "limit": 1}},
+        },
     )
 
 
@@ -39,8 +43,8 @@ def test_requirer_api(context, leader):
         "tracing",
         remote_app_data={
             "receivers": f'[{{"protocol": {{"name": "otlp_grpc", "type": "grpc"}}, "url": "{host}:4317"}}, '
-                         f'{{"protocol": {{"name": "otlp_http", "type": "http"}}, "url": "http://{host}:4318"}}, '
-                         f'{{"protocol": {{"name": "zipkin", "type": "http"}}, "url": "http://{host}:9411" }}]',
+            f'{{"protocol": {{"name": "otlp_http", "type": "http"}}, "url": "http://{host}:4318"}}, '
+            f'{{"protocol": {{"name": "zipkin", "type": "http"}}, "url": "http://{host}:9411" }}]',
         },
     )
     state = State(leader=leader, relations=[tracing])
@@ -68,8 +72,8 @@ def test_requirer_api_with_internal_scheme(context, leader):
         "tracing",
         remote_app_data={
             "receivers": f'[{{"protocol": {{"name": "otlp_grpc", "type": "grpc"}} , "url": "{host}:4317"}}, '
-                         f'{{"protocol": {{"name": "otlp_http", "type": "http"}}, "url": "https://{host}:4318"}}, '
-                         f'{{"protocol": {{"name": "zipkin", "type": "http"}}, "url":  "https://{host}:9411"}}]',
+            f'{{"protocol": {{"name": "otlp_http", "type": "http"}}, "url": "https://{host}:4318"}}, '
+            f'{{"protocol": {{"name": "zipkin", "type": "http"}}, "url":  "https://{host}:9411"}}]',
         },
     )
     state = State(leader=leader, relations=[tracing])
@@ -96,8 +100,8 @@ def test_ingressed_requirer_api(context, leader):
         "tracing",
         remote_app_data={
             "receivers": f'[{{"protocol": {{"name": "otlp_grpc", "type": "grpc"}}, "url": "{external_url.split("://")[1]}:4317" }}, '
-                         f'{{"protocol": {{"name": "otlp_http", "type": "http"}} , "url": "{external_url}:4318" }}, '
-                         f'{{"protocol": {{"name": "zipkin", "type": "http"}} , "url": "{external_url}:9411" }}]',
+            f'{{"protocol": {{"name": "otlp_http", "type": "http"}} , "url": "{external_url}:4318" }}, '
+            f'{{"protocol": {{"name": "zipkin", "type": "http"}} , "url": "{external_url}:9411" }}]',
         },
     )
     state = State(leader=leader, relations=[tracing])
@@ -106,13 +110,13 @@ def test_ingressed_requirer_api(context, leader):
     with context(context.on.relation_changed(tracing), state) as mgr:
         charm = mgr.charm
         assert (
-                charm.tracing.get_endpoint("otlp_grpc")
-                == f"{external_url.split('://')[1]}:{Tempo.receiver_ports['otlp_grpc']}"
+            charm.tracing.get_endpoint("otlp_grpc")
+            == f"{external_url.split('://')[1]}:{Tempo.receiver_ports['otlp_grpc']}"
         )
         for proto in ["otlp_http", "zipkin"]:
             assert (
-                    charm.tracing.get_endpoint(proto)
-                    == f"{external_url}:{Tempo.receiver_ports[proto]}"
+                charm.tracing.get_endpoint(proto)
+                == f"{external_url}:{Tempo.receiver_ports[proto]}"
             )
 
         rel = charm.model.get_relation("tracing")
@@ -126,22 +130,22 @@ def test_ingressed_requirer_api(context, leader):
 @pytest.mark.parametrize(
     "data",
     (
-            {
-                "ingesters": '[{"protocol": "otlp_grpc", "port": 9999}]',
-                "bar": "baz",
-            },
-            {
-                "host": "foo.com",
-                "bar": "baz",
-            },
-            {
-                "ingesters": '[{"burp": "barp", "port": 3200}]',
-                "host": "foo.com",
-            },
-            {
-                "ingesters": '[{"protocol": "tempo", "burp": "borp"}]',
-                "host": "foo.com",
-            },
+        {
+            "ingesters": '[{"protocol": "otlp_grpc", "port": 9999}]',
+            "bar": "baz",
+        },
+        {
+            "host": "foo.com",
+            "bar": "baz",
+        },
+        {
+            "ingesters": '[{"burp": "barp", "port": 3200}]',
+            "host": "foo.com",
+        },
+        {
+            "ingesters": '[{"protocol": "tempo", "burp": "borp"}]',
+            "host": "foo.com",
+        },
     ),
 )
 @pytest.mark.parametrize("leader", (True, False))
