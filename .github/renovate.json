@@ -13,7 +13,7 @@
     "helpers:pinGitHubActionDigests",
     "regexManagers:dockerfileVersions"
   ],
-  "automergeType": "branch",
+  "automergeType": "pr",
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["on tuesday"]

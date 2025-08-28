@@ -762,7 +762,6 @@ class TempoCoordinatorCharm(CharmBase):
 
         if not matching_datasources:
             # take good care of logging exactly why this happening, as the logic is quite complex and debugging this will be hell
-            msg = "service graph disabled."
             missing_rels = []
             if not remote_write_apps:
                 missing_rels.append("send-remote-write")
@@ -771,15 +770,30 @@ class TempoCoordinatorCharm(CharmBase):
             if not dsx_relations:
                 missing_rels.append("receive-datasource")
 
-            if missing_rels:
-                msg += f" Missing relations: {missing_rels}."
-
-            if not remote_write_dsx_relations:
-                msg += " There are no datasource_exchange relations with a Prometheus/Mimir that we're also remote writing to."
+            if missing_rels and not remote_write_dsx_relations:
+                logger.info(
+                    "service graph disabled. Missing relations: %s. "
+                    "There are no datasource_exchange relations with a Prometheus/Mimir "
+                    "that we're also remote writing to.",
+                    missing_rels,
+                )
+            elif missing_rels:
+                logger.info(
+                    "service graph disabled. Missing relations: %s.",
+                    missing_rels,
+                )
+            elif not remote_write_dsx_relations:
+                logger.info(
+                    "service graph disabled. There are no datasource_exchange relations "
+                    "with a Prometheus/Mimir that we're also remote writing to."
+                )
             else:
-                msg += " There are no datasource_exchange relations to a Prometheus/Mimir that are datasources to the same grafana instances Tempo is connected to."
+                logger.info(
+                    "service graph disabled. There are no datasource_exchange relations "
+                    "to a Prometheus/Mimir that are datasources to the same grafana instances "
+                    "Tempo is connected to."
+                )
 
-            logger.info(msg)
             return {}
 
         if len(matching_datasources) > 1:

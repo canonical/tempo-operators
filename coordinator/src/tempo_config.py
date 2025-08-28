@@ -4,7 +4,6 @@
 """Helper module for interacting with the Tempo configuration."""
 
 import enum
-import logging
 from enum import Enum, unique
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -12,8 +11,6 @@ from typing import Any, Dict, List, Optional
 import pydantic
 from coordinated_workers.coordinator import ClusterRolesConfig
 from pydantic import BaseModel, ConfigDict, Field
-
-logger = logging.getLogger(__name__)
 
 
 # TODO: inherit enum.StrEnum when jammy is no longer supported.
