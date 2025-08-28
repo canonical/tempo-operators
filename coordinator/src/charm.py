@@ -52,6 +52,7 @@ from ops.charm import CharmBase
 from tempo import Tempo
 from tempo_config import TEMPO_ROLES_CONFIG, TempoRole
 from nginx_config import upstreams, server_ports_to_locations
+from cosl.reconciler import all_events, observe_events
 
 logger = logging.getLogger(__name__)
 PEERS_RELATION_ENDPOINT_NAME = "peers"
@@ -208,13 +209,13 @@ class TempoCoordinatorCharm(CharmBase):
             # logging is handled by the Coordinator object
             return
 
-        # do this regardless of what event we are processing
-        self._reconcile()
-
         # actions
         self.framework.observe(
             self.on.list_receivers_action, self._on_list_receivers_action
         )
+
+        # do this regardless of what event we are processing
+        observe_events(self, all_events, self._reconcile)
 
     ######################
     # UTILITY PROPERTIES #
