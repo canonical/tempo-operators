@@ -178,6 +178,9 @@ def test_plain_request_redirect(juju: Juju, protocol):
 
 
 @pytest.mark.teardown
+@pytest.mark.skip(
+    reason="TODO: https://github.com/canonical/tempo-operators/issues/169"
+)
 def test_remove_relation(juju: Juju):
     juju.remove_relation(TEMPO_APP + ":certificates", SSC_APP + ":certificates")
 
