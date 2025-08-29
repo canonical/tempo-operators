@@ -199,14 +199,14 @@ wheels = [
 
 [[package]]
 name = "jubilant"
-version = "1.3.0"
+version = "1.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/43/49/9ea5efac9127c76247d42e286e56e26d9b5c01edbf9f24bcfae9aab3cf81/jubilant-1.3.0.tar.gz", hash = "sha256:ff43d6eb67a986958db6317d7ff3df1c8c160d0c56736628919ac1f7319d444e", size = 26842, upload-time = "2025-07-24T22:31:55.833Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4d/1a/ba5838825ac99db4ceec68fa146b594c97b682cf3ccf670b1ecf1261209d/jubilant-1.4.0.tar.gz", hash = "sha256:aa377699a8811fea29bfe0febb6b552d4593c02e666f5ba8c3fba24258700199", size = 27502, upload-time = "2025-08-27T00:11:46.295Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a2/97/ad9cbc4718cdc4feed0e841ccb2a3d15de7cb1187d63d1e2ba419cc34f51/jubilant-1.3.0-py3-none-any.whl", hash = "sha256:a5ea4a3bf487ab0286eaad0de9df145761657c08beb834931340b9ebb1f41292", size = 26484, upload-time = "2025-07-24T22:31:54.467Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/06/4965ed70d4b9d405c8bdefc4926d94cae202014b4488a25aa8c1fe9fb462/jubilant-1.4.0-py3-none-any.whl", hash = "sha256:1df7eaf125fad8d0d3d35e6d83eca43bfbb7884debcd6c7f4b0822600e2a485c", size = 27185, upload-time = "2025-08-27T00:11:44.851Z" },
 ]
 
 [[package]]
@@ -455,11 +455,11 @@ wheels = [
 
 [[package]]
 name = "typing-extensions"
-version = "4.14.1"
+version = "4.15.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/98/5a/da40306b885cc8c09109dc2e1abd358d5684b1425678151cdaed4731c822/typing_extensions-4.14.1.tar.gz", hash = "sha256:38b39f4aeeab64884ce9f74c94263ef78f3c22467c8724005483154c26648d36", size = 107673, upload-time = "2025-07-04T13:28:34.16Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/72/94/1a15dd82efb362ac84269196e94cf00f187f7ed21c242792a923cdb1c61f/typing_extensions-4.15.0.tar.gz", hash = "sha256:0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466", size = 109391, upload-time = "2025-08-25T13:49:26.313Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b5/00/d631e67a838026495268c2f6884f3711a15a9a2a96cd244fdaea53b823fb/typing_extensions-4.14.1-py3-none-any.whl", hash = "sha256:d1e1e3b58374dc93031d6eda2420a48ea44a36c2b4766a4fdeb3710755731d76", size = 43906, upload-time = "2025-07-04T13:28:32.743Z" },
+    { url = "https://files.pythonhosted.org/packages/18/67/36e9267722cc04a6b9f15c7f3441c2363321a3ea07da7ae0c0707beb2a9c/typing_extensions-4.15.0-py3-none-any.whl", hash = "sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548", size = 44614, upload-time = "2025-08-25T13:49:24.86Z" },
 ]
 
 [[package]]
