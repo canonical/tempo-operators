@@ -298,6 +298,7 @@ def get_traces(
     req = requests.get(
         url,
         verify=False,
+        timeout=5,
     )
     assert req.status_code == 200, req.reason
     traces = json.loads(req.text)["traces"]

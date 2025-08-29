@@ -2,7 +2,6 @@
 # See LICENSE file for licensing details.
 """Nginx workload."""
 
-import logging
 from typing import Dict, List, cast
 
 from charms.tempo_coordinator_k8s.v0.tracing import (
@@ -14,8 +13,6 @@ from coordinated_workers.nginx import NginxLocationConfig, NginxUpstream
 
 from tempo import Tempo
 from tempo_config import TempoRole
-
-logger = logging.getLogger(__name__)
 
 
 def upstreams() -> List[NginxUpstream]:

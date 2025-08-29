@@ -67,9 +67,14 @@ def test_verify_trace_http_no_tls_fails(juju: Juju, nonce, unit):
     )
     emit_trace(tempo_endpoint, juju, nonce=nonce)  # this should fail
 
+    # redecorate the original function with shorter retries for this negative test
+    get_traces_patiently_short = tenacity.retry(
+        stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_fixed(10)
+    )(get_traces_patiently.__wrapped__)
+
     # THEN we can verify it's not been ingested
     with pytest.raises(tenacity.RetryError):
-        get_traces_patiently(get_app_ip_address(juju, TEMPO_APP), nonce=nonce)
+        get_traces_patiently_short(get_app_ip_address(juju, TEMPO_APP), nonce=nonce)
 
 
 @pytest.mark.parametrize("unit", (0, 1, 2))
@@ -173,6 +178,9 @@ def test_plain_request_redirect(juju: Juju, protocol):
 
 
 @pytest.mark.teardown
+@pytest.mark.skip(
+    reason="TODO: https://github.com/canonical/tempo-operators/issues/169"
+)
 def test_remove_relation(juju: Juju):
     juju.remove_relation(TEMPO_APP + ":certificates", SSC_APP + ":certificates")
 

@@ -2,6 +2,7 @@
 # See LICENSE file for licensing details.
 name: tempo-coordinator-k8s
 type: charm
+title: Tempo Coordinator K8s
 
 assumes:
   - k8s-api

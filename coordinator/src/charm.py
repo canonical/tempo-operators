@@ -52,6 +52,7 @@ from ops.charm import CharmBase
 from tempo import Tempo
 from tempo_config import TEMPO_ROLES_CONFIG, TempoRole
 from nginx_config import upstreams, server_ports_to_locations
+from cosl.reconciler import all_events, observe_events
 
 logger = logging.getLogger(__name__)
 PEERS_RELATION_ENDPOINT_NAME = "peers"
@@ -208,13 +209,13 @@ class TempoCoordinatorCharm(CharmBase):
             # logging is handled by the Coordinator object
             return
 
-        # do this regardless of what event we are processing
-        self._reconcile()
-
         # actions
         self.framework.observe(
             self.on.list_receivers_action, self._on_list_receivers_action
         )
+
+        # do this regardless of what event we are processing
+        observe_events(self, all_events, self._reconcile)
 
     ######################
     # UTILITY PROPERTIES #
@@ -762,7 +763,6 @@ class TempoCoordinatorCharm(CharmBase):
 
         if not matching_datasources:
             # take good care of logging exactly why this happening, as the logic is quite complex and debugging this will be hell
-            msg = "service graph disabled."
             missing_rels = []
             if not remote_write_apps:
                 missing_rels.append("send-remote-write")
@@ -771,15 +771,30 @@ class TempoCoordinatorCharm(CharmBase):
             if not dsx_relations:
                 missing_rels.append("receive-datasource")
 
-            if missing_rels:
-                msg += f" Missing relations: {missing_rels}."
-
-            if not remote_write_dsx_relations:
-                msg += " There are no datasource_exchange relations with a Prometheus/Mimir that we're also remote writing to."
+            if missing_rels and not remote_write_dsx_relations:
+                logger.info(
+                    "service graph disabled. Missing relations: %s. "
+                    "There are no datasource_exchange relations with a Prometheus/Mimir "
+                    "that we're also remote writing to.",
+                    missing_rels,
+                )
+            elif missing_rels:
+                logger.info(
+                    "service graph disabled. Missing relations: %s.",
+                    missing_rels,
+                )
+            elif not remote_write_dsx_relations:
+                logger.info(
+                    "service graph disabled. There are no datasource_exchange relations "
+                    "with a Prometheus/Mimir that we're also remote writing to."
+                )
             else:
-                msg += " There are no datasource_exchange relations to a Prometheus/Mimir that are datasources to the same grafana instances Tempo is connected to."
+                logger.info(
+                    "service graph disabled. There are no datasource_exchange relations "
+                    "to a Prometheus/Mimir that are datasources to the same grafana instances "
+                    "Tempo is connected to."
+                )
 
-            logger.info(msg)
             return {}
 
         if len(matching_datasources) > 1:
