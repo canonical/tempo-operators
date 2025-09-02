@@ -810,6 +810,32 @@ class TempoCoordinatorCharm(CharmBase):
             },
         }
 
+    def _build_cross_telemetry_config(self) -> Dict[str, Any]:
+        cross_telemetry_config = {}
+
+        datasources = self.coordinator.datasource_exchange.received_datasources
+
+        for datasource in datasources:
+            if datasource.type == "loki":
+                traces_to_logs = {
+                    "tracesToLogsV2": {
+                        "datasourceUid": datasource.uid,
+                        "tags": [
+                            {"key": "juju_application", "value": ""},
+                            {"key": "juju_model", "value": ""},
+                            {"key": "juju_model_uuid", "value": ""},
+                        ],
+                        "filterByTraceID": False,
+                        "filterBySpanID": False,
+                        "customQuery": True,
+                        "query": '{ $$__tags }|= "$${__span.traceId}"',
+                    }
+                }
+                cross_telemetry_config.update(traces_to_logs)
+                logger.info(f"enabled tracesToLogs config for loki datasource {datasource.uid}")
+
+        return cross_telemetry_config
+
     def _build_grafana_source_extra_fields(self) -> Optional[Dict[str, Any]]:
         """Extra fields needed for the grafana-source relation, like data correlation config."""
         ## https://grafana.com/docs/tempo/latest/metrics-generator/service_graphs/enable-service-graphs/
@@ -826,12 +852,16 @@ class TempoCoordinatorCharm(CharmBase):
         # },
 
         svc_graph_config = self._build_service_graph_config()
-        if not svc_graph_config:
+
+        cross_telemetry_config = self._build_cross_telemetry_config()
+
+        if not svc_graph_config and not cross_telemetry_config:
             return None
 
         return {
             "httpMethod": "GET",
             **svc_graph_config,
+            **cross_telemetry_config,
         }
 
     @property
