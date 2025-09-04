@@ -44,19 +44,20 @@ from coordinated_workers.nginx import (
     KEY_PATH,
     NginxConfig,
 )
-from cosl.interfaces.datasource_exchange import DatasourceDict, DSExchangeAppData
-from cosl.interfaces.utils import DatabagModel, DataValidationError
+from cosl.interfaces.datasource_exchange import DatasourceDict
+from cosl.interfaces.utils import DatabagModel
 from ops import CollectStatusEvent
 from ops.charm import CharmBase
 
+from telemetry_correlation import TelemetryCorrelation
 from tempo import Tempo
 from tempo_config import TEMPO_ROLES_CONFIG, TempoRole
 from nginx_config import upstreams, server_ports_to_locations
-from cosl.reconciler import all_events, observe_events
 
 logger = logging.getLogger(__name__)
 PEERS_RELATION_ENDPOINT_NAME = "peers"
 PROMETHEUS_DS_TYPE = "prometheus"
+LOKI_DS_TYPE = "loki"
 
 
 class TempoCoordinator(Coordinator):
@@ -170,6 +171,8 @@ class TempoCoordinatorCharm(CharmBase):
             catalogue_item=self._catalogue_item,
         )
 
+        self._telemetry_correlation = TelemetryCorrelation(self, self.coordinator)
+
         # configure this tempo as a datasource in grafana
         self.grafana_source_provider = GrafanaSourceProvider(
             self,
@@ -209,13 +212,13 @@ class TempoCoordinatorCharm(CharmBase):
             # logging is handled by the Coordinator object
             return
 
+        # do this regardless of what event we are processing
+        self._reconcile()
+
         # actions
         self.framework.observe(
             self.on.list_receivers_action, self._on_list_receivers_action
         )
-
-        # do this regardless of what event we are processing
-        observe_events(self, all_events, self._reconcile)
 
     ######################
     # UTILITY PROPERTIES #
@@ -722,119 +725,36 @@ class TempoCoordinatorCharm(CharmBase):
         If there are multiple datasources that fit this description, we can assume that they are all
         equivalent and we can use any of them.
         """
+        if datasource := self._telemetry_correlation.find_datasource(
+            "send-remote-write", PROMETHEUS_DS_TYPE
+        ):
+            return {
+                "serviceMap": {
+                    "datasourceUid": datasource.uid,
+                },
+            }
+        return {}
 
-        dsx_relations = {
-            relation.app.name: relation
-            for relation in self.coordinator.datasource_exchange._relations
-        }
-
-        remote_write_apps = {
-            relation.app.name
-            for relation in self.model.relations["send-remote-write"]
-            if relation.app and relation.data
-        }
-
-        # the list of datasource exchange relations whose remote we're also remote writing to.
-        remote_write_dsx_relations = [
-            dsx_relations[app_name]
-            for app_name in set(dsx_relations).intersection(remote_write_apps)
-        ]
-
-        # grafana UIDs that are connected to this Tempo.
-        grafana_uids = set(self._get_grafana_source_uids())
-
-        remote_write_dsx_databags = []
-        for relation in remote_write_dsx_relations:
-            try:
-                datasource = DSExchangeAppData.load(relation.data[relation.app])
-                remote_write_dsx_databags.append(datasource)
-            except DataValidationError:
-                # load() already logs
-                continue
-
-        # filter the remote_write_dsx_databags with those that are connected to the same grafana instances Tempo is connected to.
-        matching_datasources = [
-            datasource
-            for databag in remote_write_dsx_databags
-            for datasource in databag.datasources
-            if datasource.grafana_uid in grafana_uids
-            and datasource.type == PROMETHEUS_DS_TYPE
-        ]
-
-        if not matching_datasources:
-            # take good care of logging exactly why this happening, as the logic is quite complex and debugging this will be hell
-            missing_rels = []
-            if not remote_write_apps:
-                missing_rels.append("send-remote-write")
-            if not grafana_uids:
-                missing_rels.append("grafana-source")
-            if not dsx_relations:
-                missing_rels.append("receive-datasource")
-
-            if missing_rels and not remote_write_dsx_relations:
-                logger.info(
-                    "service graph disabled. Missing relations: %s. "
-                    "There are no datasource_exchange relations with a Prometheus/Mimir "
-                    "that we're also remote writing to.",
-                    missing_rels,
-                )
-            elif missing_rels:
-                logger.info(
-                    "service graph disabled. Missing relations: %s.",
-                    missing_rels,
-                )
-            elif not remote_write_dsx_relations:
-                logger.info(
-                    "service graph disabled. There are no datasource_exchange relations "
-                    "with a Prometheus/Mimir that we're also remote writing to."
-                )
-            else:
-                logger.info(
-                    "service graph disabled. There are no datasource_exchange relations "
-                    "to a Prometheus/Mimir that are datasources to the same grafana instances "
-                    "Tempo is connected to."
-                )
-
-            return {}
-
-        if len(matching_datasources) > 1:
-            logger.info(
-                "there are multiple datasources that could be used to create the service graph. We assume that all are equivalent."
-            )
-
-        # At this point, we can assume any datasource is a valid datasource to use for service graphs.
-        matching_datasource = matching_datasources[0]
-        return {
-            "serviceMap": {
-                "datasourceUid": matching_datasource.uid,
-            },
-        }
-
-    def _build_cross_telemetry_config(self) -> Dict[str, Any]:
-        cross_telemetry_config = {}
-
-        datasources = self.coordinator.datasource_exchange.received_datasources
-
-        for datasource in datasources:
-            if datasource.type == "loki":
-                traces_to_logs = {
-                    "tracesToLogsV2": {
-                        "datasourceUid": datasource.uid,
-                        "tags": [
-                            {"key": "juju_application", "value": ""},
-                            {"key": "juju_model", "value": ""},
-                            {"key": "juju_model_uuid", "value": ""},
-                        ],
-                        "filterByTraceID": False,
-                        "filterBySpanID": False,
-                        "customQuery": True,
-                        "query": '{ $$__tags }|= "$${__span.traceId}"',
-                    }
+    def _build_traces_to_logs_config(self) -> Dict[str, Any]:
+        if datasource := self._telemetry_correlation.find_datasource(
+            "logging", LOKI_DS_TYPE
+        ):
+            return {
+                "tracesToLogsV2": {
+                    "datasourceUid": datasource.uid,
+                    "tags": [
+                        {"key": "juju_application", "value": ""},
+                        {"key": "juju_model", "value": ""},
+                        {"key": "juju_model_uuid", "value": ""},
+                    ],
+                    "filterByTraceID": False,
+                    "filterBySpanID": False,
+                    "customQuery": True,
+                    "query": '{ $$__tags } |= "$${__span.traceId}"',
                 }
-                cross_telemetry_config.update(traces_to_logs)
-                logger.info(f"enabled tracesToLogs config for loki datasource {datasource.uid}")
+            }
 
-        return cross_telemetry_config
+        return {}
 
     def _build_grafana_source_extra_fields(self) -> Optional[Dict[str, Any]]:
         """Extra fields needed for the grafana-source relation, like data correlation config."""
@@ -853,7 +773,7 @@ class TempoCoordinatorCharm(CharmBase):
 
         svc_graph_config = self._build_service_graph_config()
 
-        cross_telemetry_config = self._build_cross_telemetry_config()
+        cross_telemetry_config = self._build_traces_to_logs_config()
 
         if not svc_graph_config and not cross_telemetry_config:
             return None

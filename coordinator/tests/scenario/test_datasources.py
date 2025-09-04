@@ -311,8 +311,9 @@ def test_no_service_graph_with_wrong_dsx(
         # THEN a service graph config will not be generated.
         assert not service_graph_config
 
+
 @patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
-def test_cross_telemetry_config_no_datasources(
+def test_traces_to_logs_config_no_datasources(
     workload_ready_mock,
     context,
     s3,
@@ -334,12 +335,12 @@ def test_cross_telemetry_config_no_datasources(
     with context(context.on.update_status(), state_in) as mgr:
         mgr.run()
         charm = mgr.charm
-        config = charm._build_cross_telemetry_config()
+        config = charm._build_traces_to_logs_config()
         assert config == {}
 
 
 @patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
-def test_cross_telemetry_config_non_loki_datasources(
+def test_traces_to_logs_config_non_loki_datasources(
     workload_ready_mock,
     context,
     s3,
@@ -353,7 +354,9 @@ def test_cross_telemetry_config_non_loki_datasources(
         s3,
         all_worker,
         grafana_datasource_exchange_relation(
-            datasources=[{"type": "prometheus", "uid": "prom_1", "grafana_uid": "graf_1"}]
+            datasources=[
+                {"type": "prometheus", "uid": "prom_1", "grafana_uid": "graf_1"}
+            ]
         ),
     ]
     state_in = State(
@@ -364,12 +367,12 @@ def test_cross_telemetry_config_non_loki_datasources(
     with context(context.on.update_status(), state_in) as mgr:
         mgr.run()
         charm = mgr.charm
-        config = charm._build_cross_telemetry_config()
+        config = charm._build_traces_to_logs_config()
         assert config == {}
 
 
 @patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
-def test_cross_telemetry_config_loki_datasource(
+def test_traces_to_logs_config_loki_datasource(
     workload_ready_mock,
     context,
     s3,
@@ -382,8 +385,14 @@ def test_cross_telemetry_config_loki_datasource(
         PeerRelation("peers", peers_data={1: {}, 2: {}}),
         s3,
         all_worker,
+        grafana_source_relation(grafana_uid="graf_1"),
         grafana_datasource_exchange_relation(
             datasources=[{"type": "loki", "uid": "loki_1", "grafana_uid": "graf_1"}]
+        ),
+        Relation(
+            "logging",
+            remote_app_name="remote",
+            remote_app_data={},
         ),
     ]
     state_in = State(
@@ -394,6 +403,6 @@ def test_cross_telemetry_config_loki_datasource(
     with context(context.on.update_status(), state_in) as mgr:
         mgr.run()
         charm = mgr.charm
-        config = charm._build_cross_telemetry_config()
+        config = charm._build_traces_to_logs_config()
         assert "tracesToLogsV2" in config
         assert config["tracesToLogsV2"]["datasourceUid"] == "loki_1"
