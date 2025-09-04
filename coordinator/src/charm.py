@@ -53,6 +53,7 @@ from telemetry_correlation import TelemetryCorrelation
 from tempo import Tempo
 from tempo_config import TEMPO_ROLES_CONFIG, TempoRole
 from nginx_config import upstreams, server_ports_to_locations
+from cosl.reconciler import all_events, observe_events
 
 logger = logging.getLogger(__name__)
 PEERS_RELATION_ENDPOINT_NAME = "peers"
@@ -212,13 +213,13 @@ class TempoCoordinatorCharm(CharmBase):
             # logging is handled by the Coordinator object
             return
 
-        # do this regardless of what event we are processing
-        self._reconcile()
-
         # actions
         self.framework.observe(
             self.on.list_receivers_action, self._on_list_receivers_action
         )
+
+        # do this regardless of what event we are processing
+        observe_events(self, all_events, self._reconcile)
 
     ######################
     # UTILITY PROPERTIES #
@@ -773,15 +774,15 @@ class TempoCoordinatorCharm(CharmBase):
 
         svc_graph_config = self._build_service_graph_config()
 
-        cross_telemetry_config = self._build_traces_to_logs_config()
+        traces_to_logs_config = self._build_traces_to_logs_config()
 
-        if not svc_graph_config and not cross_telemetry_config:
+        if not svc_graph_config and not traces_to_logs_config:
             return None
 
         return {
             "httpMethod": "GET",
             **svc_graph_config,
-            **cross_telemetry_config,
+            **traces_to_logs_config,
         }
 
     @property
