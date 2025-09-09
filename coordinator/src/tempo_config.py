@@ -4,7 +4,6 @@
 """Helper module for interacting with the Tempo configuration."""
 
 import enum
-import logging
 from enum import Enum, unique
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -12,8 +11,6 @@ from typing import Any, Dict, List, Optional
 import pydantic
 from coordinated_workers.coordinator import ClusterRolesConfig
 from pydantic import BaseModel, ConfigDict, Field
-
-logger = logging.getLogger(__name__)
 
 
 # TODO: inherit enum.StrEnum when jammy is no longer supported.
@@ -126,14 +123,20 @@ class Kvstore(BaseModel):
 class Ring(BaseModel):
     """Ring schema."""
 
-    kvstore: Optional[Kvstore] = None
+    kvstore: Kvstore
+
+
+class IngesterRing(BaseModel):
+    """Ingester ring schema."""
+
+    kvstore: Kvstore
     replication_factor: int
 
 
 class Lifecycler(BaseModel):
     """Lifecycler schema."""
 
-    ring: Ring
+    ring: IngesterRing
 
 
 class Memberlist(BaseModel):
@@ -168,7 +171,7 @@ class Client(BaseModel):
 class Distributor(BaseModel):
     """Distributor schema."""
 
-    ring: Optional[Ring] = None
+    ring: Ring
     receivers: Dict[str, Any]
 
 
@@ -206,7 +209,9 @@ class TLS(BaseModel):
     cert_file: str
     key_file: str
     client_ca_file: str
-    client_auth_type: ClientAuthTypeEnum = ClientAuthTypeEnum.VERIFY_CLIENT_CERT_IF_GIVEN
+    client_auth_type: ClientAuthTypeEnum = (
+        ClientAuthTypeEnum.VERIFY_CLIENT_CERT_IF_GIVEN
+    )
 
 
 class Server(BaseModel):
@@ -230,7 +235,7 @@ class Compaction(BaseModel):
 class Compactor(BaseModel):
     """Compactor schema."""
 
-    ring: Optional[Ring] = None
+    ring: Ring
     compaction: Compaction
 
 
@@ -333,7 +338,7 @@ class MetricsGeneratorStorage(BaseModel):
 class MetricsGenerator(BaseModel):
     """Metrics Generator schema."""
 
-    ring: Optional[Ring] = None
+    ring: Ring
     storage: MetricsGeneratorStorage
 
     # processor-specific config depends on the processor type

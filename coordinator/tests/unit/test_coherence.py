@@ -23,13 +23,12 @@ from tempo_config import (
     ),
 )
 def test_coherent(mock_coordinator, roles, expected):
-
     mc = Coordinator(None, None, "", "", 0, None, None, None)
     cluster_mock = MagicMock()
     cluster_mock.gather_roles = MagicMock(return_value=roles)
     mc.cluster = cluster_mock
-    mc._is_coherent = None
-    mc.roles_config = TEMPO_ROLES_CONFIG
+    mc._override_coherency_checker = None
+    mc._roles_config = TEMPO_ROLES_CONFIG
 
     assert mc.is_coherent is expected
 
@@ -50,7 +49,7 @@ def test_recommended(mock_coordinator, roles, expected):
     cluster_mock = MagicMock()
     cluster_mock.gather_roles = MagicMock(return_value=roles)
     mc.cluster = cluster_mock
-    mc._is_recommended = None
-    mc.roles_config = TEMPO_ROLES_CONFIG
+    mc._override_recommended_checker = None
+    mc._roles_config = TEMPO_ROLES_CONFIG
 
     assert mc.is_recommended is expected

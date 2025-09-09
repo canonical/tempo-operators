@@ -37,7 +37,8 @@ def local_app_data_relation_state(
 
 
 @patch(
-    "charm.TempoCoordinatorCharm._internal_url", PropertyMock(return_value=TEMPO_COORDINATOR_URL)
+    "charm.TempoCoordinatorCharm._internal_url",
+    PropertyMock(return_value=TEMPO_COORDINATOR_URL),
 )
 def test_provider_sender_sends_data_on_relation_joined(
     context, s3, all_worker, nginx_container, nginx_prometheus_exporter_container
@@ -60,12 +61,14 @@ def test_provider_sender_sends_data_on_relation_joined(
     expected = {
         "http": json.dumps(
             {
-                "direct_url": TEMPO_COORDINATOR_URL + f":{Tempo.server_ports['tempo_http']}/",
+                "direct_url": TEMPO_COORDINATOR_URL
+                + f":{Tempo.server_ports['tempo_http']}/",
             }
         ),
         "grpc": json.dumps(
             {
-                "direct_url": TEMPO_COORDINATOR_URL + f":{Tempo.server_ports['tempo_grpc']}/",
+                "direct_url": TEMPO_COORDINATOR_URL
+                + f":{Tempo.server_ports['tempo_grpc']}/",
             }
         ),
     }
@@ -77,9 +80,12 @@ def test_provider_sender_sends_data_on_relation_joined(
     assert state_out.get_relation(tempo_api.id).local_app_data == expected
 
 
-@patch("charm.TempoCoordinatorCharm._external_url", PropertyMock(return_value=INGRESS_URL))
 @patch(
-    "charm.TempoCoordinatorCharm._internal_url", PropertyMock(return_value=TEMPO_COORDINATOR_URL)
+    "charm.TempoCoordinatorCharm._external_url", PropertyMock(return_value=INGRESS_URL)
+)
+@patch(
+    "charm.TempoCoordinatorCharm._internal_url",
+    PropertyMock(return_value=TEMPO_COORDINATOR_URL),
 )
 def test_provider_sender_sends_data_with_ingress_url_on_relation_joined(
     context, s3, all_worker, nginx_container, nginx_prometheus_exporter_container
@@ -102,13 +108,15 @@ def test_provider_sender_sends_data_with_ingress_url_on_relation_joined(
     expected = {
         "http": json.dumps(
             {
-                "direct_url": TEMPO_COORDINATOR_URL + f":{Tempo.server_ports['tempo_http']}/",
+                "direct_url": TEMPO_COORDINATOR_URL
+                + f":{Tempo.server_ports['tempo_http']}/",
                 "ingress_url": INGRESS_URL + f":{Tempo.server_ports['tempo_http']}/",
             }
         ),
         "grpc": json.dumps(
             {
-                "direct_url": TEMPO_COORDINATOR_URL + f":{Tempo.server_ports['tempo_grpc']}/",
+                "direct_url": TEMPO_COORDINATOR_URL
+                + f":{Tempo.server_ports['tempo_grpc']}/",
                 "ingress_url": INGRESS_URL + f":{Tempo.server_ports['tempo_grpc']}/",
             }
         ),
@@ -122,7 +130,8 @@ def test_provider_sender_sends_data_with_ingress_url_on_relation_joined(
 
 
 @patch(
-    "charm.TempoCoordinatorCharm._internal_url", PropertyMock(return_value=TEMPO_COORDINATOR_URL)
+    "charm.TempoCoordinatorCharm._internal_url",
+    PropertyMock(return_value=TEMPO_COORDINATOR_URL),
 )
 def test_provider_sends_data_on_leader_elected(
     context, s3, all_worker, nginx_container, nginx_prometheus_exporter_container
@@ -145,12 +154,14 @@ def test_provider_sends_data_on_leader_elected(
     expected = {
         "http": json.dumps(
             {
-                "direct_url": TEMPO_COORDINATOR_URL + f":{Tempo.server_ports['tempo_http']}/",
+                "direct_url": TEMPO_COORDINATOR_URL
+                + f":{Tempo.server_ports['tempo_http']}/",
             }
         ),
         "grpc": json.dumps(
             {
-                "direct_url": TEMPO_COORDINATOR_URL + f":{Tempo.server_ports['tempo_grpc']}/",
+                "direct_url": TEMPO_COORDINATOR_URL
+                + f":{Tempo.server_ports['tempo_grpc']}/",
             }
         ),
     }

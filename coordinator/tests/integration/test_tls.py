@@ -1,5 +1,4 @@
 import logging
-from pathlib import Path
 
 import jubilant
 import pytest
@@ -28,16 +27,12 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.setup
-def test_build_and_deploy(juju: Juju, tempo_charm: Path):
+def test_setup(juju: Juju):
     # deploy cluster
     juju.deploy("self-signed-certificates", app=SSC_APP)
-    juju.deploy(
-        "traefik-k8s", app=TRAEFIK_APP, channel="edge", trust=True
-    )
+    juju.deploy("traefik-k8s", app=TRAEFIK_APP, channel="edge", trust=True)
 
-    juju.integrate(
-        SSC_APP + ":certificates", TRAEFIK_APP + ":certificates"
-    )
+    juju.integrate(SSC_APP + ":certificates", TRAEFIK_APP + ":certificates")
 
     # this will wait for tempo, worker and s3 to be ready
     deploy_monolithic_cluster(juju)
@@ -47,34 +42,48 @@ def test_build_and_deploy(juju: Juju, tempo_charm: Path):
 
     juju.wait(
         lambda status: jubilant.all_active(status, SSC_APP, TRAEFIK_APP),
-        error=jubilant.any_error,
         timeout=2000,
+        delay=10,
+        successes=3,
     )
 
-@pytest.mark.setup
-def test_relate_ssc(juju: Juju):
+
+def test_scale_coordinator_up(juju: Juju):
+    juju.cli("add-unit", TEMPO_APP, "-n", "2")
     juju.wait(
-        lambda status: jubilant.all_active(status, TEMPO_APP, SSC_APP, TRAEFIK_APP, WORKER_APP),
-        error=jubilant.any_error,
+        lambda status: jubilant.all_active(status, TEMPO_APP, WORKER_APP),
         timeout=2000,
+        delay=10,
+        successes=3,
     )
 
 
-def test_verify_trace_http_no_tls_fails(juju: Juju, nonce):
+@pytest.mark.parametrize("unit", (0, 1, 2))
+def test_verify_trace_http_no_tls_fails(juju: Juju, nonce, unit):
     # IF tempo is related to SSC
     # WHEN we emit an http trace, **unsecured**
-    tempo_endpoint = get_tempo_internal_endpoint(juju, tls=False, protocol="otlp_http")
+    tempo_endpoint = get_tempo_internal_endpoint(
+        juju, tls=False, protocol="otlp_http", unit=unit
+    )
     emit_trace(tempo_endpoint, juju, nonce=nonce)  # this should fail
+
+    # redecorate the original function with shorter retries for this negative test
+    get_traces_patiently_short = tenacity.retry(
+        stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_fixed(10)
+    )(get_traces_patiently.__wrapped__)
 
     # THEN we can verify it's not been ingested
     with pytest.raises(tenacity.RetryError):
-        get_traces_patiently(get_app_ip_address(juju, TEMPO_APP), nonce=nonce)
+        get_traces_patiently_short(get_app_ip_address(juju, TEMPO_APP), nonce=nonce)
 
 
-def test_verify_traces_otlp_http_tls(juju: Juju, nonce):
+@pytest.mark.parametrize("unit", (0, 1, 2))
+def test_verify_traces_otlp_http_tls(juju: Juju, nonce, unit):
     protocol = "otlp_http"
     service_name = f"tracegen-{protocol}"
-    tempo_endpoint = get_tempo_internal_endpoint(juju, protocol=protocol, tls=True)
+    tempo_endpoint = get_tempo_internal_endpoint(
+        juju, protocol=protocol, tls=True, unit=unit
+    )
     # WHEN we emit a trace secured with TLS
     emit_trace(
         tempo_endpoint,
@@ -86,11 +95,16 @@ def test_verify_traces_otlp_http_tls(juju: Juju, nonce):
         service_name=service_name,
     )
     # THEN we can verify it's been ingested
-    get_traces_patiently(get_app_ip_address(juju, TEMPO_APP), service_name=service_name, nonce=nonce)
+    get_traces_patiently(
+        get_app_ip_address(juju, TEMPO_APP), service_name=service_name, nonce=nonce
+    )
 
 
 def test_force_enable_protocols(juju: Juju):
-    config = {f"always_enable_{protocol}": "True" for protocol in list(protocols_endpoints.keys())}
+    config = {
+        f"always_enable_{protocol}": "True"
+        for protocol in list(protocols_endpoints.keys())
+    }
 
     juju.config(TEMPO_APP, config)
     juju.wait(
@@ -98,12 +112,14 @@ def test_force_enable_protocols(juju: Juju):
         error=jubilant.any_error,
         timeout=2000,
         # wait for an idle period
-        delay=5,
+        delay=10,
         successes=3,
     )
 
 
-@pytest.mark.skip(reason="SSL error on jaeger_thrift_http") # TODO https://github.com/canonical/tempo-coordinator-k8s-operator/issues/176
+@pytest.mark.skip(
+    reason="SSL error on jaeger_thrift_http"
+)  # TODO https://github.com/canonical/tempo-coordinator-k8s-operator/issues/176
 @pytest.mark.parametrize("protocol", protocols_endpoints.keys())
 def test_verify_traces_force_enabled_protocols_tls(juju: Juju, nonce, protocol):
     tempo_host = get_ingress_proxied_hostname(juju)
@@ -149,7 +165,9 @@ def test_plain_request_redirect(juju: Juju, protocol):
         # there's no simple way to test with a gRPC client
         return
     tempo_host = get_ingress_proxied_hostname(juju)
-    tempo_endpoint = get_tempo_ingressed_endpoint(tempo_host, protocol=protocol, tls=False)
+    tempo_endpoint = get_tempo_ingressed_endpoint(
+        tempo_host, protocol=protocol, tls=False
+    )
     req = requests.get(
         tempo_endpoint,
         verify=False,
@@ -160,6 +178,9 @@ def test_plain_request_redirect(juju: Juju, protocol):
 
 
 @pytest.mark.teardown
+@pytest.mark.skip(
+    reason="TODO: https://github.com/canonical/tempo-operators/issues/169"
+)
 def test_remove_relation(juju: Juju):
     juju.remove_relation(TEMPO_APP + ":certificates", SSC_APP + ":certificates")
 

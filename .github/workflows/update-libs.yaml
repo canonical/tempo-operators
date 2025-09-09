@@ -13,9 +13,11 @@ jobs:
     secrets: inherit
     with:
       charm-path: coordinator
+      git-branch: chore/auto-libs/coordinator
   update-lib-worker:
     name: Check libraries
     uses: canonical/observability/.github/workflows/charm-update-libs.yaml@v1
     secrets: inherit
     with:
       charm-path: worker
+      git-branch: chore/auto-libs/worker

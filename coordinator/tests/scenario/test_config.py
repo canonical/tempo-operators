@@ -15,7 +15,9 @@ def test_memberlist_multiple_members(
         all_worker,
         remote_units_data={
             worker_idx: {
-                "address": json.dumps(f"worker-{worker_idx}.test.svc.cluster.local:7946"),
+                "address": json.dumps(
+                    f"worker-{worker_idx}.test.svc.cluster.local:7946"
+                ),
                 "juju_topology": json.dumps(
                     {
                         "model": "test",

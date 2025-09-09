@@ -1193,9 +1193,22 @@ class MetricsEndpointConsumer(Object):
                 continue
 
             unit_path = unit_databag.get("prometheus_scrape_unit_path", "")
+            if not (unit_databag := relation.data.get(unit)):
+                continue
+
+            unit_path = unit_databag.get("prometheus_scrape_unit_path", "")
             # TODO deprecate and remove unit.name
             unit_name = unit_databag.get("prometheus_scrape_unit_name") or unit.name
+            unit_name = unit_databag.get("prometheus_scrape_unit_name") or unit.name
             # TODO deprecate and remove "prometheus_scrape_host"
+            unit_address = unit_databag.get("prometheus_scrape_unit_address") or unit_databag.get(
+                "prometheus_scrape_host"
+            )
+
+            if not (unit_name and unit_address):
+                continue
+
+            hosts.update({unit_name: (unit_address, unit_path)})
             unit_address = unit_databag.get("prometheus_scrape_unit_address") or unit_databag.get(
                 "prometheus_scrape_host"
             )
@@ -1553,6 +1566,8 @@ class MetricsEndpointProvider(Object):
         if self._forward_alert_rules:
             alert_rules.add_path(self._alert_rules_path, recursive=True)
             alert_rules.add(
+                copy.deepcopy(generic_alert_groups.application_rules),
+                group_name_prefix=self.topology.identifier,
                 copy.deepcopy(generic_alert_groups.application_rules),
                 group_name_prefix=self.topology.identifier,
             )
@@ -2055,6 +2070,12 @@ class MetricsEndpointAggregator(Object):
                 continue
             port = unit_databag.get("port", 80)
             targets.update({unit.name: {"hostname": hostname, "port": port}})
+            if not (unit_databag := relation.data.get(unit)):
+                continue
+            if not (hostname := unit_databag.get("hostname")):
+                continue
+            port = unit_databag.get("port", 80)
+            targets.update({unit.name: {"hostname": hostname, "port": port}})
 
         return targets
 
@@ -2271,6 +2292,12 @@ class MetricsEndpointAggregator(Object):
         """
         rules = {}
         for unit in relation.units:
+            if not (unit_databag := relation.data.get(unit)):
+                continue
+            if not (unit_rules := yaml.safe_load(unit_databag.get("groups", ""))):
+                continue
+
+            rules.update({unit.name: unit_rules})
             if not (unit_databag := relation.data.get(unit)):
                 continue
             if not (unit_rules := yaml.safe_load(unit_databag.get("groups", ""))):
