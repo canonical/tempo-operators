@@ -116,9 +116,7 @@ def test_pebble_ready_plan(ctx, workload_tracing_receivers, expected_env, role):
     }
 
     if expected_env:
-        env = expected_plan["services"]["tempo"].get("environment", {})
-        env.update(expected_env)
-        expected_plan["services"]["tempo"]["environment"] = env
+        expected_plan["services"]["tempo"].setdefault("environment", {}).update(expected_env)
 
     state_out = ctx.run(
         ctx.on.pebble_ready(tempo_container),
