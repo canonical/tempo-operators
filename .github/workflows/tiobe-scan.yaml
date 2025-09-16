@@ -14,12 +14,12 @@ jobs:
         uses: canonical/observability/.github/workflows/charm-tiobe-scan.yaml@v1
         with:
             charm-path: ./coordinator
-            tiobe-project-name: tempo-coordinator-k8s
+            tiobe-project-name: tempo-coordinator-k8s-operator
         secrets: inherit
     tiobe-scan-worker:
         name: TiCs-worker
         uses: canonical/observability/.github/workflows/charm-tiobe-scan.yaml@v1
         with:
             charm-path: ./worker
-            tiobe-project-name: tempo-worker-k8s
+            tiobe-project-name: tempo-worker-k8s-operator
         secrets: inherit
