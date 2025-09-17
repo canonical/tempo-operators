@@ -101,6 +101,7 @@ class Tempo:
             storage=self._build_storage_config(coordinator._s3_config),
             metrics_generator=self._build_metrics_generator_config(
                 coordinator.tls_available,
+                coordinator.remote_write_endpoints,
             ),
         )
 
@@ -157,9 +158,8 @@ class Tempo:
             )
         )
 
-    def _build_metrics_generator_config(self, use_tls=False):
-        remote_write_endpoints = self._remote_write_endpoints_getter()
-        if len(remote_write_endpoints) == 0:
+    def _build_metrics_generator_config(self, use_tls=False, remote_write_endpoints=None):
+        if not remote_write_endpoints:
             return None
 
         # Assumptions:

@@ -59,6 +59,7 @@ logger = logging.getLogger(__name__)
 PEERS_RELATION_ENDPOINT_NAME = "peers"
 PROMETHEUS_DS_TYPE = "prometheus"
 LOKI_DS_TYPE = "loki"
+PROXY_WORKER_TELEMETRY_PORT=3300
 
 
 class TempoCoordinator(Coordinator):
@@ -110,7 +111,6 @@ class PeerData(DatabagModel):
     fqdn: str
     """FQDN hostname of this coordinator unit."""
 
-
 class TempoCoordinatorCharm(CharmBase):
     """Charmed Operator for Tempo; a distributed tracing backend."""
 
@@ -138,7 +138,7 @@ class TempoCoordinatorCharm(CharmBase):
 
         # keep this above the coordinator definition
         self.framework.observe(self.on.collect_unit_status, self._on_collect_status)
-
+        
         self.coordinator = TempoCoordinator(
             charm=self,
             roles_config=TEMPO_ROLES_CONFIG,
@@ -170,7 +170,8 @@ class TempoCoordinatorCharm(CharmBase):
             worker_ports=self._get_worker_ports,
             workload_tracing_protocols=["otlp_http"],
             catalogue_item=self._catalogue_item,
-            route_worker_metrics=True,
+            proxy_worker_telemetry=True,
+            proxy_worker_telemetry_port=PROXY_WORKER_TELEMETRY_PORT,
         )
 
         self._telemetry_correlation = TelemetryCorrelation(self, self.coordinator)
@@ -691,7 +692,8 @@ class TempoCoordinatorCharm(CharmBase):
         # if it gets changed by any other influencing relation.
         self._update_grafana_source()
         # open the necessary ports on this unit
-        self.unit.set_ports(*self._nginx_ports)
+        # open the port through which worker telemetry is proxied 
+        self.unit.set_ports(*self._nginx_ports, PROXY_WORKER_TELEMETRY_PORT)
         self._update_tempo_api_relations()
 
     def _get_grafana_source_uids(self) -> Dict[str, Dict[str, str]]:
