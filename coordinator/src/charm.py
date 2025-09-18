@@ -321,6 +321,12 @@ class TempoCoordinatorCharm(CharmBase):
 
     @property
     def _catalogue_item(self) -> CatalogueItem:
+        api_endpoints = {
+            "Search traces": "/api/search?<params>",
+            "Query traces (by ID)": "/api/traces/<traceID>",
+            "TraceQL metrics": "/api/metrics/query_range",
+            "TraceQL metrics (instant)": "/api/metrics/query",
+        }
         """A catalogue application entry for this Tempo instance."""
         return CatalogueItem(
             # use app.name in case there are multiple Tempo applications deployed.
@@ -334,6 +340,8 @@ class TempoCoordinatorCharm(CharmBase):
                 "Tempo is a distributed tracing backend by Grafana, supporting Jaeger, "
                 "Zipkin, and OpenTelemetry protocols."
             ),
+            api_docs="https://grafana.com/docs/tempo/latest/api_docs/",
+            api_endpoints={key: f"{self._most_external_url}{path}" for key, path in api_endpoints.items()}
         )
 
     ##################
