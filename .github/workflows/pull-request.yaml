@@ -1,0 +1,62 @@
+name: Pull Requests
+
+on:
+  pull_request:
+    branches:
+      - main
+      - track/**
+
+jobs:
+  charms-changed:
+    runs-on: ubuntu-latest
+    outputs:
+      coordinator_changed: ${{ steps.coordinator-changed-files.outputs.any_modified }}
+      worker_changed: ${{ steps.worker-changed-files.outputs.any_modified }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+      - name: Determine changed files in the coordinator
+        id: coordinator-changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: coordinator/**
+          files_ignore: |
+            README.md
+            CONTRIBUTING.md
+            INTEGRATING.md
+            CODEOWNERS
+            LICENSE
+            icon.svg
+            .gitignore
+            .github/**
+      - name: Determine changed files in the worker
+        id: worker-changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: worker/**
+          files_ignore: |
+            README.md
+            CONTRIBUTING.md
+            INTEGRATING.md
+            CODEOWNERS
+            LICENSE
+            icon.svg
+            .gitignore
+            .github/**
+  pull-request-coordinator:
+    needs: charms-changed
+    if: needs.charms-changed.outputs.coordinator_changed == 'true'
+    uses: canonical/observability/.github/workflows/charm-pull-request.yaml@v1
+    secrets: inherit
+    with:
+      charm-path: coordinator
+  pull-request-worker:
+    needs: charms-changed
+    if: needs.charms-changed.outputs.worker_changed == 'true'
+    uses: canonical/observability/.github/workflows/charm-pull-request.yaml@v1
+    secrets: inherit
+    with:
+      charm-path: worker
