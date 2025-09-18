@@ -4,9 +4,22 @@ on:
     workflow_dispatch:
     schedule:
     - cron: "0 0 * * 1"  # Runs at midnight UTC every Monday
-
+    # DO NOT MERGE: here only to test the workflow
+    pull_request:
+        branches:
+        - main
 jobs:
-    tics:
-        name: TiCs
+    tiobe-scan-coordinator:
+        name: TiCs-coordinator
         uses: canonical/observability/.github/workflows/charm-tiobe-scan.yaml@v1
+        with:
+            charm-path: ./coordinator
+            tiobe-project-name: tempo-coordinator-k8s-operator
+        secrets: inherit
+    tiobe-scan-worker:
+        name: TiCs-worker
+        uses: canonical/observability/.github/workflows/charm-tiobe-scan.yaml@v1
+        with:
+            charm-path: ./worker
+            tiobe-project-name: tempo-worker-k8s-operator
         secrets: inherit
