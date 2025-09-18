@@ -8,7 +8,7 @@ on:
 
 jobs:
   release:
-    uses: canonical/observability/.github/workflows/charm-release.yaml@v1
+    uses: canonical/observability/.github/workflows/charm-release.yaml@5127d643c26f438fe41b1068066ff281221e5d49 # v1
     secrets: inherit
     with:
       default-track: 2
