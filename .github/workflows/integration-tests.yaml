@@ -18,14 +18,14 @@ jobs:
       modes: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
       # check coordinator changes
       - name: Determine changed files in the coordinator
         id: coord-changed-files
-        uses: tj-actions/changed-files@v45
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47
         with:
           files: coordinator/**
           files_ignore: |
@@ -41,7 +41,7 @@ jobs:
       # check worker changes
       - name: Determine changed files in the worker
         id: worker-changed-files
-        uses: tj-actions/changed-files@v45
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47
         with:
           files: worker/**
           files_ignore: |
@@ -57,7 +57,7 @@ jobs:
       # check top-level changes
       - name: Determine changed files in the root level
         id: root-changed-files
-        uses: tj-actions/changed-files@v45
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47
         with:
           files: "*"
           files_ignore: |
@@ -98,7 +98,7 @@ jobs:
       runs-on: ubuntu-latest
       steps:
         - name: Checkout
-          uses: actions/checkout@v4
+          uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         - name: Setup LXD
           uses: canonical/setup-lxd@main
         - name: Install charmcraft
@@ -140,7 +140,7 @@ jobs:
           suites: ${{ steps.suites.outputs.suites }}
       steps:
         - name: Checkout
-          uses: actions/checkout@v4
+          uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         - name: Generate matrix list
           id: suites
           run: |
@@ -164,7 +164,7 @@ jobs:
           CONCIERGE_CHARMCRAFT_CHANNEL: 3.x/candidate
       steps:
           - name: Checkout
-            uses: actions/checkout@v4
+            uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
           - name: Install dependencies
             run: |
               sudo snap install concierge --classic
@@ -172,12 +172,12 @@ jobs:
               sudo snap install kubectl --classic
               juju model-defaults automatically-retry-hooks=true
           - name: Download coordinator charm artifact
-            uses: actions/download-artifact@v4
+            uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
             with:
               name: coordinator-charms-tests
               path: ./coordinator
           - name: Download worker charm artifact
-            uses: actions/download-artifact@v4
+            uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
             with:
               name: worker-charms-tests
               path: ./worker
