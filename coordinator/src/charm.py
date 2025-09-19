@@ -321,11 +321,11 @@ class TempoCoordinatorCharm(CharmBase):
 
     @property
     def _catalogue_item(self) -> CatalogueItem:
+        port = 3200
         api_endpoints = {
             "Search traces": "/api/search?<params>",
             "Query traces (by ID)": "/api/traces/<traceID>",
-            "TraceQL metrics": "/api/metrics/query_range",
-            "TraceQL metrics (instant)": "/api/metrics/query",
+            "Status": "/status",
         }
         """A catalogue application entry for this Tempo instance."""
         return CatalogueItem(
@@ -335,13 +335,13 @@ class TempoCoordinatorCharm(CharmBase):
             # Unlike Prometheus, Tempo doesn't have a sophisticated web UI.
             # Instead, we'll show the current status.
             # ref: https://grafana.com/docs/tempo/latest/api_docs/
-            url=f"{self._most_external_url}:3200/status",
+            url=f"{self._most_external_url}:{port}/status",
             description=(
                 "Tempo is a distributed tracing backend by Grafana, supporting Jaeger, "
                 "Zipkin, and OpenTelemetry protocols."
             ),
             api_docs="https://grafana.com/docs/tempo/latest/api_docs/",
-            api_endpoints={key: f"{self._most_external_url}{path}" for key, path in api_endpoints.items()}
+            api_endpoints={key: f"{self._most_external_url}:{port}{path}" for key, path in api_endpoints.items()}
         )
 
     ##################
