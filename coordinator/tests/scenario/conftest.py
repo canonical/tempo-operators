@@ -90,7 +90,11 @@ def remote_write():
     return Relation(
         "send-remote-write",
         remote_units_data={
-            0: {"remote_write": json.dumps({"url": "http://localhost:3300/proxy/remote-write/localhost/write"})}  # proxy url via the coordinator itself
+            0: {
+                "remote_write": json.dumps(
+                    {"url": "http://localhost:3300/proxy/remote-write/localhost/write"}
+                )
+            }  # proxy url via the coordinator itself
         },
     )
 
