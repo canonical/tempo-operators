@@ -172,7 +172,7 @@ class TempoCoordinatorCharm(CharmBase):
             workload_tracing_protocols=["otlp_http"],
             catalogue_item=self._catalogue_item,
             proxy_worker_telemetry=True,
-            proxy_worker_telemetry_port=PROXY_WORKER_TELEMETRY_PORT,
+            proxy_worker_telemetry_port=self.get_proxy_worker_telemetry_port,
         )
 
         self._telemetry_correlation = TelemetryCorrelation(self, self.coordinator)
@@ -366,6 +366,9 @@ class TempoCoordinatorCharm(CharmBase):
     ###################
     # UTILITY METHODS #
     ###################
+    @staticmethod
+    def get_proxy_worker_telemetry_port(tls_available: bool) -> int:
+        return PROXY_WORKER_TELEMETRY_PORT
 
     def update_peer_data(self) -> None:
         """Update peer unit data bucket with this unit's hostname."""
