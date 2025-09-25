@@ -180,6 +180,7 @@ class TempoCoordinatorCharm(CharmBase):
             source_type="tempo",
             source_url=self._external_http_server_url,
             extra_fields=self._build_grafana_source_extra_fields(),
+            is_ingress_per_app=self._is_ingress_ready,
         )
 
         # wokeignore:rule=blackbox
@@ -247,6 +248,15 @@ class TempoCoordinatorCharm(CharmBase):
         )
 
     @property
+    def _is_ingress_ready(self) -> bool:
+        "Return True if an ingress is configured and ready, otherwise False."
+        return bool(
+            self.ingress.is_ready()
+            and self.ingress.scheme
+            and self.ingress.external_host
+        )
+
+    @property
     def _external_http_server_url(self) -> str:
         """External url of the http(s) server."""
         return f"{self._most_external_url}:{Tempo.tempo_http_server_port}"
@@ -254,11 +264,7 @@ class TempoCoordinatorCharm(CharmBase):
     @property
     def _external_url(self) -> Optional[str]:
         """Return the external URL if the ingress is configured and ready, otherwise None."""
-        if (
-            self.ingress.is_ready()
-            and self.ingress.scheme
-            and self.ingress.external_host
-        ):
+        if self._is_ingress_ready:
             ingress_url = f"{self.ingress.scheme}://{self.ingress.external_host}"
             logger.debug("This unit's ingress URL: %s", ingress_url)
             return ingress_url
@@ -584,15 +590,9 @@ class TempoCoordinatorCharm(CharmBase):
         if ingress is used, return endpoint provided by the ingress instead.
         """
         protocol_type = receiver_protocol_to_transport_protocol.get(protocol)
-        # ingress.is_ready returns True even when traefik hasn't sent any data yet
-        has_ingress = (
-            self.ingress.is_ready()
-            and self.ingress.external_host
-            and self.ingress.scheme
-        )
         receiver_port = self.tempo.receiver_ports[protocol]
 
-        if has_ingress:
+        if self._is_ingress_ready:
             url = (
                 self.ingress.external_host
                 if protocol_type == TransportProtocolType.grpc
