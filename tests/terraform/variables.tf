@@ -1,0 +1,12 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+variable "model" {
+  description = "Model name to deploy the charm to"
+  type        = string
+}
+
+variable "endpoint" {
+  description = "s3 endpoint to use"
+  type        = string
+}
