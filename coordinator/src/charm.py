@@ -180,6 +180,7 @@ class TempoCoordinatorCharm(CharmBase):
             source_type="tempo",
             source_url=self._external_http_server_url,
             extra_fields=self._build_grafana_source_extra_fields(),
+            is_ingress_per_app=self._is_ingress_ready,
         )
 
         # wokeignore:rule=blackbox
@@ -247,6 +248,15 @@ class TempoCoordinatorCharm(CharmBase):
         )
 
     @property
+    def _is_ingress_ready(self) -> bool:
+        "Return True if an ingress is configured and ready, otherwise False."
+        return bool(
+            self.ingress.is_ready()
+            and self.ingress.scheme
+            and self.ingress.external_host
+        )
+
+    @property
     def _external_http_server_url(self) -> str:
         """External url of the http(s) server."""
         return f"{self._most_external_url}:{Tempo.tempo_http_server_port}"
@@ -254,11 +264,7 @@ class TempoCoordinatorCharm(CharmBase):
     @property
     def _external_url(self) -> Optional[str]:
         """Return the external URL if the ingress is configured and ready, otherwise None."""
-        if (
-            self.ingress.is_ready()
-            and self.ingress.scheme
-            and self.ingress.external_host
-        ):
+        if self._is_ingress_ready:
             ingress_url = f"{self.ingress.scheme}://{self.ingress.external_host}"
             logger.debug("This unit's ingress URL: %s", ingress_url)
             return ingress_url
@@ -321,19 +327,25 @@ class TempoCoordinatorCharm(CharmBase):
 
     @property
     def _catalogue_item(self) -> CatalogueItem:
+        port = 3200
+        api_endpoints = {
+            "Search traces": "/api/search?<params>",
+            "Query traces (by ID)": "/api/traces/<traceID>",
+            "Status": "/status",
+        }
         """A catalogue application entry for this Tempo instance."""
         return CatalogueItem(
             # use app.name in case there are multiple Tempo applications deployed.
             name=f"Tempo ({self.app.name})",
             icon="transit-connection-variant",
-            # Unlike Prometheus, Tempo doesn't have a sophisticated web UI.
-            # Instead, we'll show the current status.
-            # ref: https://grafana.com/docs/tempo/latest/api_docs/
-            url=f"{self._most_external_url}:3200/status",
+            # Since Tempo doesn't have a UI (unlike Prometheus), we will leave the URL field empty.
+            url="",
             description=(
                 "Tempo is a distributed tracing backend by Grafana, supporting Jaeger, "
                 "Zipkin, and OpenTelemetry protocols."
             ),
+            api_docs="https://grafana.com/docs/tempo/latest/api_docs/",
+            api_endpoints={key: f"{self._most_external_url}:{port}{path}" for key, path in api_endpoints.items()}
         )
 
     ##################
@@ -578,15 +590,9 @@ class TempoCoordinatorCharm(CharmBase):
         if ingress is used, return endpoint provided by the ingress instead.
         """
         protocol_type = receiver_protocol_to_transport_protocol.get(protocol)
-        # ingress.is_ready returns True even when traefik hasn't sent any data yet
-        has_ingress = (
-            self.ingress.is_ready()
-            and self.ingress.external_host
-            and self.ingress.scheme
-        )
         receiver_port = self.tempo.receiver_ports[protocol]
 
-        if has_ingress:
+        if self._is_ingress_ready:
             url = (
                 self.ingress.external_host
                 if protocol_type == TransportProtocolType.grpc
