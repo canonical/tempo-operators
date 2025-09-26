@@ -131,7 +131,6 @@ class TempoCoordinatorCharm(CharmBase):
         self._remote_write = PrometheusRemoteWriteConsumer(self, alert_rules_path="")
 
         self.tempo = Tempo(
-            requested_receivers=self._requested_receivers,
             retention_period_hours=self._trace_retention_period_hours,
             remote_write_endpoints=self._remote_write_endpoints,
         )
@@ -345,7 +344,10 @@ class TempoCoordinatorCharm(CharmBase):
                 "Zipkin, and OpenTelemetry protocols."
             ),
             api_docs="https://grafana.com/docs/tempo/latest/api_docs/",
-            api_endpoints={key: f"{self._most_external_url}:{port}{path}" for key, path in api_endpoints.items()}
+            api_endpoints={
+                key: f"{self._most_external_url}:{port}{path}"
+                for key, path in api_endpoints.items()
+            },
         )
 
     ##################

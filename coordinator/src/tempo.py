@@ -47,7 +47,7 @@ class Tempo:
     jaeger_grpc_receiver_port = 14250
 
     # utility grouping of the ports
-    receiver_ports: Dict[str, int] = {
+    receiver_ports: Dict[ReceiverProtocol, int] = {
         "zipkin": zipkin_receiver_port,
         "otlp_grpc": otlp_grpc_receiver_port,
         "otlp_http": otlp_http_receiver_port,
@@ -66,11 +66,9 @@ class Tempo:
 
     def __init__(
         self,
-        requested_receivers: Callable[[], "Tuple[ReceiverProtocol, ...]"],
         retention_period_hours: int,
         remote_write_endpoints: Callable[[], List[Dict[str, Any]]],
     ):
-        self._receivers_getter = requested_receivers
         self._retention_period_hours = retention_period_hours
         self._remote_write_endpoints_getter = remote_write_endpoints
 
@@ -85,9 +83,7 @@ class Tempo:
         config = tempo_config.TempoConfig(
             auth_enabled=False,
             server=self._build_server_config(coordinator.tls_available),
-            distributor=self._build_distributor_config(
-                self._receivers_getter(), coordinator.tls_available
-            ),
+            distributor=self._build_distributor_config(coordinator.tls_available),
             ingester=self._build_ingester_config(
                 coordinator.cluster.gather_addresses_by_role()
             ),
@@ -299,23 +295,22 @@ class Tempo:
             ),
         )
 
-    def _build_distributor_config(
-        self, receivers: Sequence[ReceiverProtocol], use_tls=False
-    ):  # noqa: C901
+    def _build_distributor_config(self, use_tls=False):  # noqa: C901
         """Build distributor config"""
-        # receivers: the receivers we have to enable because the requirers we're related to
-        # intend to use them. It already includes receivers that are always enabled
-        # through config or because *this charm* will use them.
-        receivers_set = set(receivers)
+        # We enable all receivers. We'll only open ports for the ones that we know are actually
+        # going to be used though; for security reasons.
+        receivers_set: Set[ReceiverProtocol] = set(self.receiver_ports)
 
         if not receivers_set:
             logger.warning("No receivers set. Tempo will be up but not functional.")
 
         def _build_receiver_config(
-            protocol: str,
+            protocol: ReceiverProtocol,
         ) -> Dict[str, Any]:
             return {
-                "endpoint": f"0.0.0.0:{self.receiver_ports[protocol]}",
+                # set this to localhost because all receivers are enabled by default, so someone
+                # might push traces directly to the worker pods using the pod IPs.
+                "endpoint": f"localhost:{self.receiver_ports[protocol]}",
                 **(
                     {
                         "tls": {
