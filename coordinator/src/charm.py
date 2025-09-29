@@ -44,6 +44,7 @@ from coordinated_workers.nginx import (
     KEY_PATH,
     NginxConfig,
 )
+from coordinated_workers.worker_telemetry import WorkerTelemetryProxyConfig
 from cosl.interfaces.datasource_exchange import DatasourceDict
 from cosl.interfaces.utils import DatabagModel
 from ops import CollectStatusEvent
@@ -171,8 +172,7 @@ class TempoCoordinatorCharm(CharmBase):
             worker_ports=self._get_worker_ports,
             workload_tracing_protocols=["otlp_http"],
             catalogue_item=self._catalogue_item,
-            proxy_worker_telemetry=True,
-            proxy_worker_telemetry_port=self.get_proxy_worker_telemetry_port,
+            worker_telemetry_proxy_config=self._get_worker_telemetry_proxy_config(),
         )
 
         self._telemetry_correlation = TelemetryCorrelation(self, self.coordinator)
@@ -366,9 +366,11 @@ class TempoCoordinatorCharm(CharmBase):
     ###################
     # UTILITY METHODS #
     ###################
-    @staticmethod
-    def get_proxy_worker_telemetry_port(tls_available: bool) -> int:
-        return PROXY_WORKER_TELEMETRY_PORT
+    def _get_worker_telemetry_proxy_config(self) -> WorkerTelemetryProxyConfig:
+        return WorkerTelemetryProxyConfig(
+            http=PROXY_WORKER_TELEMETRY_PORT,
+            https=PROXY_WORKER_TELEMETRY_PORT,
+        )
 
     def update_peer_data(self) -> None:
         """Update peer unit data bucket with this unit's hostname."""
