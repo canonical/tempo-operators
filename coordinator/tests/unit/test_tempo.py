@@ -21,21 +21,21 @@ tls_config = {
                 "jaeger": {
                     "protocols": {
                         "grpc": {
-                            "endpoint": f"localhost:{Tempo.receiver_ports['jaeger_grpc']}"
+                            "endpoint": f"0.0.0.0:{Tempo.receiver_ports['jaeger_grpc']}"
                         },
                         "thrift_http": {
-                            "endpoint": f"localhost:{Tempo.receiver_ports['jaeger_thrift_http']}"
+                            "endpoint": f"0.0.0.0:{Tempo.receiver_ports['jaeger_thrift_http']}"
                         },
                     }
                 },
-                "zipkin": {"endpoint": f"localhost:{Tempo.receiver_ports['zipkin']}"},
+                "zipkin": {"endpoint": f"0.0.0.0:{Tempo.receiver_ports['zipkin']}"},
                 "otlp": {
                     "protocols": {
                         "http": {
-                            "endpoint": f"localhost:{Tempo.receiver_ports['otlp_http']}"
+                            "endpoint": f"0.0.0.0:{Tempo.receiver_ports['otlp_http']}"
                         },
                         "grpc": {
-                            "endpoint": f"localhost:{Tempo.receiver_ports['otlp_grpc']}"
+                            "endpoint": f"0.0.0.0:{Tempo.receiver_ports['otlp_grpc']}"
                         },
                     }
                 },
@@ -47,26 +47,26 @@ tls_config = {
                 "jaeger": {
                     "protocols": {
                         "thrift_http": {
-                            "endpoint": f"localhost:{Tempo.receiver_ports['jaeger_thrift_http']}",
+                            "endpoint": f"0.0.0.0:{Tempo.receiver_ports['jaeger_thrift_http']}",
                             **tls_config,
                         },
                         "grpc": {
-                            "endpoint": "localhost:14250",
+                            "endpoint": "0.0.0.0:14250",
                             **tls_config,
                         },
                     }
                 },
                 "zipkin": {
-                    "endpoint": f"localhost:{Tempo.receiver_ports['zipkin']}",
+                    "endpoint": f"0.0.0.0:{Tempo.receiver_ports['zipkin']}",
                     **tls_config,
                 },
                 "otlp": {
                     "protocols": {
                         "http": {
-                            "endpoint": f"localhost:{Tempo.receiver_ports['otlp_http']}",
+                            "endpoint": f"0.0.0.0:{Tempo.receiver_ports['otlp_http']}",
                             **tls_config,
                         },
-                        "grpc": {"endpoint": "localhost:4317", **tls_config},
+                        "grpc": {"endpoint": "0.0.0.0:4317", **tls_config},
                     }
                 },
             },
