@@ -172,7 +172,7 @@ class TempoCoordinatorCharm(CharmBase):
             worker_ports=self._get_worker_ports,
             workload_tracing_protocols=["otlp_http"],
             catalogue_item=self._catalogue_item,
-            worker_telemetry_proxy_config=self._get_worker_telemetry_proxy_config(),
+            worker_telemetry_proxy_config=self._worker_telemetry_proxy_config,
         )
 
         self._telemetry_correlation = TelemetryCorrelation(self, self.coordinator)
@@ -227,6 +227,14 @@ class TempoCoordinatorCharm(CharmBase):
     ######################
     # UTILITY PROPERTIES #
     ######################
+    @property
+    def _worker_telemetry_proxy_config(self) -> WorkerTelemetryProxyConfig:
+        """Get the http and https ports for proxying worker telemetry."""
+        return WorkerTelemetryProxyConfig(
+            http=PROXY_WORKER_TELEMETRY_PORT,
+            https=PROXY_WORKER_TELEMETRY_PORT,
+        )
+
     @property
     def peers(self):
         """Fetch the "peers" peer relation."""
@@ -366,12 +374,6 @@ class TempoCoordinatorCharm(CharmBase):
     ###################
     # UTILITY METHODS #
     ###################
-    def _get_worker_telemetry_proxy_config(self) -> WorkerTelemetryProxyConfig:
-        return WorkerTelemetryProxyConfig(
-            http=PROXY_WORKER_TELEMETRY_PORT,
-            https=PROXY_WORKER_TELEMETRY_PORT,
-        )
-
     def update_peer_data(self) -> None:
         """Update peer unit data bucket with this unit's hostname."""
         if self.peers and self.peers.data:
