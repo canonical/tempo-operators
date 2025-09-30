@@ -134,7 +134,7 @@ wheels = [
 [[package]]
 name = "coordinated-workers"
 version = "2.0.17"
-source = { git = "https://github.com/canonical/cos-coordinated-workers.git?rev=feature%2Froute-worker-telemetry-via-nginx#f55ddc573d04ccee92cae685dc37fa0d89036fe5" }
+source = { git = "https://github.com/canonical/cos-coordinated-workers.git?rev=feature%2Froute-worker-telemetry-via-nginx#e34dbc29c01507899980417273975d8bc218e465" }
 dependencies = [
     { name = "cosl" },
     { name = "crossplane" },
