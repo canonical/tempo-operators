@@ -308,9 +308,9 @@ class Tempo:
             protocol: ReceiverProtocol,
         ) -> Dict[str, Any]:
             return {
-                # set this to localhost because all receivers are enabled by default, so someone
-                # might push traces directly to the worker pods using the pod IPs.
-                "endpoint": f"localhost:{self.receiver_ports[protocol]}",
+                # someone might push traces directly to the worker pods using the pod IPs;
+                # if you're worried about that, use a service mesh.
+                "endpoint": f"0.0.0.0:{self.receiver_ports[protocol]}",
                 **(
                     {
                         "tls": {

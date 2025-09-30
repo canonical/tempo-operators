@@ -1,13 +1,17 @@
 import json
+import shlex
+import subprocess
 from pathlib import Path
 
 import jubilant
 import pytest
+import requests
 from pytest_jubilant import pack, get_resources
 import yaml
 from jubilant import Juju
 
 from helpers import WORKER_APP, deploy_monolithic_cluster, TEMPO_APP
+from tempo import Tempo
 from tests.integration.helpers import get_traces_patiently, get_app_ip_address
 
 TESTER_METADATA = yaml.safe_load(
@@ -130,6 +134,76 @@ def test_verify_traces_grpc(juju: Juju):
     assert traces, (
         f"There's no trace of generated grpc traces in tempo. {json.dumps(traces, indent=2)}"
     )
+
+
+def test_verify_only_requested_receiver_endpoints_listed(juju: Juju):
+    # requested receivers are listed
+    expect_open = ["otlp_grpc", "otlp_http", "jaeger_thrift_http"]
+    out = juju.run(TEMPO_APP + "/0", "list-receivers")
+    for proto in expect_open:
+        assert proto in out.results
+
+    # and non-requested receivers are not listed
+    expect_closed = ["zipkin", "jaeger_grpc"]
+    for proto in expect_closed:
+        assert proto not in out.results
+
+
+def test_verify_requested_receiver_endpoints_routed(juju: Juju):
+    # check that tempo's nginx is only routing protocols that have been requested by requirer
+    # charms or tempo itself
+    expect_open = [
+        "otlp_grpc",
+    ]
+    tempo_ip = get_app_ip_address(juju, TEMPO_APP)
+    tempo_worker_ip = get_app_ip_address(juju, WORKER_APP)
+
+    for proto in ("otlp_http", "jaeger_thrift_http"):
+        # these status codes mean there is something listening, but we have the wrong url, which is ok
+        listening_server_status_codes = {404, 415}
+        port = f":{Tempo.receiver_ports[proto]}"
+        assert (
+            requests.get("http://" + tempo_ip + port).status_code
+            in listening_server_status_codes
+        )
+        assert (
+            requests.get("http://" + tempo_worker_ip + port).status_code
+            in listening_server_status_codes
+        )
+
+    curl_out = subprocess.run(
+        shlex.split(f"curl -v {tempo_ip}:{Tempo.receiver_ports['otlp_grpc']}"),
+        capture_output=True,
+        text=True,
+    ).stderr
+    assert "grpc-status: 3" in curl_out, curl_out
+
+    # nginx and tempo give different error responses on failure
+    curl_out = subprocess.run(
+        shlex.split(f"curl -v {tempo_worker_ip}:{Tempo.receiver_ports['otlp_grpc']}"),
+        capture_output=True,
+        text=True,
+    ).stderr
+    assert "Received HTTP/0.9 when not allowed" in curl_out, curl_out
+
+
+def test_verify_non_requested_receiver_endpoints_not_routed(juju: Juju):
+    # check that tempo's nginx is only routing protocols that have been requested by requirer
+    # charms or tempo itself
+    tempo_ip = get_app_ip_address(juju, TEMPO_APP)
+    tempo_worker_ip = get_app_ip_address(juju, WORKER_APP)
+
+    expect_closed = ["zipkin", "jaeger_grpc"]
+    for proto in expect_closed:
+        port = f":{Tempo.receiver_ports[proto]}"
+
+        # we can't connect to tempo
+        with pytest.raises(requests.exceptions.ConnectionError):
+            requests.get("http://" + tempo_ip + port, timeout=0.5)
+
+        # or the worker
+        with pytest.raises(requests.exceptions.ConnectionError):
+            requests.get("http://" + tempo_worker_ip + port, timeout=0.5)
 
 
 @pytest.mark.teardown

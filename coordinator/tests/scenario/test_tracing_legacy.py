@@ -20,7 +20,7 @@ def test_tracing_v2_endpoint_published(context, s3, all_worker, evt_name, base_s
     state = replace(base_state, relations=[tracing, s3, all_worker])
 
     with context(getattr(context.on, f"relation_{evt_name}")(tracing), state) as mgr:
-        assert len(mgr.charm._requested_receivers()) == 1
+        assert len(mgr.charm._requested_receivers) == 1
         out = mgr.run()
 
     tracing_out = out.get_relations(tracing.endpoint)[0]
