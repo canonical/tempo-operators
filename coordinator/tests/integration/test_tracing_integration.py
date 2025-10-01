@@ -155,18 +155,17 @@ def test_verify_requested_receiver_endpoints_routed(juju: Juju):
     tempo_ip = get_app_ip_address(juju, TEMPO_APP)
     tempo_worker_ip = get_app_ip_address(juju, WORKER_APP)
 
-    for proto in ("otlp_http", "jaeger_thrift_http"):
-        # these status codes mean there is something listening, but we have the wrong url, which is ok
-        listening_server_status_codes = {404, 415}
-        port = f":{Tempo.receiver_ports[proto]}"
-        assert (
-            requests.get("http://" + tempo_ip + port).status_code
-            in listening_server_status_codes
-        )
-        assert (
-            requests.get("http://" + tempo_worker_ip + port).status_code
-            in listening_server_status_codes
-        )
+    # these status codes mean there is something listening, but we have the wrong url, which is ok
+    listening_server_status_codes = {404, 415}
+    port = f":{Tempo.receiver_ports["otlp_http"]}"
+    assert (
+        requests.get("http://" + tempo_ip + port).status_code
+        in listening_server_status_codes
+    )
+    assert (
+        requests.get("http://" + tempo_worker_ip + port).status_code
+        in listening_server_status_codes
+    )
 
     curl_out = subprocess.run(
         shlex.split(f"curl -v {tempo_ip}:{Tempo.receiver_ports['otlp_grpc']}"),
@@ -190,7 +189,7 @@ def test_verify_non_requested_receiver_endpoints_not_routed(juju: Juju):
     tempo_ip = get_app_ip_address(juju, TEMPO_APP)
     tempo_worker_ip = get_app_ip_address(juju, WORKER_APP)
 
-    expect_closed = ["zipkin", "jaeger_grpc"]
+    expect_closed = ["zipkin", "jaeger_grpc", "jaeger_thrift_http"]
     for proto in expect_closed:
         port = f":{Tempo.receiver_ports[proto]}"
 
