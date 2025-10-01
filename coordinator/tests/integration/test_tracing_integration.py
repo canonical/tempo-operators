@@ -138,7 +138,7 @@ def test_verify_traces_grpc(juju: Juju):
 
 def test_verify_only_requested_receiver_endpoints_listed(juju: Juju):
     # requested receivers are listed
-    expect_open = ["otlp_grpc", "otlp_http", "jaeger_thrift_http"]
+    expect_open = ["otlp-grpc", "otlp-http", "jaeger-thrift-http"]
     out = juju.run(TEMPO_APP + "/0", "list-receivers")
     for proto in expect_open:
         assert proto in out.results
@@ -152,9 +152,6 @@ def test_verify_only_requested_receiver_endpoints_listed(juju: Juju):
 def test_verify_requested_receiver_endpoints_routed(juju: Juju):
     # check that tempo's nginx is only routing protocols that have been requested by requirer
     # charms or tempo itself
-    expect_open = [
-        "otlp_grpc",
-    ]
     tempo_ip = get_app_ip_address(juju, TEMPO_APP)
     tempo_worker_ip = get_app_ip_address(juju, WORKER_APP)
 

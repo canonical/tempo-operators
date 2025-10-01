@@ -9,8 +9,8 @@ from tests.integration.helpers import deploy_tempo
 
 
 @pytest.mark.setup
-def test_deploy_tempo(juju: Juju, tempo_charm: Path):
-    deploy_tempo(juju, tempo_charm)
+def test_deploy_tempo(juju: Juju):
+    deploy_tempo(juju)
 
     # coordinator will be blocked because of missing s3 and workers integration
     juju.wait(lambda status: all_blocked(status, TEMPO_APP), timeout=1000)
