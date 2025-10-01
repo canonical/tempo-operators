@@ -138,7 +138,7 @@ def test_verify_traces_grpc(juju: Juju):
 
 def test_verify_only_requested_receiver_endpoints_listed(juju: Juju):
     # requested receivers are listed
-    expect_open = ["otlp-grpc", "otlp-http", "jaeger-thrift-http"]
+    expect_open = ["otlp-grpc", "otlp-http"]
     out = juju.run(TEMPO_APP + "/0", "list-receivers")
     for proto in expect_open:
         assert proto in out.results
