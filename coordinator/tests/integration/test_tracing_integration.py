@@ -157,7 +157,7 @@ def test_verify_requested_receiver_endpoints_routed(juju: Juju):
 
     # these status codes mean there is something listening, but we have the wrong url, which is ok
     listening_server_status_codes = {404, 415}
-    port = f":{Tempo.receiver_ports["otlp_http"]}"
+    port = f":{Tempo.receiver_ports['otlp_http']}"
     assert (
         requests.get("http://" + tempo_ip + port).status_code
         in listening_server_status_codes

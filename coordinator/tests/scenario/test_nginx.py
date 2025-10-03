@@ -57,10 +57,14 @@ def test_nginx_config_is_parsed_with_workers(
 ):
     coordinator.cluster.gather_addresses_by_role.return_value = addresses
     requested_protocols = {"otlp_grpc", "zipkin"}
+    requested_protos_to_ports = {
+        p: Tempo.receiver_ports[p] for p in requested_protocols
+    }
+
     nginx = NginxConfig(
         "localhost",
-        upstreams(requested_protocols),
-        server_ports_to_locations(requested_protocols),
+        upstreams(requested_protos_to_ports),
+        server_ports_to_locations(requested_protos_to_ports),
     )
 
     prepared_config = nginx.get_config(
@@ -106,12 +110,14 @@ def test_nginx_config_contains_upstreams_and_proxy_pass(
     coordinator.cluster.gather_addresses_by_role.return_value = addresses
     coordinator.nginx.are_certificates_on_disk = tls
 
+    requested_protos_to_ports = {p: Tempo.receiver_ports[p] for p in requested_protos}
+
     with mock_ipv6(ipv6):
         with mock_resolv_conf(f"nameserver {sample_dns_ip}"):
             nginx = NginxConfig(
                 "localhost",
-                upstreams(requested_protos),
-                server_ports_to_locations(requested_protos),
+                upstreams(requested_protos_to_ports),
+                server_ports_to_locations(requested_protos_to_ports),
             )
 
     prepared_config = nginx.get_config(
@@ -125,12 +131,12 @@ def test_nginx_config_contains_upstreams_and_proxy_pass(
                 enabled_routes = {
                     k: v
                     for k, v in Tempo.receiver_ports.items()
-                    if k in requested_protos
+                    if k in requested_protos_to_ports
                 }
                 disabled_routes = {
                     k: v
                     for k, v in Tempo.receiver_ports.items()
-                    if k not in requested_protos
+                    if k not in requested_protos_to_ports
                 }
                 _assert_config_per_role(
                     enabled_routes, address, prepared_config, tls, ipv6

@@ -143,8 +143,7 @@ class TempoCoordinatorCharm(CharmBase):
         # times throughout an event
         self._requested_receivers = self._collect_requested_receivers()
         requested_receiver_ports: Dict[ReceiverProtocol, int] = {
-            proto: Tempo.receiver_ports[proto]
-            for proto in self._requested_receivers
+            proto: Tempo.receiver_ports[proto] for proto in self._requested_receivers
         }
         self.coordinator = TempoCoordinator(
             charm=self,

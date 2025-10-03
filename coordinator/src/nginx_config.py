@@ -15,7 +15,9 @@ from tempo import Tempo
 from tempo_config import TempoRole
 
 
-def upstreams(requested_receiver_ports: Dict[ReceiverProtocol, int]) -> List[NginxUpstream]:
+def upstreams(
+    requested_receiver_ports: Dict[ReceiverProtocol, int],
+) -> List[NginxUpstream]:
     """Return the nginx upstreams."""
     out = []
     for role, ports in (
