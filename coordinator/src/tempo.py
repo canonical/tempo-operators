@@ -295,7 +295,7 @@ class Tempo:
             ),
         )
 
-    def _build_distributor_config(self, use_tls=False):  # noqa: C901
+    def _build_distributor_config(self, use_tls=False):
         """Build distributor config"""
         # We enable all receivers. We'll only open ports for the ones that we know are actually
         # going to be used though; for security reasons.

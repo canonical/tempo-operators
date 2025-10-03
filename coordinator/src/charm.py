@@ -142,7 +142,10 @@ class TempoCoordinatorCharm(CharmBase):
         # do it once on init for efficiency; instead of calculating the same set multiple
         # times throughout an event
         self._requested_receivers = self._collect_requested_receivers()
-
+        requested_receiver_ports: Dict[ReceiverProtocol, int] = {
+            proto: Tempo.receiver_ports[proto]
+            for proto in self._requested_receivers
+        }
         self.coordinator = TempoCoordinator(
             charm=self,
             roles_config=TEMPO_ROLES_CONFIG,
@@ -164,10 +167,10 @@ class TempoCoordinatorCharm(CharmBase):
             nginx_config=NginxConfig(
                 server_name=self.hostname,
                 upstream_configs=upstreams(
-                    requested_receivers=self._requested_receivers
+                    requested_receiver_ports=requested_receiver_ports
                 ),
                 server_ports_to_locations=server_ports_to_locations(
-                    requested_receivers=self._requested_receivers
+                    requested_receiver_ports=requested_receiver_ports
                 ),
             ),
             workers_config=self.tempo.config,
@@ -229,20 +232,6 @@ class TempoCoordinatorCharm(CharmBase):
 
         # do this regardless of what event we are processing
         observe_events(self, all_events, self._reconcile)
-
-    def debug(self):
-        addr_by_role = self.coordinator.cluster.gather_addresses_by_role()
-        print(addr_by_role)
-        print(self._requested_receivers)
-        cfg = NginxConfig(
-            server_name=self.hostname,
-            upstream_configs=upstreams(requested_receivers=self._requested_receivers),
-            server_ports_to_locations=server_ports_to_locations(
-                requested_receivers=self._requested_receivers
-            ),
-        )
-
-        print(cfg._prepare_config(addr_by_role, False, None))
 
     ######################
     # UTILITY PROPERTIES #

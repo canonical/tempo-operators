@@ -15,34 +15,25 @@ from tempo import Tempo
 from tempo_config import TempoRole
 
 
-def upstreams(requested_receivers: Tuple[ReceiverProtocol, ...]) -> List[NginxUpstream]:
-    upstreams = []
-    receiver_ports = {
-        proto: port
-        for proto, port in Tempo.receiver_ports.items()
-        if proto in requested_receivers
-    }
+def upstreams(requested_receiver_ports: Dict[ReceiverProtocol, int]) -> List[NginxUpstream]:
+    """Return the nginx upstreams."""
+    out = []
     for role, ports in (
-        (TempoRole.distributor, receiver_ports),
+        (TempoRole.distributor, requested_receiver_ports),
         (TempoRole.query_frontend, Tempo.server_ports),
     ):
         for protocol, port in ports.items():
             protocol = protocol.replace("_", "-")
-            upstreams.append(NginxUpstream(protocol, port, role))
-
-    return upstreams
+            out.append(NginxUpstream(protocol, port, role))
+    return out
 
 
 def server_ports_to_locations(
-    requested_receivers: Tuple[ReceiverProtocol, ...],
+    requested_receiver_ports: Dict[ReceiverProtocol, int],
 ) -> Dict[int, List[NginxLocationConfig]]:
+    """Return a mapping from the server ports to nginx locations."""
     locations = {}
-    receiver_ports = {
-        proto: port
-        for proto, port in Tempo.receiver_ports.items()
-        if proto in requested_receivers
-    }
-    all_protocol_ports = {**receiver_ports, **Tempo.server_ports}
+    all_protocol_ports = {**requested_receiver_ports, **Tempo.server_ports}
     for protocol, port in all_protocol_ports.items():
         upstream = protocol.replace("_", "-")
         is_grpc = _is_protocol_grpc(protocol)
