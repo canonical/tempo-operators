@@ -29,9 +29,12 @@ requires:
     limit: 1
 
 storage:
-  data:
+  config:
     type: filesystem
-    description: Common storage point for all components
+    description: Storage for the worker configuration
+  wal:
+    type: filesystem
+    description: Storage for Tempo's WAL files
 
 
 # workloads
@@ -40,8 +43,11 @@ containers:
   tempo:
     resource: tempo-image
     mounts:
-      - storage: data
-        location: /data
+      - storage: config
+        location: /etc/worker
+      - storage: wal
+        location: /etc/tempo
+        minimum-size: 1G
 
 resources:
   tempo-image:

@@ -128,11 +128,6 @@ requires:
     description: |
       Integration to help users discover Tempo's UI, providing visibility into Tempo's cluster members and their health status.
 
-storage:
-  data:
-    type: filesystem
-    location: /tempo-data
-
 actions:
   list-receivers:
     description: |
