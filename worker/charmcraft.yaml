@@ -29,9 +29,6 @@ requires:
     limit: 1
 
 storage:
-  config:
-    type: filesystem
-    description: Storage for the worker configuration
   wal:
     type: filesystem
     description: Storage for Tempo's WAL files
@@ -43,8 +40,6 @@ containers:
   tempo:
     resource: tempo-image
     mounts:
-      - storage: config
-        location: /etc/worker
       - storage: wal
         location: /etc/tempo
         minimum-size: 1G
