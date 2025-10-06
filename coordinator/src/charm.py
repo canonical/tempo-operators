@@ -345,7 +345,10 @@ class TempoCoordinatorCharm(CharmBase):
                 "Zipkin, and OpenTelemetry protocols."
             ),
             api_docs="https://grafana.com/docs/tempo/latest/api_docs/",
-            api_endpoints={key: f"{self._most_external_url}:{port}{path}" for key, path in api_endpoints.items()}
+            api_endpoints={
+                key: f"{self._most_external_url}:{port}{path}"
+                for key, path in api_endpoints.items()
+            },
         )
 
     ##################
