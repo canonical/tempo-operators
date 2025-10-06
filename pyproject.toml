@@ -11,10 +11,11 @@ dev = [
     #INTEGRATION TESTS
     "jubilant",
     "pydantic",
-    "pytest-jubilant>=0.6",
+    "pytest-jubilant~=1.0",
     "minio",
     "requests",
-    "tenacity"
+    "tenacity",
+    "pytest-bdd>=8.1.0",
 ]
 
 

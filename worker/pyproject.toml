@@ -2,10 +2,10 @@
 [project]
 name = "tempo-worker-k8s-operator"
 version = "0.1.0"
-requires-python = ">=3.10"
+requires-python = "~=3.12.0"
 
 dependencies = [
-    "coordinated-workers>=2.0.0"
+    "coordinated-workers",
 ]
 
 [project.optional-dependencies]
@@ -76,3 +76,12 @@ convention = "google"
 include = ["src"]
 pythonVersion = "3.8"
 pythonPlatform = "Linux"
+
+[tool.ruff.lint]
+# enforce best practices for logging
+# cfr. https://docs.astral.sh/ruff/rules/#flake8-logging-format-g
+select = ["G001", "G002", "G003", "G004"]
+
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D100","D101","D102","D103","D104","G"]

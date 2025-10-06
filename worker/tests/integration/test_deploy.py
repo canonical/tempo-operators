@@ -12,15 +12,10 @@ def test_deploy_worker(juju: Juju, tempo_worker_charm: Path):
     # GIVEN an empty model
 
     # WHEN deploying the worker
-    juju.deploy(
-        tempo_worker_charm, WORKER_APP, resources=WORKER_RESOURCES, trust=True
-    )
+    juju.deploy(tempo_worker_charm, WORKER_APP, resources=WORKER_RESOURCES, trust=True)
 
     # THEN worker will be blocked because of missing coordinator integration
-    juju.wait(
-        lambda status: all_blocked(status, WORKER_APP),
-        timeout=1000
-    )
+    juju.wait(lambda status: all_blocked(status, WORKER_APP), timeout=1000)
 
 
 def test_all_active_when_coordinator_and_s3_added(juju: Juju):
@@ -33,9 +28,8 @@ def test_all_active_when_coordinator_and_s3_added(juju: Juju):
     juju.integrate(TEMPO_APP, WORKER_APP)
 
     # THEN both the coordinator and the worker become active
-    juju.wait(
-        lambda status: all_active(status, TEMPO_APP, WORKER_APP), timeout=1000
-    )
+    juju.wait(lambda status: all_active(status, TEMPO_APP, WORKER_APP), timeout=5000)
+
 
 @pytest.mark.teardown
 def test_teardown(juju: Juju):

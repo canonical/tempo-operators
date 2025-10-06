@@ -1,18 +1,23 @@
-import requests
+import pytest
 from jubilant import Juju
-from tenacity import stop_after_delay, wait_fixed, retry
 
-from tests.integration.conftest import TEMPO_APP, ALL_WORKERS, WORKER_APP
-from tests.integration.helpers import get_unit_ip_address
+from tests.integration.conftest import deployment_factory
+from assertions import assert_charm_traces_ingested
+
+params = {"distributed": False, "tls": False}
 
 
-@retry(stop=stop_after_delay(2000), wait=wait_fixed(10))  # noqa: F821
-def test_self_monitoring_charm_tracing(deployment: Juju, distributed, tls):
-    tempo_ip = get_unit_ip_address(deployment, TEMPO_APP, 0)
-    application_tags = requests.get(
-        f"http{'s' if tls else ''}://{tempo_ip}:3200/api/search/tag/juju_application/values",
-        verify=False,
-    ).json()
+@pytest.fixture
+def deployment(juju, do_setup, do_teardown):
+    # set up a monolithic deployment with no tls and no ingress
+    with deployment_factory(
+        **params,
+        juju=juju,
+        do_setup=do_setup,
+        do_teardown=do_teardown,
+    ) as juju:
+        yield juju
 
-    apps = {TEMPO_APP, *(ALL_WORKERS if distributed else (WORKER_APP,))}
-    assert apps.issubset(application_tags["tagValues"]), application_tags["tagValues"]
+
+def test_charm_tracing(deployment: Juju):
+    assert_charm_traces_ingested(deployment=deployment, **params)

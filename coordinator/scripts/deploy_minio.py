@@ -166,7 +166,7 @@ def deploy(
         print(f"deploying s3 as {s3_app_name!r}")
         _run(f"juju deploy s3-integrator --channel edge --trust {s3_app_name}")
     else:
-        print(f"found existing s3 deployment at {minio_app_name}")
+        print(f"found existing s3 deployment at {s3_app_name}")
 
 
     print(f"waiting for minio ({minio_app_name}) to report active...", end="")

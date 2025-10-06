@@ -10,7 +10,6 @@ from scenario import Relation, State
 def test_probes_contain_correct_url(
     context, s3, all_worker, nginx_container, nginx_prometheus_exporter_container
 ):
-
     probes = Relation("probes")
 
     state = State(
@@ -25,7 +24,8 @@ def test_probes_contain_correct_url(
     local_app_data = ApplicationDataModel.load(probes_out.local_app_data)
 
     assert (
-        local_app_data.scrape_probes[0].static_configs[0].targets[0] == "http://1.2.3.4:3200/ready"
+        local_app_data.scrape_probes[0].static_configs[0].targets[0]
+        == "http://1.2.3.4:3200/ready"
     )
 
 
@@ -33,10 +33,11 @@ def test_probes_contain_correct_url(
 def test_probes_contain_correct_url_with_ingress(
     context, s3, all_worker, nginx_container, nginx_prometheus_exporter_container
 ):
-
     probes = Relation("probes")
 
-    ingress = Relation("ingress", remote_app_data={"external_host": "app.py", "scheme": "http"})
+    ingress = Relation(
+        "ingress", remote_app_data={"external_host": "app.py", "scheme": "http"}
+    )
 
     state = State(
         leader=True,
@@ -50,7 +51,8 @@ def test_probes_contain_correct_url_with_ingress(
     local_app_data = ApplicationDataModel.load(probes_out.local_app_data)
 
     assert (
-        local_app_data.scrape_probes[0].static_configs[0].targets[0] == "http://app.py:3200/ready"
+        local_app_data.scrape_probes[0].static_configs[0].targets[0]
+        == "http://app.py:3200/ready"
     )
 
 
@@ -58,10 +60,11 @@ def test_probes_contain_correct_url_with_ingress(
 def test_probes_contain_correct_url_with_ingress_on_https(
     context, s3, all_worker, nginx_container, nginx_prometheus_exporter_container
 ):
-
     probes = Relation("probes")
 
-    ingress = Relation("ingress", remote_app_data={"external_host": "app.py", "scheme": "https"})
+    ingress = Relation(
+        "ingress", remote_app_data={"external_host": "app.py", "scheme": "https"}
+    )
 
     state = State(
         leader=True,
@@ -75,5 +78,6 @@ def test_probes_contain_correct_url_with_ingress_on_https(
     local_app_data = ApplicationDataModel.load(probes_out.local_app_data)
 
     assert (
-        local_app_data.scrape_probes[0].static_configs[0].targets[0] == "https://app.py:3200/ready"
+        local_app_data.scrape_probes[0].static_configs[0].targets[0]
+        == "https://app.py:3200/ready"
     )

@@ -13,7 +13,7 @@ from helpers import (
     deploy_monolithic_cluster,
     get_app_ip_address,
     TEMPO_APP,
-    get_ingested_traces_service_names
+    get_ingested_traces_service_names,
 )
 
 APP_REMOTE_NAME = "tempo-remote"
@@ -33,12 +33,14 @@ def test_verify_self_traces_collected(juju: Juju):
     juju.cli("model-config", "update-status-hook-interval=5s")
 
     # Verify that tempo is ingesting traces from the following services:
-    services = get_ingested_traces_service_names(get_app_ip_address(juju, TEMPO_APP), tls=False)
+    services = get_ingested_traces_service_names(
+        get_app_ip_address(juju, TEMPO_APP), tls=False
+    )
 
     for svc in (
-        TEMPO_APP, # coordinator charm traces
+        TEMPO_APP,  # coordinator charm traces
         WORKER_APP,  # worker charm traces
-        "tempo-scalable-single-binary", # worker's workload traces
+        "tempo-scalable-single-binary",  # worker's workload traces
     ):
         assert svc in services
 
@@ -49,13 +51,21 @@ def test_verify_self_traces_collected(juju: Juju):
 @pytest.mark.setup
 def test_deploy_second_tempo(juju: Juju, tempo_charm: Path):
     # deploy a second tempo stack
-    deploy_monolithic_cluster(juju, worker=APP_REMOTE_WORKER_NAME, s3=APP_REMOTE_S3, coordinator=APP_REMOTE_NAME)
+    deploy_monolithic_cluster(
+        juju,
+        worker=APP_REMOTE_WORKER_NAME,
+        s3=APP_REMOTE_S3,
+        coordinator=APP_REMOTE_NAME,
+    )
 
     # send the charm traces from `this stack` to the remote one
     juju.integrate(TEMPO_APP + ":self-charm-tracing", APP_REMOTE_NAME + ":tracing")
     juju.wait(
-        lambda status: all(status.apps[app].is_active for app in [TEMPO_APP, WORKER_APP, APP_REMOTE_NAME, APP_REMOTE_WORKER_NAME]),
-        timeout=1000
+        lambda status: all(
+            status.apps[app].is_active
+            for app in [TEMPO_APP, WORKER_APP, APP_REMOTE_NAME, APP_REMOTE_WORKER_NAME]
+        ),
+        timeout=1000,
     )
 
 
@@ -65,11 +75,13 @@ def test_verify_self_traces_sent_to_remote(juju: Juju):
     juju.cli("model-config", "update-status-hook-interval=5s")
 
     # Verify traces from `this tempo` are sent to remote instance
-    services = get_ingested_traces_service_names(get_app_ip_address(juju, APP_REMOTE_NAME), tls=False)
+    services = get_ingested_traces_service_names(
+        get_app_ip_address(juju, APP_REMOTE_NAME), tls=False
+    )
     for svc in (
-        TEMPO_APP, # coordinator charm traces
+        TEMPO_APP,  # coordinator charm traces
         WORKER_APP,  # worker charm traces
-        APP_REMOTE_NAME, # remote coordinator charm traces
+        APP_REMOTE_NAME,  # remote coordinator charm traces
         APP_REMOTE_WORKER_NAME,  # remote worker charm traces
     ):
         assert svc in services
