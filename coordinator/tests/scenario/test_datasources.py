@@ -47,9 +47,7 @@ def remote_write_relation(
     )
 
 
-@patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
 def test_datasource_receive(
-    workload_ready_mock,
     context,
     s3,
     all_worker,
@@ -117,9 +115,7 @@ def test_datasource_receive(
 @pytest.mark.parametrize("has_dsx", (True, False))
 @pytest.mark.parametrize("has_remote_write", (True, False))
 @pytest.mark.parametrize("has_grafana_source", (True, False))
-@patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
 def test_service_graph_with_complete_or_missing_rels(
-    workload_ready_mock,
     has_grafana_source,
     has_remote_write,
     has_dsx,
@@ -164,9 +160,7 @@ def test_service_graph_with_complete_or_missing_rels(
             assert not service_graph_config
 
 
-@patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
 def test_no_service_graph_with_wrong_grafana(
-    workload_ready_mock,
     context,
     s3,
     all_worker,
@@ -219,9 +213,7 @@ def test_no_service_graph_with_wrong_grafana(
         assert not service_graph_config
 
 
-@patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
 def test_service_graph_with_multiple_apps_and_units(
-    workload_ready_mock,
     context,
     s3,
     all_worker,
@@ -272,9 +264,7 @@ def test_service_graph_with_multiple_apps_and_units(
         ]
 
 
-@patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
 def test_no_service_graph_with_wrong_dsx(
-    workload_ready_mock,
     context,
     s3,
     all_worker,
@@ -312,9 +302,7 @@ def test_no_service_graph_with_wrong_dsx(
         assert not service_graph_config
 
 
-@patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
 def test_traces_to_logs_config_no_datasources(
-    workload_ready_mock,
     context,
     s3,
     all_worker,
@@ -339,9 +327,7 @@ def test_traces_to_logs_config_no_datasources(
         assert config == {}
 
 
-@patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
 def test_traces_to_logs_config_non_loki_datasources(
-    workload_ready_mock,
     context,
     s3,
     all_worker,
@@ -371,9 +357,7 @@ def test_traces_to_logs_config_non_loki_datasources(
         assert config == {}
 
 
-@patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
 def test_traces_to_logs_config_loki_datasource(
-    workload_ready_mock,
     context,
     s3,
     all_worker,
@@ -406,3 +390,100 @@ def test_traces_to_logs_config_loki_datasource(
         config = charm._build_traces_to_logs_config()
         assert "tracesToLogsV2" in config
         assert config["tracesToLogsV2"]["datasourceUid"] == "loki_1"
+
+
+def test_traces_to_metrics_config_no_datasources(
+    context,
+    s3,
+    all_worker,
+    nginx_container,
+    nginx_prometheus_exporter_container,
+):
+    # GIVEN no datasources exchange relations
+    relations = [
+        PeerRelation("peers", peers_data={1: {}, 2: {}}),
+        s3,
+        all_worker,
+    ]
+    state_in = State(
+        relations=relations,
+        containers=[nginx_container, nginx_prometheus_exporter_container],
+        leader=True,
+    )
+    # WHEN we run any event
+    with context(context.on.update_status(), state_in) as mgr:
+        mgr.run()
+        charm = mgr.charm
+        config = charm._build_grafana_source_extra_fields()
+        # THEN tracesToMetrics config is not generated
+        assert "tracesToMetrics" not in (config or {})
+
+
+def test_traces_to_metrics_config_non_prometheus_datasources(
+    context,
+    s3,
+    all_worker,
+    nginx_container,
+    nginx_prometheus_exporter_container,
+):
+    # GIVEN datasources exchange relations only with non-prometheus types
+    relations = [
+        PeerRelation("peers", peers_data={1: {}, 2: {}}),
+        s3,
+        all_worker,
+        grafana_datasource_exchange_relation(
+            datasources=[{"type": "loki", "uid": "loki_1", "grafana_uid": "graf_1"}]
+        ),
+    ]
+    state_in = State(
+        relations=relations,
+        containers=[nginx_container, nginx_prometheus_exporter_container],
+        leader=True,
+    )
+    # WHEN we run any event
+    with context(context.on.update_status(), state_in) as mgr:
+        mgr.run()
+        charm = mgr.charm
+        config = charm._build_grafana_source_extra_fields()
+        # THEN tracesToMetrics config is not generated
+        assert "tracesToMetrics" not in (config or {})
+
+
+def test_traces_to_metrics_config_loki_datasource(
+    context,
+    s3,
+    all_worker,
+    nginx_container,
+    nginx_prometheus_exporter_container,
+):
+    # GIVEN a datasource exchange relations with a prometheus type
+    # AND a metrics-endpoint relation with that same prometheus
+    relations = [
+        PeerRelation("peers", peers_data={1: {}, 2: {}}),
+        s3,
+        all_worker,
+        grafana_source_relation(grafana_uid="graf_1"),
+        grafana_datasource_exchange_relation(
+            datasources=[
+                {"type": "prometheus", "uid": "prom_1", "grafana_uid": "graf_1"}
+            ]
+        ),
+        Relation(
+            "metrics-endpoint",
+            remote_app_name="remote",
+        ),
+    ]
+    state_in = State(
+        relations=relations,
+        containers=[nginx_container, nginx_prometheus_exporter_container],
+        leader=True,
+    )
+    # WHEN we run any event
+    with context(context.on.update_status(), state_in) as mgr:
+        mgr.run()
+        charm = mgr.charm
+        config = charm._build_grafana_source_extra_fields()
+        # THEN tracesToMetrics config is generated
+        assert "tracesToMetrics" in config
+        # AND it contains the remote prometheus datasource uid
+        assert config["tracesToMetrics"]["datasourceUid"] == "prom_1"
