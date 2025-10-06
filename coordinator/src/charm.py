@@ -761,6 +761,26 @@ class TempoCoordinatorCharm(CharmBase):
 
         return {}
 
+    def _build_traces_to_metrics_config(self) -> Dict[str, Any]:
+        if datasource := self._telemetry_correlation.find_datasource(
+            "metrics-endpoint",
+            PROMETHEUS_DS_TYPE,
+            "traces-to-metrics",
+        ):
+            return {
+                "tracesToMetrics": {
+                    "datasourceUid": datasource.uid,
+                    "tags": [
+                        {"key": "juju_application", "value": ""},
+                        {"key": "juju_model", "value": ""},
+                        {"key": "juju_model_uuid", "value": ""},
+                    ],
+                    "queries": [{"name": "All metrics", "query": "{$$__tags}"}],
+                }
+            }
+
+        return {}
+
     def _build_grafana_source_extra_fields(self) -> Optional[Dict[str, Any]]:
         """Extra fields needed for the grafana-source relation, like data correlation config."""
         ## https://grafana.com/docs/tempo/latest/metrics-generator/service_graphs/enable-service-graphs/
@@ -775,18 +795,25 @@ class TempoCoordinatorCharm(CharmBase):
         # "lokiSearch": {
         #     "datasourceUid": "juju_svcgraph_61e32e2f-50ac-40e7-8ee8-1b7297a3e47f_loki_0"
         # },
+        # # https://grafana.com/blog/2022/08/18/new-in-grafana-9.1-trace-to-metrics-allows-users-to-navigate-from-a-trace-span-to-a-selected-data-source/
+        #  "tracesToMetrics": {
+        #      "datasourceUid": "juju_svcgraph_61e32e2f-50ac-40e7-8ee8-1b7297a3e47f_prometheus_0",
+        # },
 
         svc_graph_config = self._build_service_graph_config()
 
         traces_to_logs_config = self._build_traces_to_logs_config()
 
-        if not svc_graph_config and not traces_to_logs_config:
+        traces_to_metrics_config = self._build_traces_to_metrics_config()
+
+        if not any((svc_graph_config, traces_to_logs_config, traces_to_metrics_config)):
             return None
 
         return {
             "httpMethod": "GET",
             **svc_graph_config,
             **traces_to_logs_config,
+            **traces_to_metrics_config,
         }
 
     @property
