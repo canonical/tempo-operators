@@ -14,14 +14,14 @@ from coordinated_workers.interfaces.cluster import (
 from interface_tester import InterfaceTester
 from ops import ActiveStatus
 from ops.pebble import Layer
-from scenario import Relation
-from scenario.state import Container, PeerRelation, State
+from scenario import Container, PeerRelation, State, Relation, Exec
 
 from charm import TempoCoordinatorCharm
 
 nginx_container = Container(
     name="nginx",
     can_connect=True,
+    execs={Exec(["update-ca-certificates", "--fresh"])},
     layers={
         "foo": Layer(
             {
