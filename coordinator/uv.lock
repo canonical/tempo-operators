@@ -695,6 +695,7 @@ dependencies = [
     { name = "coordinated-workers" },
     { name = "cryptography" },
     { name = "pydantic" },
+    { name = "requests" },
 ]
 
 [package.optional-dependencies]
@@ -727,6 +728,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "pytest-interface-tester", marker = "extra == 'dev'" },
     { name = "pytest-jubilant", marker = "extra == 'dev'" },
+    { name = "requests", specifier = ">=2.32.5" },
     { name = "requests", marker = "extra == 'dev'" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "tenacity", marker = "extra == 'dev'" },

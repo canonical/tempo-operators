@@ -131,7 +131,6 @@ class TempoCoordinatorCharm(CharmBase):
         self._remote_write = PrometheusRemoteWriteConsumer(self, alert_rules_path="")
 
         self.tempo = Tempo(
-            requested_receivers=self._requested_receivers,
             retention_period_hours=self._trace_retention_period_hours,
             remote_write_endpoints=self._remote_write_endpoints,
         )
@@ -139,6 +138,13 @@ class TempoCoordinatorCharm(CharmBase):
         # keep this above the coordinator definition
         self.framework.observe(self.on.collect_unit_status, self._on_collect_status)
 
+        # needs self.tempo and self.tracing attributes to be set
+        # do it once on init for efficiency; instead of calculating the same set multiple
+        # times throughout an event
+        self._requested_receivers = self._collect_requested_receivers()
+        requested_receiver_ports: Dict[ReceiverProtocol, int] = {
+            proto: Tempo.receiver_ports[proto] for proto in self._requested_receivers
+        }
         self.coordinator = TempoCoordinator(
             charm=self,
             roles_config=TEMPO_ROLES_CONFIG,
@@ -159,8 +165,12 @@ class TempoCoordinatorCharm(CharmBase):
             },
             nginx_config=NginxConfig(
                 server_name=self.hostname,
-                upstream_configs=upstreams(),
-                server_ports_to_locations=server_ports_to_locations(),
+                upstream_configs=upstreams(
+                    requested_receiver_ports=requested_receiver_ports
+                ),
+                server_ports_to_locations=server_ports_to_locations(
+                    requested_receiver_ports=requested_receiver_ports
+                ),
             ),
             workers_config=self.tempo.config,
             # set the resource request for the nginx container
@@ -359,7 +369,7 @@ class TempoCoordinatorCharm(CharmBase):
 
     def _on_list_receivers_action(self, event: ops.ActionEvent):
         res = {}
-        for receiver in self._requested_receivers():
+        for receiver in self._requested_receivers:
             res[receiver.replace("_", "-")] = self.get_receiver_url(receiver)
         event.set_results(res)
 
@@ -438,14 +448,14 @@ class TempoCoordinatorCharm(CharmBase):
             logger.warning("no tracing relations: Tempo has no receivers configured.")
             return
 
-        requested_receivers = self._requested_receivers()
+        requested_receivers = self._requested_receivers
         # publish requested protocols to all relations
         if self.unit.is_leader():
             self.tracing.publish_receivers(
                 [(p, self.get_receiver_url(p)) for p in requested_receivers]
             )
 
-    def _requested_receivers(self) -> Tuple[ReceiverProtocol, ...]:
+    def _collect_requested_receivers(self) -> Tuple[ReceiverProtocol, ...]:
         """List what receivers we should activate, based on the active tracing relations and config-enabled extra receivers."""
         # we start with the sum of the requested endpoints from the requirers
         requested_protocols = set(self.tracing.requested_protocols())
@@ -486,7 +496,7 @@ class TempoCoordinatorCharm(CharmBase):
         """Endpoints to which the workload (and the worker charm) can push traces to."""
         return {
             receiver: self.get_receiver_url(receiver)
-            for receiver in self._requested_receivers()
+            for receiver in self._requested_receivers
         }
 
     @property
@@ -816,7 +826,7 @@ class TempoCoordinatorCharm(CharmBase):
 
         # distributor nodes should be able to accept spans in all supported formats
         if tempo_role in {TempoRole.all, TempoRole.distributor}:
-            for enabled_receiver in self._requested_receivers():
+            for enabled_receiver in self._requested_receivers:
                 ports.add(Tempo.receiver_ports[enabled_receiver])
 
         # open server ports in query_frontend role

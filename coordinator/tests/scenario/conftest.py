@@ -1,4 +1,5 @@
 import json
+from contextlib import ExitStack
 from pathlib import Path
 from shutil import rmtree
 from unittest.mock import MagicMock, patch
@@ -28,21 +29,33 @@ def coordinator():
 
 @pytest.fixture
 def tempo_charm(tmp_path):
-    with patch("lightkube.core.client.GenericSyncClient"):
-        with patch("charm.TempoCoordinatorCharm.are_certificates_on_disk", False):
-            with patch("tempo.Tempo.tls_ca_path", str(tmp_path / "cert.tmp")):
-                with patch(
-                    "coordinated_workers.nginx.CA_CERT_PATH", str(tmp_path / "ca.tmp")
-                ):
-                    with patch.multiple(
-                        "coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
-                        _namespace="test-namespace",
-                        _patch=lambda _: None,
-                        get_status=lambda _: ActiveStatus(""),
-                        is_ready=lambda _: True,
-                    ):
-                        with patch("socket.getfqdn", return_value="localhost"):
-                            yield TempoCoordinatorCharm
+    with ExitStack() as stack:
+        stack.enter_context(
+            patch(
+                "coordinated_workers.coordinator.Coordinator._consolidate_alert_rules"
+            )
+        )
+        stack.enter_context(patch("lightkube.core.client.GenericSyncClient"))
+        stack.enter_context(
+            patch("charm.TempoCoordinatorCharm.are_certificates_on_disk", False)
+        )
+        stack.enter_context(
+            patch("tempo.Tempo.tls_ca_path", str(tmp_path / "cert.tmp"))
+        )
+        stack.enter_context(
+            patch("coordinated_workers.nginx.CA_CERT_PATH", str(tmp_path / "ca.tmp"))
+        )
+        stack.enter_context(
+            patch.multiple(
+                "coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
+                _namespace="test-namespace",
+                _patch=lambda _: None,
+                get_status=lambda _: ActiveStatus(""),
+                is_ready=lambda _: True,
+            )
+        )
+        stack.enter_context(patch("socket.getfqdn", return_value="localhost"))
+        yield TempoCoordinatorCharm
 
 
 @pytest.fixture(scope="function")

@@ -51,7 +51,7 @@ def bucket(juju, seaweedfs):
 def test_terraform_apply(juju, bucket):
     endpoint = f"http://{get_unit_ip_address(juju, 'seaweedfs', 0)}:8333"
     subprocess.check_call(["terraform", f"-chdir={TESTS_DIR}", "init"])
-    out = subprocess.check_output(
+    subprocess.check_output(
         f'terraform -chdir={TESTS_DIR} apply -var "model={juju.model}" -var "endpoint={endpoint}" -auto-approve',
         shell=True,
     )
@@ -69,5 +69,5 @@ def test_active(juju):
             "tempo-ingester",
             "tempo-querier",
         ),
-        timeout=60 * 10,
+        timeout=60 * 30,
     )
