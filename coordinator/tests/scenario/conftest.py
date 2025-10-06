@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from ops import ActiveStatus
-from scenario import Container, Context, PeerRelation, Relation
+from scenario import Container, Context, PeerRelation, Relation, Exec
 
 from charm import PEERS_RELATION_ENDPOINT_NAME, TempoCoordinatorCharm
 
@@ -107,6 +107,7 @@ def peer():
 def nginx_container():
     return Container(
         "nginx",
+        execs={Exec(["update-ca-certificates", "--fresh"])},
         can_connect=True,
     )
 
@@ -115,5 +116,6 @@ def nginx_container():
 def nginx_prometheus_exporter_container():
     return Container(
         "nginx-prometheus-exporter",
+        execs={Exec(["update-ca-certificates", "--fresh"])},
         can_connect=True,
     )
