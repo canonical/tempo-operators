@@ -746,7 +746,9 @@ class TempoCoordinatorCharm(CharmBase):
         equivalent and we can use any of them.
         """
         if datasource := self._telemetry_correlation.find_datasource(
-            "send-remote-write", PROMETHEUS_DS_TYPE
+            "send-remote-write",
+            PROMETHEUS_DS_TYPE,
+            "service graph",
         ):
             return {
                 "serviceMap": {
@@ -757,7 +759,9 @@ class TempoCoordinatorCharm(CharmBase):
 
     def _build_traces_to_logs_config(self) -> Dict[str, Any]:
         if datasource := self._telemetry_correlation.find_datasource(
-            "logging", LOKI_DS_TYPE
+            "logging",
+            LOKI_DS_TYPE,
+            "traces-to-logs",
         ):
             return {
                 "tracesToLogsV2": {

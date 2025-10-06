@@ -196,6 +196,7 @@ def _deploy_cluster(
     s3=S3_APP,
     coordinator: str = TEMPO_APP,
     bucket_name: str = BUCKET_NAME,
+    wait_for_idle: bool = True,
 ):
     if coordinator not in juju.status().apps:
         deploy_tempo(juju, name=coordinator)
@@ -214,12 +215,13 @@ def _deploy_cluster(
     deploy_s3(juju, bucket_name=bucket_name, s3_integrator_app=s3)
     juju.integrate(coordinator + ":s3", s3 + ":s3-credentials")
 
-    juju.wait(
-        lambda status: jubilant.all_active(status, coordinator, *workers, s3),
-        timeout=2000,
-        delay=5,
-        successes=3,
-    )
+    if wait_for_idle:
+        juju.wait(
+            lambda status: jubilant.all_active(status, coordinator, *workers, s3),
+            timeout=2000,
+            delay=5,
+            successes=3,
+        )
 
 
 def deploy_monolithic_cluster(
@@ -228,6 +230,7 @@ def deploy_monolithic_cluster(
     s3: str = S3_APP,
     coordinator: str = TEMPO_APP,
     bucket_name: str = BUCKET_NAME,
+    wait_for_idle: bool = True,
 ):
     """Deploy a tempo monolithic cluster."""
     tempo_worker_charm_url, channel, resources = (
@@ -241,7 +244,12 @@ def deploy_monolithic_cluster(
         resources=resources,
     )
     _deploy_cluster(
-        juju, [worker], coordinator=coordinator, s3=s3, bucket_name=bucket_name
+        juju,
+        [worker],
+        coordinator=coordinator,
+        s3=s3,
+        bucket_name=bucket_name,
+        wait_for_idle=wait_for_idle,
     )
 
 
