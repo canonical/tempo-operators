@@ -5,12 +5,12 @@ import pytest
 from jubilant import Juju, all_blocked
 
 from helpers import deploy_monolithic_cluster, TEMPO_APP, S3_APP
-from tests.integration.helpers import TEMPO_RESOURCES
+from tests.integration.helpers import deploy_tempo
 
 
 @pytest.mark.setup
-def test_deploy_tempo(juju: Juju, tempo_charm: Path):
-    juju.deploy(tempo_charm, TEMPO_APP, resources=TEMPO_RESOURCES, trust=True)
+def test_deploy_tempo(juju: Juju):
+    deploy_tempo(juju)
 
     # coordinator will be blocked because of missing s3 and workers integration
     juju.wait(lambda status: all_blocked(status, TEMPO_APP), timeout=1000)

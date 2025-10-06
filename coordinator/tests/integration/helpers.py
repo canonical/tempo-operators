@@ -25,12 +25,6 @@ S3_CREDENTIALS = {
 }
 BUCKET_NAME = "tempo"
 TRACEGEN_SCRIPT_PATH = Path() / "scripts" / "tracegen.py"
-METADATA = yaml.safe_load(Path("./charmcraft.yaml").read_text())
-
-TEMPO_RESOURCES = {
-    image_name: image_meta["upstream-source"]
-    for image_name, image_meta in METADATA["resources"].items()
-}
 
 # Application names used uniformly across the tests
 MINIO_APP = "minio"
@@ -186,6 +180,16 @@ def _get_tempo_charm():
     raise err  # noqa
 
 
+def deploy_tempo(juju, name=TEMPO_APP):
+    metadata = yaml.safe_load(Path("./charmcraft.yaml").read_text())
+    resources = {
+        image_name: image_meta["upstream-source"]
+        for image_name, image_meta in metadata["resources"].items()
+    }
+
+    juju.deploy(_get_tempo_charm(), name, resources=resources, trust=True)
+
+
 def _deploy_cluster(
     juju: Juju,
     workers: Sequence[str],
@@ -194,9 +198,7 @@ def _deploy_cluster(
     bucket_name: str = BUCKET_NAME,
 ):
     if coordinator not in juju.status().apps:
-        juju.deploy(
-            _get_tempo_charm(), coordinator, resources=TEMPO_RESOURCES, trust=True
-        )
+        deploy_tempo(juju, name=coordinator)
 
     for worker in workers:
         juju.integrate(coordinator, worker)
@@ -342,6 +344,17 @@ def emit_trace(
     """Use juju ssh to run tracegen from the tempo charm; to avoid any DNS issues."""
     # SCP tracegen script onto unit and install dependencies
     logger.info(f"pushing tracegen onto {TEMPO_APP}/0")
+    juju.cli("scp", str(TRACEGEN_SCRIPT_PATH), f"{TEMPO_APP}/0:tracegen.py")
+    juju.cli(
+        "ssh",
+        f"{TEMPO_APP}/0",
+        # starting ubuntu@24.04, we can't install system-wide packages using `python -m pip install xyz`
+        # use uv to create a venv for tracegen
+        f"apt update -y && "
+        f"apt install git -y && "
+        f"curl -LsSf https://astral.sh/uv/install.sh | sh",
+    )
+
     tracegen_deps = (
         "protobuf==3.20.*",
         "opentelemetry-exporter-otlp-proto-http==1.21.0",
@@ -354,31 +367,26 @@ def emit_trace(
         # There's a fix, but they haven't released a new version of thrift yet.
         "thrift@git+https://github.com/apache/thrift.git@6e380306ef48af4050a61f2f91b3c8380d8e78fb#subdirectory=lib/py",
     )
-
-    juju.cli("scp", str(TRACEGEN_SCRIPT_PATH), f"{TEMPO_APP}/0:tracegen.py")
-    juju.cli(
-        "ssh",
-        f"{TEMPO_APP}/0",
-        # starting ubuntu@24.04, we can't install system-wide packages using `python -m pip install xyz`
-        # use uv to create a venv for tracegen
-        f"apt update -y && apt install git -y && curl -LsSf https://astral.sh/uv/install.sh | sh && $HOME/.local/bin/uv venv && $HOME/.local/bin/uv pip install {' '.join(tracegen_deps)}",
-    )
-
+    with_deps = " ".join(f"--with '{dep}'" for dep in tracegen_deps)
     cmd = (
         f"juju ssh -m {juju.model} {TEMPO_APP}/0 "
-        f"TRACEGEN_SERVICE={service_name or ''} "
-        f"TRACEGEN_ENDPOINT={endpoint} "
-        f"TRACEGEN_VERBOSE={verbose} "
-        f"TRACEGEN_PROTOCOL={proto} "
-        f"TRACEGEN_CERT={CA_CERT_PATH if use_cert else ''} "
-        f"TRACEGEN_NONCE={nonce or ''} "
-        "$HOME/.local/bin/uv run tracegen.py"
+        f"TRACEGEN_SERVICE='{service_name or ''}' "
+        f"TRACEGEN_ENDPOINT='{endpoint}' "
+        f"TRACEGEN_VERBOSE='{verbose}' "
+        f"TRACEGEN_PROTOCOL='{proto}' "
+        f"TRACEGEN_CERT='{CA_CERT_PATH if use_cert else ''}' "
+        f"TRACEGEN_NONCE='{nonce or ''}' "
+        f"~/.local/bin/uv run {with_deps} tracegen.py"
     )
 
     logger.info(f"running tracegen with {cmd!r}")
 
-    out = subprocess.run(shlex.split(cmd), text=True, capture_output=True, check=True)
+    print(cmd)
+    lexed_cmd = shlex.split(cmd)
+    print(" ".join(lexed_cmd))
+    out = subprocess.run(lexed_cmd, text=True, capture_output=True, check=True)
     logger.info(f"tracegen completed; stdout={out.stdout!r}")
+    return out
 
 
 def _get_endpoint(protocol: str, hostname: str, tls: bool):

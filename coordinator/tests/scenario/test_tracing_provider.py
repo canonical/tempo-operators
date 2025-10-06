@@ -41,7 +41,7 @@ def test_receiver_api(
     # WHEN any event occurs
     with context(context.on.update_status(), state) as mgr:
         charm = mgr.charm
-        assert charm._requested_receivers() == ("otlp_grpc", "otlp_http")
+        assert charm._requested_receivers == ("otlp_grpc", "otlp_http")
         state_out = mgr.run()
 
     # THEN both protocols are in the receivers published in the databag (local side)
@@ -85,7 +85,7 @@ def test_leader_removes_receivers_on_relation_broken(
     # WHEN the charm receives a relation-broken event for the one asking for otlp_grpc
     with context(context.on.relation_broken(tracing_grpc), state) as mgr:
         charm = mgr.charm
-        assert charm._requested_receivers() == ("otlp_http",)
+        assert charm._requested_receivers == ("otlp_http",)
         state_out = mgr.run()
 
     # THEN otlp_grpc is gone from the databag
