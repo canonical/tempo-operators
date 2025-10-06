@@ -774,6 +774,8 @@ class TempoCoordinatorCharm(CharmBase):
                         {"key": "juju_application", "value": ""},
                         {"key": "juju_model", "value": ""},
                         {"key": "juju_model_uuid", "value": ""},
+                        {"key": "juju_unit", "value": ""},
+                        # excluding juju_charm because metrics are inconsistently labeled — some use juju_charm, others use juju_charm_name
                     ],
                     "queries": [{"name": "All metrics", "query": "{$$__tags}"}],
                 }
