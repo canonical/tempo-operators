@@ -14,7 +14,7 @@ from scenario import Relation, State
 
 from charm import TempoCoordinatorCharm
 from tempo import Tempo
-from tests.scenario.helpers import get_tempo_config
+from tests.unit.test_charm.helpers import get_tempo_config
 
 
 @pytest.fixture(scope="function")
