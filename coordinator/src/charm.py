@@ -762,7 +762,7 @@ class TempoCoordinatorCharm(CharmBase):
         return {}
 
     def _build_traces_to_metrics_config(self) -> Dict[str, Any]:
-        if datasource := self._telemetry_correlation.find_datasource(
+        if datasource := self._telemetry_correlation.find_correlated_datasource(
             "metrics-endpoint",
             PROMETHEUS_DS_TYPE,
             "traces-to-metrics",
