@@ -4,8 +4,6 @@ import pytest
 from jubilant import Juju, all_active
 from helpers import (
     deploy_monolithic_cluster,
-    PROMETHEUS_APP,
-    deploy_prometheus,
     INTEGRATION_TESTERS_CHANNEL,
     TEMPO_APP,
     get_unit_ip_address,
@@ -119,12 +117,12 @@ def test_setup(juju: Juju):
     )
     juju.integrate(f"{TEMPO_APP}:grafana-source", GRAFANA_APP)
     juju.integrate(f"{LOKI_APP}:grafana-source", GRAFANA_APP)
-    juju.integrate(f"{PROMETHEUS_APP}:grafana-source", GRAFANA_APP)
+    juju.integrate(f"{MIMIR_APP}:grafana-source", GRAFANA_APP)
 
-    juju.integrate(f"{TEMPO_APP}:send-remote-write", PROMETHEUS_APP)
+    juju.integrate(f"{TEMPO_APP}:send-remote-write", MIMIR_APP)
     juju.integrate(f"{TEMPO_APP}:logging", LOKI_APP)
 
-    juju.integrate(f"{TEMPO_APP}:receive-datasource", PROMETHEUS_APP)
+    juju.integrate(f"{TEMPO_APP}:receive-datasource", MIMIR_APP)
     juju.integrate(f"{TEMPO_APP}:receive-datasource", LOKI_APP)
 
     juju.wait(
