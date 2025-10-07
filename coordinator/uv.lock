@@ -720,7 +720,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "coordinated-workers" },
+    { name = "coordinated-workers", git = "https://github.com/canonical/cos-coordinated-workers?rev=telemetry-correlation-module" },
     { name = "coverage", extras = ["toml"], marker = "extra == 'dev'" },
     { name = "cryptography" },
     { name = "jubilant", marker = "extra == 'dev'" },
