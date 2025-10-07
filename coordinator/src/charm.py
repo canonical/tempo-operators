@@ -182,7 +182,11 @@ class TempoCoordinatorCharm(CharmBase):
             catalogue_item=self._catalogue_item,
         )
 
-        self._telemetry_correlation = TelemetryCorrelation(self, grafana_ds_endpoint="grafana-source", grafana_dsx_endpoint="receive-datasource")
+        self._telemetry_correlation = TelemetryCorrelation(
+            self,
+            grafana_ds_endpoint="grafana-source",
+            grafana_dsx_endpoint="receive-datasource",
+        )
 
         # configure this tempo as a datasource in grafana
         self.grafana_source_provider = GrafanaSourceProvider(
@@ -746,9 +750,10 @@ class TempoCoordinatorCharm(CharmBase):
         equivalent and we can use any of them.
         """
         if datasource := self._telemetry_correlation.find_correlated_datasource(
-            "send-remote-write",
-            PROMETHEUS_DS_TYPE,
-            "service graph",
+            datasource_type=PROMETHEUS_DS_TYPE,
+            correlation_feature="service graph",
+            # we need the specific mimir/prometheus that we're sending span metrics to
+            endpoint="send-remote-write",
         ):
             return {
                 "serviceMap": {
@@ -759,9 +764,8 @@ class TempoCoordinatorCharm(CharmBase):
 
     def _build_traces_to_logs_config(self) -> Dict[str, Any]:
         if datasource := self._telemetry_correlation.find_correlated_datasource(
-            "logging",
-            LOKI_DS_TYPE,
-            "traces-to-logs",
+            datasource_type=LOKI_DS_TYPE,
+            correlation_feature="traces-to-logs",
         ):
             return {
                 "tracesToLogsV2": {

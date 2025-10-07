@@ -14,6 +14,48 @@ import requests
 
 LOKI_APP = "loki"
 GRAFANA_APP = "grafana"
+MIMIR_APP = "mimir"
+MIMIR_WORKER_APP = "mimir-worker"
+MIMIR_S3_APP = "mimir-s3"
+LOKI_APP = "loki"
+LOKI_WORKER_APP = "loki-worker"
+LOKI_S3_APP = "loki-s3"
+
+
+def _deploy_mimir_cluster(juju: Juju):
+    juju.deploy(
+        "mimir-coordinator-k8s",
+        MIMIR_APP,
+        channel=INTEGRATION_TESTERS_CHANNEL,
+        trust=True,
+    )
+    juju.deploy(
+        "mimir-worker-k8s",
+        MIMIR_WORKER_APP,
+        channel=INTEGRATION_TESTERS_CHANNEL,
+        trust=True,
+    )
+    juju.deploy("seaweedfs-k8s", MIMIR_S3_APP, channel="edge")
+    juju.integrate(MIMIR_APP, MIMIR_WORKER_APP)
+    juju.integrate(MIMIR_APP, MIMIR_S3_APP)
+
+
+def _deploy_loki_cluster(juju: Juju):
+    juju.deploy(
+        "loki-coordinator-k8s",
+        LOKI_APP,
+        channel=INTEGRATION_TESTERS_CHANNEL,
+        trust=True,
+    )
+    juju.deploy(
+        "loki-worker-k8s",
+        LOKI_WORKER_APP,
+        channel=INTEGRATION_TESTERS_CHANNEL,
+        trust=True,
+    )
+    juju.deploy("seaweedfs-k8s", LOKI_S3_APP, channel="edge")
+    juju.integrate(LOKI_APP, LOKI_WORKER_APP)
+    juju.integrate(LOKI_APP, LOKI_S3_APP)
 
 
 @pytest.fixture(scope="module")
@@ -66,14 +108,9 @@ def test_setup(juju: Juju):
     # deploy tempo cluster
     deploy_monolithic_cluster(juju, wait_for_idle=False)
     # for service graphs
-    deploy_prometheus(juju)
+    _deploy_mimir_cluster(juju)
     # for traces-to-logs
-    juju.deploy(
-        "loki-k8s",
-        app=LOKI_APP,
-        channel=INTEGRATION_TESTERS_CHANNEL,
-        trust=True,
-    )
+    _deploy_loki_cluster(juju)
     juju.deploy(
         "grafana-k8s",
         app=GRAFANA_APP,
