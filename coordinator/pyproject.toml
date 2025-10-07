@@ -6,7 +6,8 @@ version = "0.1"  # this is in fact irrelevant
 requires-python = "~=3.12.0"
 
 dependencies = [
-    "coordinated-workers",
+    # FIXME: use pypi package
+    "coordinated-workers@git+https://github.com/canonical/cos-coordinated-workers@telemetry-correlation-module",
     "pydantic<3",
     # ---PYDEPS---,
     # lib/charms/tls_certificates_interface/v4/tls_certificates.py
