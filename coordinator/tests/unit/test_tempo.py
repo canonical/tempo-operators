@@ -3,21 +3,19 @@ import pytest
 import tempo_config
 from tempo import Tempo
 
+tls_config = {
+    "tls": {
+        "ca_file": "/usr/local/share/ca-certificates/ca.crt",
+        "cert_file": "/etc/worker/server.cert",
+        "key_file": "/etc/worker/private.key",
+    }
+}
+
 
 @pytest.mark.parametrize(
-    "protocols, use_tls, expected_config",
+    "use_tls, expected_config",
     (
         (
-            (
-                "otlp_grpc",
-                "otlp_http",
-                "zipkin",
-                "tempo",
-                "jaeger_http_thrift",
-                "jaeger_grpc",
-                "jaeger_thrift_http",
-                "jaeger_thrift_http",
-            ),
             False,
             {
                 "jaeger": {
@@ -44,72 +42,40 @@ from tempo import Tempo
             },
         ),
         (
-            ("otlp_http", "zipkin", "tempo", "jaeger_thrift_http"),
-            False,
-            {
-                "jaeger": {
-                    "protocols": {
-                        "thrift_http": {
-                            "endpoint": f"0.0.0.0:{Tempo.receiver_ports['jaeger_thrift_http']}"
-                        },
-                    }
-                },
-                "zipkin": {"endpoint": f"0.0.0.0:{Tempo.receiver_ports['zipkin']}"},
-                "otlp": {
-                    "protocols": {
-                        "http": {
-                            "endpoint": f"0.0.0.0:{Tempo.receiver_ports['otlp_http']}"
-                        }
-                    }
-                },
-            },
-        ),
-        (
-            ("otlp_http", "zipkin", "tempo", "jaeger_thrift_http"),
             True,
             {
                 "jaeger": {
                     "protocols": {
                         "thrift_http": {
-                            "tls": {
-                                "ca_file": "/usr/local/share/ca-certificates/ca.crt",
-                                "cert_file": "/etc/worker/server.cert",
-                                "key_file": "/etc/worker/private.key",
-                            },
                             "endpoint": f"0.0.0.0:{Tempo.receiver_ports['jaeger_thrift_http']}",
+                            **tls_config,
+                        },
+                        "grpc": {
+                            "endpoint": "0.0.0.0:14250",
+                            **tls_config,
                         },
                     }
                 },
                 "zipkin": {
-                    "tls": {
-                        "ca_file": "/usr/local/share/ca-certificates/ca.crt",
-                        "cert_file": "/etc/worker/server.cert",
-                        "key_file": "/etc/worker/private.key",
-                    },
                     "endpoint": f"0.0.0.0:{Tempo.receiver_ports['zipkin']}",
+                    **tls_config,
                 },
                 "otlp": {
                     "protocols": {
                         "http": {
-                            "tls": {
-                                "ca_file": "/usr/local/share/ca-certificates/ca.crt",
-                                "cert_file": "/etc/worker/server.cert",
-                                "key_file": "/etc/worker/private.key",
-                            },
                             "endpoint": f"0.0.0.0:{Tempo.receiver_ports['otlp_http']}",
+                            **tls_config,
                         },
+                        "grpc": {"endpoint": "0.0.0.0:4317", **tls_config},
                     }
                 },
             },
         ),
-        ([], False, {}),
     ),
 )
-def test_tempo_distributor_config(protocols, use_tls, expected_config):
+def test_tempo_distributor_config(use_tls, expected_config):
     assert (
-        Tempo(None, 720, lambda: [])
-        ._build_distributor_config(protocols, use_tls)
-        .receivers
+        Tempo(720, lambda: [])._build_distributor_config(use_tls).receivers
         == expected_config
     )
 
@@ -134,9 +100,7 @@ def test_tempo_distributor_config(protocols, use_tls, expected_config):
     ),
 )
 def test_tempo_memberlist_config(peers, expected_config):
-    assert (
-        Tempo(None, 720, lambda: [])._build_memberlist_config(peers) == expected_config
-    )
+    assert Tempo(720, lambda: [])._build_memberlist_config(peers) == expected_config
 
 
 @pytest.mark.parametrize(
@@ -158,7 +122,7 @@ def test_tempo_memberlist_config(peers, expected_config):
 )
 def test_tempo_ingester_config(addresses, expected_replication):
     assert (
-        Tempo(None, 720, lambda: [])
+        Tempo(720, lambda: [])
         ._build_ingester_config(addresses)
         .lifecycler.ring.replication_factor
         == expected_replication
