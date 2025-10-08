@@ -32,6 +32,7 @@ def _deploy_mimir_cluster(juju: Juju):
         MIMIR_WORKER_APP,
         channel=INTEGRATION_TESTERS_CHANNEL,
         trust=True,
+        config={"role-all": True},
     )
     juju.deploy("seaweedfs-k8s", MIMIR_S3_APP, channel="edge")
     juju.integrate(MIMIR_APP, MIMIR_WORKER_APP)
@@ -50,6 +51,7 @@ def _deploy_loki_cluster(juju: Juju):
         LOKI_WORKER_APP,
         channel=INTEGRATION_TESTERS_CHANNEL,
         trust=True,
+        config={"role-all": True},
     )
     juju.deploy("seaweedfs-k8s", LOKI_S3_APP, channel="edge")
     juju.integrate(LOKI_APP, LOKI_WORKER_APP)

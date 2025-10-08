@@ -27,7 +27,7 @@ TRACEGEN_SCRIPT_PATH = Path() / "scripts" / "tracegen.py"
 
 # Application names used uniformly across the tests
 MINIO_APP = "minio"
-S3_APP = "s3-integrator"
+S3_APP = "seaweedfs"
 PROMETHEUS_APP = "prometheus"
 WORKER_APP = "tempo-worker"
 TEMPO_APP = "tempo"
@@ -150,7 +150,7 @@ def _deploy_cluster(
                 coordinator + ":send-remote-write",
             )
     juju.deploy("seaweedfs-k8s", s3, channel="edge")
-    juju.integrate(TEMPO_APP, S3_APP)
+    juju.integrate(TEMPO_APP, s3)
 
     if wait_for_idle:
         juju.wait(
