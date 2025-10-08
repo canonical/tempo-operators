@@ -150,7 +150,7 @@ def _deploy_cluster(
                 coordinator + ":send-remote-write",
             )
     juju.deploy("seaweedfs-k8s", s3, channel="edge")
-    juju.integrate(TEMPO_APP, s3)
+    juju.integrate(coordinator, s3)
 
     if wait_for_idle:
         juju.wait(
