@@ -9,6 +9,7 @@ from ops import ActiveStatus
 from scenario import Container, Context, PeerRelation, Relation, Exec
 
 from charm import PEERS_RELATION_ENDPOINT_NAME, TempoCoordinatorCharm
+from contextlib import ExitStack
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -55,6 +56,9 @@ def tempo_charm(tmp_path):
             )
         )
         stack.enter_context(patch("socket.getfqdn", return_value="localhost"))
+        stack.enter_context(
+            patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
+        )
         yield TempoCoordinatorCharm
 
 

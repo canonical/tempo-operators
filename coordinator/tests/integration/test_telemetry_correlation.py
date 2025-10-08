@@ -107,7 +107,7 @@ def prometheus_datasource(datasources) -> str:
 def test_setup(juju: Juju):
     # deploy tempo cluster
     deploy_monolithic_cluster(juju, wait_for_idle=False)
-    # for service graphs
+    # for service graphs and traces-to-metrics
     _deploy_mimir_cluster(juju)
     # for traces-to-logs
     _deploy_loki_cluster(juju)
@@ -162,5 +162,24 @@ def test_traces_to_logs_enabled(
         assert "jsonData" in data
         assert "tracesToLogsV2" in data["jsonData"], f"traces-to-logs is not enabled"
         assert data["jsonData"]["tracesToLogsV2"]["datasourceUid"] == loki_datasource
+    except requests.exceptions.RequestException as e:
+        pytest.fail(f"Request to Grafana failed: {e}")
+
+
+def test_traces_to_metrics_enabled(
+    grafana_admin_creds, grafana_address, tempo_datasource, prometheus_datasource
+):
+    url = f"http://{grafana_admin_creds}@{grafana_address}:3000/api/datasources/name/{tempo_datasource}"
+    try:
+        response = requests.get(url)
+        data = response.json()
+        assert "jsonData" in data
+        assert "tracesToMetrics" in data["jsonData"], (
+            f"traces-to-metrics is not enabled"
+        )
+        assert (
+            data["jsonData"]["tracesToMetrics"]["datasourceUid"]
+            == prometheus_datasource
+        )
     except requests.exceptions.RequestException as e:
         pytest.fail(f"Request to Grafana failed: {e}")
