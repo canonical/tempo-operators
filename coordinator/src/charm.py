@@ -763,9 +763,8 @@ class TempoCoordinatorCharm(CharmBase):
 
     def _build_traces_to_metrics_config(self) -> Dict[str, Any]:
         if datasource := self._telemetry_correlation.find_correlated_datasource(
-            "metrics-endpoint",
-            PROMETHEUS_DS_TYPE,
-            "traces-to-metrics",
+            datasource_type=PROMETHEUS_DS_TYPE,
+            correlation_feature="traces-to-metrics",
         ):
             return {
                 "tracesToMetrics": {
