@@ -35,6 +35,9 @@ def tempo_charm(tmp_path):
                 "coordinated_workers.coordinator.Coordinator._consolidate_alert_rules"
             )
         )
+        stack.enter_context(
+            patch("coordinated_workers.coordinator.Coordinator._reconcile_charm_labels")
+        )
         stack.enter_context(patch("lightkube.core.client.GenericSyncClient"))
         stack.enter_context(
             patch("charm.TempoCoordinatorCharm.are_certificates_on_disk", False)
@@ -103,7 +106,11 @@ def remote_write():
     return Relation(
         "send-remote-write",
         remote_units_data={
-            0: {"remote_write": json.dumps({"url": "http://prometheus:3000/api/write"})}
+            0: {
+                "remote_write": json.dumps(
+                    {"url": "http://localhost:3300/proxy/remote-write/localhost/write"}
+                )  # this is the proxy remote write url
+            }
         },
     )
 
