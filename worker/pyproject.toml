@@ -24,7 +24,7 @@ dev = [
     "pytest-jubilant",
     "requests",
     "minio",
-    "tenacity==8.2.3",
+    "tenacity==9.1.2",
 ]
 
 [tool.coverage.run]
