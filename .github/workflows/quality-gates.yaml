@@ -11,13 +11,13 @@ on:
 jobs:
   quality-gates-coordinator:
     name: Run quality gates
-    uses: canonical/observability/.github/workflows/charm-quality-gates.yaml@v1
+    uses: canonical/observability/.github/workflows/charm-quality-gates.yaml@dd6c66dc595da864fcc880464f9d7526aa2d6b2b # v1
     secrets: inherit
     with:
       charm-path: coordinator
   quality-gates-worker:
     name: Run quality gates
-    uses: canonical/observability/.github/workflows/charm-quality-gates.yaml@v1
+    uses: canonical/observability/.github/workflows/charm-quality-gates.yaml@dd6c66dc595da864fcc880464f9d7526aa2d6b2b # v1
     secrets: inherit
     with:
       charm-path: worker
