@@ -50,8 +50,9 @@ def interface_tester(interface_tester: InterfaceTester):
     ):
         with patch("urllib.request.urlopen", new=partial(_urlopen_patch, resp="ready")):
             with patch("lightkube.core.client.GenericSyncClient"):
-                with patch("subprocess.run"):
-                    interface_tester.configure(
+                with patch("coordinated_workers.worker.Worker._reconcile_charm_labels"):
+                    with patch("subprocess.run"):
+                        interface_tester.configure(
                         charm_type=TempoWorkerK8SOperatorCharm,
                         state_template=State(
                             leader=True,

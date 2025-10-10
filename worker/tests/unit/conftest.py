@@ -36,12 +36,13 @@ def patch_all():
         is_ready=lambda _: True,
     ):
         with patch("lightkube.core.client.GenericSyncClient"):
-            with patch("subprocess.run"):
-                with patch(
-                    "coordinated_workers.worker.ROOT_CA_CERT",
-                    new=NonWriteablePath(ROOT_CA_CERT),
-                ):
-                    yield
+            with patch("coordinated_workers.worker.Worker._reconcile_charm_labels"):
+                with patch("subprocess.run"):
+                    with patch(
+                        "coordinated_workers.worker.ROOT_CA_CERT",
+                        new=NonWriteablePath(ROOT_CA_CERT),
+                    ):
+                        yield
 
 
 @pytest.fixture
