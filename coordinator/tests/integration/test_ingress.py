@@ -35,7 +35,6 @@ def test_build_and_deploy(juju: Juju, tempo_charm: Path):
     # THEN the s3-integrator, coordinator, worker, and traefik are all in active/idle state
     juju.wait(
         lambda status: jubilant.all_active(status, TRAEFIK_APP, TEMPO_APP, WORKER_APP),
-        error=jubilant.any_error,
         timeout=2000,
     )
 
@@ -48,7 +47,6 @@ def test_relate_ingress(juju: Juju):
     # THEN the coordinator, worker, and traefik are all in active/idle state
     juju.wait(
         lambda status: jubilant.all_active(status, TRAEFIK_APP, TEMPO_APP, WORKER_APP),
-        error=jubilant.any_error,
         timeout=2000,
     )
 
@@ -65,7 +63,6 @@ def test_force_enable_protocols(juju: Juju):
     # THEN both the tempo coordinator and worker are in active/idle state
     juju.wait(
         lambda status: jubilant.all_active(status, TEMPO_APP, WORKER_APP),
-        error=jubilant.any_error,
         timeout=2000,
         # wait for an idle period
         delay=5,
@@ -117,7 +114,6 @@ def test_remove_ingress(juju: Juju):
     # THEN the coordinator and worker are in active/idle state
     juju.wait(
         lambda status: jubilant.all_active(status, TEMPO_APP, WORKER_APP),
-        error=jubilant.any_error,
         timeout=2000,
     )
 

@@ -200,7 +200,6 @@ def _deploy_and_configure_minio(juju: Juju):
     juju.deploy(MINIO_APP, channel="edge", trust=True, config=S3_CREDENTIALS)
     juju.wait(
         lambda status: status.apps[MINIO_APP].is_active,
-        error=jubilant.any_error,
         delay=5,
         successes=3,
         timeout=2000,

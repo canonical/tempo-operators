@@ -20,7 +20,9 @@ def base_state(nginx_container, nginx_prometheus_exporter_container):
 def test_external_url_present(context, base_state, s3, all_worker):
     # WHEN ingress is related with external_host
     tracing = Relation("tracing", remote_app_data={"receivers": "[]"})
-    ingress = Relation("ingress", remote_app_data={"external_host": "1.2.3.4", "scheme": "http"})
+    ingress = Relation(
+        "ingress", remote_app_data={"external_host": "1.2.3.4", "scheme": "http"}
+    )
     state = replace(base_state, relations=[tracing, ingress, s3, all_worker])
 
     out = context.run(context.on.relation_created(tracing), state)
@@ -51,7 +53,9 @@ def test_ingress_relation_set_with_dynamic_config(
     add_peer, expected_servers_count, context, base_state, s3, all_worker, peer
 ):
     # WHEN ingress is related with external_host
-    ingress = Relation("ingress", remote_app_data={"external_host": "1.2.3.4", "scheme": "http"})
+    ingress = Relation(
+        "ingress", remote_app_data={"external_host": "1.2.3.4", "scheme": "http"}
+    )
 
     state = replace(base_state, relations=[ingress, s3, all_worker])
     if add_peer:
@@ -172,7 +176,9 @@ def test_ingress_relation_set_with_dynamic_config(
 def test_ingress_config_middleware_tls(context, base_state, s3, all_worker):
     charm_name = "tempo-coordinator-k8s"
     # GIVEN an ingress relation with TLS
-    ingress = Relation("ingress", remote_app_data={"external_host": "1.2.3.4", "scheme": "https"})
+    ingress = Relation(
+        "ingress", remote_app_data={"external_host": "1.2.3.4", "scheme": "https"}
+    )
 
     state = replace(base_state, relations=[ingress, s3, all_worker])
 
@@ -185,9 +191,7 @@ def test_ingress_config_middleware_tls(context, base_state, s3, all_worker):
     config = yaml.safe_load(ingress_out.local_app_data["config"])
     middlewares = config["http"]["middlewares"]
     for proto_name, port in Tempo.all_ports.items():
-        middleware = (
-            f"juju-{state.model.name}-{charm_name}-middleware-{proto_name.replace('_', '-')}"
-        )
+        middleware = f"juju-{state.model.name}-{charm_name}-middleware-{proto_name.replace('_', '-')}"
         assert middleware in middlewares
         assert middlewares[middleware] == {
             "redirectScheme": {

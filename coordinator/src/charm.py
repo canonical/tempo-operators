@@ -44,18 +44,21 @@ from coordinated_workers.nginx import (
     KEY_PATH,
     NginxConfig,
 )
-from cosl.interfaces.datasource_exchange import DatasourceDict, DSExchangeAppData
-from cosl.interfaces.utils import DatabagModel, DataValidationError
+from cosl.interfaces.datasource_exchange import DatasourceDict
+from cosl.interfaces.utils import DatabagModel
 from ops import CollectStatusEvent
 from ops.charm import CharmBase
 
+from telemetry_correlation import TelemetryCorrelation
 from tempo import Tempo
 from tempo_config import TEMPO_ROLES_CONFIG, TempoRole
 from nginx_config import upstreams, server_ports_to_locations
+from cosl.reconciler import all_events, observe_events
 
 logger = logging.getLogger(__name__)
 PEERS_RELATION_ENDPOINT_NAME = "peers"
 PROMETHEUS_DS_TYPE = "prometheus"
+LOKI_DS_TYPE = "loki"
 
 
 class TempoCoordinator(Coordinator):
@@ -82,10 +85,17 @@ class TempoCoordinator(Coordinator):
     def _setup_charm_tracing(self):
         """Override regular charm tracing setup because we're likely sending the traces to ourselves."""
         # if we have an external endpoint, use it; so far, this is the superclass behaviour
-        endpoint = self.charm_tracing.get_endpoint("otlp_http") if self.charm_tracing.is_ready() else None
+        endpoint = (
+            self.charm_tracing.get_endpoint("otlp_http")
+            if self.charm_tracing.is_ready()
+            else None
+        )
         # else, we send to localhost
         tls_config = self.tls_config
-        endpoint = endpoint or f"http{'s' if tls_config else ''}://localhost:{Tempo.otlp_http_receiver_port}"
+        endpoint = (
+            endpoint
+            or f"http{'s' if tls_config else ''}://localhost:{Tempo.otlp_http_receiver_port}"
+        )
 
         url = endpoint + "/v1/traces"
         ops_tracing.set_destination(
@@ -108,14 +118,19 @@ class TempoCoordinatorCharm(CharmBase):
         super().__init__(*args)
 
         # INTEGRATIONS
-        self.ingress = TraefikRouteRequirer(self, self.model.get_relation("ingress"), "ingress")  # type: ignore
-        self.tracing = TracingEndpointProvider(self, external_url=self._most_external_url)
+        self.ingress = TraefikRouteRequirer(
+            self,
+            self.model.get_relation("ingress"),  # type: ignore
+            "ingress",
+        )
+        self.tracing = TracingEndpointProvider(
+            self, external_url=self._most_external_url
+        )
         # set alert_rules_path="", as we don't want to populate alert rules into the relation databag
         # we only need `self._remote_write.endpoints`
         self._remote_write = PrometheusRemoteWriteConsumer(self, alert_rules_path="")
 
         self.tempo = Tempo(
-            requested_receivers=self._requested_receivers,
             retention_period_hours=self._trace_retention_period_hours,
             remote_write_endpoints=self._remote_write_endpoints,
         )
@@ -123,6 +138,13 @@ class TempoCoordinatorCharm(CharmBase):
         # keep this above the coordinator definition
         self.framework.observe(self.on.collect_unit_status, self._on_collect_status)
 
+        # needs self.tempo and self.tracing attributes to be set
+        # do it once on init for efficiency; instead of calculating the same set multiple
+        # times throughout an event
+        self._requested_receivers = self._collect_requested_receivers()
+        requested_receiver_ports: Dict[ReceiverProtocol, int] = {
+            proto: Tempo.receiver_ports[proto] for proto in self._requested_receivers
+        }
         self.coordinator = TempoCoordinator(
             charm=self,
             roles_config=TEMPO_ROLES_CONFIG,
@@ -143,17 +165,24 @@ class TempoCoordinatorCharm(CharmBase):
             },
             nginx_config=NginxConfig(
                 server_name=self.hostname,
-                upstream_configs= upstreams(),
-                server_ports_to_locations=server_ports_to_locations(),
+                upstream_configs=upstreams(
+                    requested_receiver_ports=requested_receiver_ports
+                ),
+                server_ports_to_locations=server_ports_to_locations(
+                    requested_receiver_ports=requested_receiver_ports
+                ),
             ),
             workers_config=self.tempo.config,
+            # set the resource request for the nginx container
             resources_requests=self.get_resources_requests,
-            container_name="charm",
+            container_name="nginx",
             remote_write_endpoints=self._remote_write_endpoints,  # type: ignore
             worker_ports=self._get_worker_ports,
             workload_tracing_protocols=["otlp_http"],
             catalogue_item=self._catalogue_item,
         )
+
+        self._telemetry_correlation = TelemetryCorrelation(self, self.coordinator)
 
         # configure this tempo as a datasource in grafana
         self.grafana_source_provider = GrafanaSourceProvider(
@@ -161,6 +190,7 @@ class TempoCoordinatorCharm(CharmBase):
             source_type="tempo",
             source_url=self._external_http_server_url,
             extra_fields=self._build_grafana_source_extra_fields(),
+            is_ingress_per_app=self._is_ingress_ready,
         )
 
         # wokeignore:rule=blackbox
@@ -169,7 +199,9 @@ class TempoCoordinatorCharm(CharmBase):
             probes=[
                 {
                     "params": {"module": ["http_2xx"]},
-                    "static_configs": [{"targets": [self._external_http_server_url + "/ready"]}],
+                    "static_configs": [
+                        {"targets": [self._external_http_server_url + "/ready"]}
+                    ],
                 }
             ],
         )
@@ -192,11 +224,13 @@ class TempoCoordinatorCharm(CharmBase):
             # logging is handled by the Coordinator object
             return
 
-        # do this regardless of what event we are processing
-        self._reconcile()
-
         # actions
-        self.framework.observe(self.on.list_receivers_action, self._on_list_receivers_action)
+        self.framework.observe(
+            self.on.list_receivers_action, self._on_list_receivers_action
+        )
+
+        # do this regardless of what event we are processing
+        observe_events(self, all_events, self._reconcile)
 
     ######################
     # UTILITY PROPERTIES #
@@ -219,9 +253,19 @@ class TempoCoordinatorCharm(CharmBase):
     @property
     def app_hostname(self) -> str:
         """Application-level fqdn."""
-        return Coordinator.app_hostname(hostname=self.hostname,
-                                         app_name=self.app.name,
-                                         model_name=self.model.name)
+        return Coordinator.app_hostname(
+            hostname=self.hostname, app_name=self.app.name, model_name=self.model.name
+        )
+
+    @property
+    def _is_ingress_ready(self) -> bool:
+        "Return True if an ingress is configured and ready, otherwise False."
+        return bool(
+            self.ingress.is_ready()
+            and self.ingress.scheme
+            and self.ingress.external_host
+        )
+
     @property
     def _external_http_server_url(self) -> str:
         """External url of the http(s) server."""
@@ -230,7 +274,7 @@ class TempoCoordinatorCharm(CharmBase):
     @property
     def _external_url(self) -> Optional[str]:
         """Return the external URL if the ingress is configured and ready, otherwise None."""
-        if self.ingress.is_ready() and self.ingress.scheme and self.ingress.external_host:
+        if self._is_ingress_ready:
             ingress_url = f"{self.ingress.scheme}://{self.ingress.external_host}"
             logger.debug("This unit's ingress URL: %s", ingress_url)
             return ingress_url
@@ -293,19 +337,28 @@ class TempoCoordinatorCharm(CharmBase):
 
     @property
     def _catalogue_item(self) -> CatalogueItem:
+        port = 3200
+        api_endpoints = {
+            "Search traces": "/api/search?<params>",
+            "Query traces (by ID)": "/api/traces/<traceID>",
+            "Status": "/status",
+        }
         """A catalogue application entry for this Tempo instance."""
         return CatalogueItem(
             # use app.name in case there are multiple Tempo applications deployed.
             name=f"Tempo ({self.app.name})",
             icon="transit-connection-variant",
-            # Unlike Prometheus, Tempo doesn't have a sophisticated web UI.
-            # Instead, we'll show the current status.
-            # ref: https://grafana.com/docs/tempo/latest/api_docs/
-            url=f"{self._most_external_url}:3200/status",
+            # Since Tempo doesn't have a UI (unlike Prometheus), we will leave the URL field empty.
+            url="",
             description=(
                 "Tempo is a distributed tracing backend by Grafana, supporting Jaeger, "
                 "Zipkin, and OpenTelemetry protocols."
             ),
+            api_docs="https://grafana.com/docs/tempo/latest/api_docs/",
+            api_endpoints={
+                key: f"{self._most_external_url}:{port}{path}"
+                for key, path in api_endpoints.items()
+            },
         )
 
     ##################
@@ -316,7 +369,7 @@ class TempoCoordinatorCharm(CharmBase):
 
     def _on_list_receivers_action(self, event: ops.ActionEvent):
         res = {}
-        for receiver in self._requested_receivers():
+        for receiver in self._requested_receivers:
             res[receiver.replace("_", "-")] = self.get_receiver_url(receiver)
         event.set_results(res)
 
@@ -370,8 +423,12 @@ class TempoCoordinatorCharm(CharmBase):
 
         external_url = self._external_url
         if external_url:
-            ingress_url_http = external_url + f":{self.tempo.server_ports['tempo_http']}"
-            ingress_url_grpc = external_url + f":{self.tempo.server_ports['tempo_grpc']}"
+            ingress_url_http = (
+                external_url + f":{self.tempo.server_ports['tempo_http']}"
+            )
+            ingress_url_grpc = (
+                external_url + f":{self.tempo.server_ports['tempo_grpc']}"
+            )
         else:
             ingress_url_http = None
             ingress_url_grpc = None
@@ -391,14 +448,14 @@ class TempoCoordinatorCharm(CharmBase):
             logger.warning("no tracing relations: Tempo has no receivers configured.")
             return
 
-        requested_receivers = self._requested_receivers()
+        requested_receivers = self._requested_receivers
         # publish requested protocols to all relations
         if self.unit.is_leader():
             self.tracing.publish_receivers(
                 [(p, self.get_receiver_url(p)) for p in requested_receivers]
             )
 
-    def _requested_receivers(self) -> Tuple[ReceiverProtocol, ...]:
+    def _collect_requested_receivers(self) -> Tuple[ReceiverProtocol, ...]:
         """List what receivers we should activate, based on the active tracing relations and config-enabled extra receivers."""
         # we start with the sum of the requested endpoints from the requirers
         requested_protocols = set(self.tracing.requested_protocols())
@@ -406,7 +463,9 @@ class TempoCoordinatorCharm(CharmBase):
         # update with enabled extra receivers
         requested_protocols.update(self.enabled_receivers)
         # and publish only those we support
-        requested_receivers = requested_protocols.intersection(set(self.tempo.receiver_ports))
+        requested_receivers = requested_protocols.intersection(
+            set(self.tempo.receiver_ports)
+        )
         # sorting for stable output to prevent remote units from receiving
         # spurious relation-changed events
         return tuple(sorted(requested_receivers))
@@ -436,7 +495,8 @@ class TempoCoordinatorCharm(CharmBase):
     def requested_receivers_urls(self) -> Dict[str, str]:
         """Endpoints to which the workload (and the worker charm) can push traces to."""
         return {
-            receiver: self.get_receiver_url(receiver) for receiver in self._requested_receivers()
+            receiver: self.get_receiver_url(receiver)
+            for receiver in self._requested_receivers
         }
 
     @property
@@ -471,7 +531,9 @@ class TempoCoordinatorCharm(CharmBase):
             )
             middlewares.update(redirect_middleware)
 
-            http_routers[f"juju-{self.model.name}-{self.model.app.name}-{sanitized_protocol}"] = {
+            http_routers[
+                f"juju-{self.model.name}-{self.model.app.name}-{sanitized_protocol}"
+            ] = {
                 "entryPoints": [sanitized_protocol],
                 "service": f"juju-{self.model.name}-{self.model.app.name}-service-{sanitized_protocol}",
                 # TODO better matcher
@@ -484,20 +546,30 @@ class TempoCoordinatorCharm(CharmBase):
             }
             if (
                 protocol == "tempo_grpc"
-                or receiver_protocol_to_transport_protocol.get(cast(ReceiverProtocol, protocol))
+                or receiver_protocol_to_transport_protocol.get(
+                    cast(ReceiverProtocol, protocol)
+                )
                 == TransportProtocolType.grpc
             ) and not self.coordinator.tls_available:
                 # to send traces to unsecured GRPC endpoints, we need h2c
                 # see https://doc.traefik.io/traefik/v2.0/user-guides/grpc/#with-http-h2c
                 http_services[
                     f"juju-{self.model.name}-{self.model.app.name}-service-{sanitized_protocol}"
-                ] = {"loadBalancer": {"servers": self._build_lb_server_config("h2c", port)}}
+                ] = {
+                    "loadBalancer": {
+                        "servers": self._build_lb_server_config("h2c", port)
+                    }
+                }
             else:
                 # anything else, including secured GRPC, can use _internal_url
                 # ref https://doc.traefik.io/traefik/v2.0/user-guides/grpc/#with-https
                 http_services[
                     f"juju-{self.model.name}-{self.model.app.name}-service-{sanitized_protocol}"
-                ] = {"loadBalancer": {"servers": self._build_lb_server_config(self._scheme, port)}}
+                ] = {
+                    "loadBalancer": {
+                        "servers": self._build_lb_server_config(self._scheme, port)
+                    }
+                }
 
         return {
             "http": {
@@ -531,13 +603,9 @@ class TempoCoordinatorCharm(CharmBase):
         if ingress is used, return endpoint provided by the ingress instead.
         """
         protocol_type = receiver_protocol_to_transport_protocol.get(protocol)
-        # ingress.is_ready returns True even when traefik hasn't sent any data yet
-        has_ingress = (
-            self.ingress.is_ready() and self.ingress.external_host and self.ingress.scheme
-        )
         receiver_port = self.tempo.receiver_ports[protocol]
 
-        if has_ingress:
+        if self._is_ingress_ready:
             url = (
                 self.ingress.external_host
                 if protocol_type == TransportProtocolType.grpc
@@ -560,9 +628,7 @@ class TempoCoordinatorCharm(CharmBase):
             tls = s = ""
 
         # cert is for fqdn/ingress, not for IP
-        cmd = (
-            f"curl{tls} http{s}://{self.coordinator.hostname}:{Tempo.tempo_http_server_port}/ready"
-        )
+        cmd = f"curl{tls} http{s}://{self.coordinator.hostname}:{Tempo.tempo_http_server_port}/ready"
 
         try:
             out = getoutput(cmd).split("\n")[-1]
@@ -627,7 +693,9 @@ class TempoCoordinatorCharm(CharmBase):
 
     def _update_grafana_source(self) -> None:
         """Update grafana-source relations."""
-        self.grafana_source_provider.update_source(source_url=self._external_http_server_url)
+        self.grafana_source_provider.update_source(
+            source_url=self._external_http_server_url
+        )
 
     def _reconcile(self):
         # This method contains unconditional update logic, i.e. logic that should be executed
@@ -677,78 +745,36 @@ class TempoCoordinatorCharm(CharmBase):
         If there are multiple datasources that fit this description, we can assume that they are all
         equivalent and we can use any of them.
         """
+        if datasource := self._telemetry_correlation.find_datasource(
+            "send-remote-write", PROMETHEUS_DS_TYPE
+        ):
+            return {
+                "serviceMap": {
+                    "datasourceUid": datasource.uid,
+                },
+            }
+        return {}
 
-        dsx_relations = {
-            relation.app.name: relation
-            for relation in self.coordinator.datasource_exchange._relations
-        }
+    def _build_traces_to_logs_config(self) -> Dict[str, Any]:
+        if datasource := self._telemetry_correlation.find_datasource(
+            "logging", LOKI_DS_TYPE
+        ):
+            return {
+                "tracesToLogsV2": {
+                    "datasourceUid": datasource.uid,
+                    "tags": [
+                        {"key": "juju_application", "value": ""},
+                        {"key": "juju_model", "value": ""},
+                        {"key": "juju_model_uuid", "value": ""},
+                    ],
+                    "filterByTraceID": False,
+                    "filterBySpanID": False,
+                    "customQuery": True,
+                    "query": '{ $$__tags } |= "$${__span.traceId}"',
+                }
+            }
 
-        remote_write_apps = {
-            relation.app.name
-            for relation in self.model.relations["send-remote-write"]
-            if relation.app and relation.data
-        }
-
-        # the list of datasource exchange relations whose remote we're also remote writing to.
-        remote_write_dsx_relations = [
-            dsx_relations[app_name]
-            for app_name in set(dsx_relations).intersection(remote_write_apps)
-        ]
-
-        # grafana UIDs that are connected to this Tempo.
-        grafana_uids = set(self._get_grafana_source_uids())
-
-        remote_write_dsx_databags = []
-        for relation in remote_write_dsx_relations:
-            try:
-                datasource = DSExchangeAppData.load(relation.data[relation.app])
-                remote_write_dsx_databags.append(datasource)
-            except DataValidationError:
-                # load() already logs
-                continue
-
-        # filter the remote_write_dsx_databags with those that are connected to the same grafana instances Tempo is connected to.
-        matching_datasources = [
-            datasource
-            for databag in remote_write_dsx_databags
-            for datasource in databag.datasources
-            if datasource.grafana_uid in grafana_uids and datasource.type == PROMETHEUS_DS_TYPE
-        ]
-
-        if not matching_datasources:
-            # take good care of logging exactly why this happening, as the logic is quite complex and debugging this will be hell
-            msg = "service graph disabled."
-            missing_rels = []
-            if not remote_write_apps:
-                missing_rels.append("send-remote-write")
-            if not grafana_uids:
-                missing_rels.append("grafana-source")
-            if not dsx_relations:
-                missing_rels.append("receive-datasource")
-
-            if missing_rels:
-                msg += f" Missing relations: {missing_rels}."
-
-            if not remote_write_dsx_relations:
-                msg += " There are no datasource_exchange relations with a Prometheus/Mimir that we're also remote writing to."
-            else:
-                msg += " There are no datasource_exchange relations to a Prometheus/Mimir that are datasources to the same grafana instances Tempo is connected to."
-
-            logger.info(msg)
-            return {}
-
-        if len(matching_datasources) > 1:
-            logger.info(
-                "there are multiple datasources that could be used to create the service graph. We assume that all are equivalent."
-            )
-
-        # At this point, we can assume any datasource is a valid datasource to use for service graphs.
-        matching_datasource = matching_datasources[0]
-        return {
-            "serviceMap": {
-                "datasourceUid": matching_datasource.uid,
-            },
-        }
+        return {}
 
     def _build_grafana_source_extra_fields(self) -> Optional[Dict[str, Any]]:
         """Extra fields needed for the grafana-source relation, like data correlation config."""
@@ -766,12 +792,16 @@ class TempoCoordinatorCharm(CharmBase):
         # },
 
         svc_graph_config = self._build_service_graph_config()
-        if not svc_graph_config:
+
+        traces_to_logs_config = self._build_traces_to_logs_config()
+
+        if not svc_graph_config and not traces_to_logs_config:
             return None
 
         return {
             "httpMethod": "GET",
             **svc_graph_config,
+            **traces_to_logs_config,
         }
 
     @property
@@ -796,7 +826,7 @@ class TempoCoordinatorCharm(CharmBase):
 
         # distributor nodes should be able to accept spans in all supported formats
         if tempo_role in {TempoRole.all, TempoRole.distributor}:
-            for enabled_receiver in self._requested_receivers():
+            for enabled_receiver in self._requested_receivers:
                 ports.add(Tempo.receiver_ports[enabled_receiver])
 
         # open server ports in query_frontend role

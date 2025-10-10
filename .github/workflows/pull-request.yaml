@@ -14,13 +14,13 @@ jobs:
       worker_changed: ${{ steps.worker-changed-files.outputs.any_modified }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
       - name: Determine changed files in the coordinator
         id: coordinator-changed-files
-        uses: tj-actions/changed-files@v45
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47
         with:
           files: coordinator/**
           files_ignore: |
@@ -34,7 +34,7 @@ jobs:
             .github/**
       - name: Determine changed files in the worker
         id: worker-changed-files
-        uses: tj-actions/changed-files@v45
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47
         with:
           files: worker/**
           files_ignore: |
@@ -60,3 +60,7 @@ jobs:
     secrets: inherit
     with:
       charm-path: worker
+  terraform-tests:
+    name: Run terraform tests
+    uses: ./.github/workflows/_terraform-tests.yaml
+    secrets: inherit

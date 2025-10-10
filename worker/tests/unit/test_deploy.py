@@ -6,7 +6,10 @@ from functools import partial
 from unittest.mock import patch, MagicMock
 import yaml
 import pytest
-from coordinated_workers.interfaces.cluster import ClusterRequirerAppData, ClusterRequirer
+from coordinated_workers.interfaces.cluster import (
+    ClusterRequirerAppData,
+    ClusterRequirer,
+)
 from ops.model import ActiveStatus
 from scenario import Container, Relation, State, Mount
 
@@ -19,11 +22,11 @@ from tests.unit.helpers import set_role
 from coordinated_workers.worker import CONFIG_FILE
 from cosl.juju_topology import JujuTopology
 
-
 @pytest.fixture(autouse=True)
 def patch_urllib_request():
     with patch("urllib.request.urlopen", new=partial(_urlopen_patch, resp="ready")):
         yield
+
 
 @pytest.fixture(autouse=True)
 def patch_stop():
@@ -99,7 +102,7 @@ def test_pebble_ready_plan(ctx, workload_tracing_receivers, expected_env, role):
             "ready": {
                 "http": {"url": f"http://{host}:3200/ready"},
                 "override": "replace",
-                "threshold": 3
+                "threshold": 3,
             }
         },
         "services": {
@@ -111,8 +114,9 @@ def test_pebble_ready_plan(ctx, workload_tracing_receivers, expected_env, role):
             }
         },
     }
+
     if expected_env:
-        expected_plan["services"]["tempo"]["environment"] = expected_env
+        expected_plan["services"]["tempo"].setdefault("environment", {}).update(expected_env)
 
     state_out = ctx.run(
         ctx.on.pebble_ready(tempo_container),

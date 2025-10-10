@@ -40,7 +40,9 @@ SAMPLE_APP_DATA_NO_INGRESS_URL = TempoApiAppData(
 
 def data_to_relation_databag(data: TempoApiAppData) -> dict:
     """Convert a TempoApiAppData to the format expected in a Relation's databag."""
-    data_dict = data.model_dump(mode="json", by_alias=True, exclude_defaults=True, round_trip=True)
+    data_dict = data.model_dump(
+        mode="json", by_alias=True, exclude_defaults=True, round_trip=True
+    )
     # Flatten any nested objects to json, since relation databags are str:str mappings
     return {k: json.dumps(v) for k, v in data_dict.items()}
 
@@ -84,7 +86,9 @@ class TempoApiRequirerCharm(CharmBase):
 
         # Skip the validation of relation metadata as it reads a charmcraft.yaml/metadata.yaml file from disk and this
         # mock requirer doesn't have one
-        with patch.object(TempoApiRequirer, "_validate_relation_metadata", return_value=None):
+        with patch.object(
+            TempoApiRequirer, "_validate_relation_metadata", return_value=None
+        ):
             self.relation_requirer = TempoApiRequirer(
                 self.model.relations, relation_name=RELATION_NAME
             )
@@ -109,13 +113,18 @@ def test_tempo_api_provider_sends_data_correctly(data, tempo_api_provider_contex
         tempo_api_provider_context.on.update_status(),
         state=state,
     ) as manager:
-        manager.charm.relation_provider.publish(**sample_data_to_tempo_api_publish_args(data))
+        manager.charm.relation_provider.publish(
+            **sample_data_to_tempo_api_publish_args(data)
+        )
 
         # Assert
         # Convert local_app_data to TempoApiAppData for comparison
         tempo_api_relation_out = manager.ops.state.get_relation(tempo_api_relation.id)
         actual = TempoApiAppData.model_validate(
-            {str(k): json.loads(v) for k, v in tempo_api_relation_out.local_app_data.items()}
+            {
+                str(k): json.loads(v)
+                for k, v in tempo_api_relation_out.local_app_data.items()
+            }
         )
 
         assert actual == data
@@ -148,14 +157,18 @@ def test_tempo_api_provider_sends_data_correctly(data, tempo_api_provider_contex
                 Relation(
                     RELATION_NAME,
                     INTERFACE_NAME,
-                    remote_app_data=data_to_relation_databag(SAMPLE_APP_DATA_NO_INGRESS_URL),
+                    remote_app_data=data_to_relation_databag(
+                        SAMPLE_APP_DATA_NO_INGRESS_URL
+                    ),
                 )
             ],
             SAMPLE_APP_DATA_NO_INGRESS_URL,
         ),
     ],
 )
-def test_tempo_api_requirer_get_data(relations, expected_data, tempo_api_requirer_context):
+def test_tempo_api_requirer_get_data(
+    relations, expected_data, tempo_api_requirer_context
+):
     """Tests that TempoApiRequirer.get_data() returns correctly."""
     state = State(
         relations=relations,
@@ -171,7 +184,9 @@ def test_tempo_api_requirer_get_data(relations, expected_data, tempo_api_require
         assert are_app_data_equal(data, expected_data)
 
 
-def are_app_data_equal(data1: Union[TempoApiAppData, None], data2: Union[TempoApiAppData, None]):
+def are_app_data_equal(
+    data1: Union[TempoApiAppData, None], data2: Union[TempoApiAppData, None]
+):
     """Compare two TempoApiRequirer objects, tolerating when one or both is None."""
     if data1 is None and data2 is None:
         return True

@@ -4,7 +4,6 @@
 """Helper module for interacting with the Tempo configuration."""
 
 import enum
-import logging
 from enum import Enum, unique
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -12,8 +11,6 @@ from typing import Any, Dict, List, Optional
 import pydantic
 from coordinated_workers.coordinator import ClusterRolesConfig
 from pydantic import BaseModel, ConfigDict, Field
-
-logger = logging.getLogger(__name__)
 
 
 # TODO: inherit enum.StrEnum when jammy is no longer supported.
@@ -128,6 +125,7 @@ class Ring(BaseModel):
 
     kvstore: Kvstore
 
+
 class IngesterRing(BaseModel):
     """Ingester ring schema."""
 
@@ -211,7 +209,9 @@ class TLS(BaseModel):
     cert_file: str
     key_file: str
     client_ca_file: str
-    client_auth_type: ClientAuthTypeEnum = ClientAuthTypeEnum.VERIFY_CLIENT_CERT_IF_GIVEN
+    client_auth_type: ClientAuthTypeEnum = (
+        ClientAuthTypeEnum.VERIFY_CLIENT_CERT_IF_GIVEN
+    )
 
 
 class Server(BaseModel):
