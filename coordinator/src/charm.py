@@ -10,7 +10,7 @@ import re
 import socket
 from pathlib import Path
 from subprocess import CalledProcessError, getoutput
-from typing import Any, Dict, List, Optional, Set, Tuple, cast, get_args
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast, get_args
 
 import ops
 import ops_tracing
@@ -37,6 +37,12 @@ from charms.tempo_coordinator_k8s.v0.tracing import (
     receiver_protocol_to_transport_protocol,
 )
 from charms.traefik_k8s.v0.traefik_route import TraefikRouteRequirer
+from charms.istio_beacon_k8s.v0.service_mesh import (
+    AppPolicy,
+    UnitPolicy,
+    Endpoint,
+    Method,
+)
 from coordinated_workers.coordinator import Coordinator
 from coordinated_workers.nginx import (
     CA_CERT_PATH,
@@ -44,6 +50,7 @@ from coordinated_workers.nginx import (
     KEY_PATH,
     NginxConfig,
 )
+from coordinated_workers.worker_telemetry import WorkerTelemetryProxyConfig
 from cosl.interfaces.datasource_exchange import DatasourceDict
 from cosl.interfaces.utils import DatabagModel
 from ops import CollectStatusEvent
@@ -59,6 +66,7 @@ logger = logging.getLogger(__name__)
 PEERS_RELATION_ENDPOINT_NAME = "peers"
 PROMETHEUS_DS_TYPE = "prometheus"
 LOKI_DS_TYPE = "loki"
+PROXY_WORKER_TELEMETRY_PORT = 3300
 
 
 class TempoCoordinator(Coordinator):
@@ -162,6 +170,9 @@ class TempoCoordinatorCharm(CharmBase):
                 "send-datasource": None,
                 "receive-datasource": "receive-datasource",
                 "catalogue": "catalogue",
+                "service-mesh": "service-mesh",
+                "service-mesh-provide-cmr-mesh": "provide-cmr-mesh",
+                "service-mesh-require-cmr-mesh": "require-cmr-mesh",
             },
             nginx_config=NginxConfig(
                 server_name=self.hostname,
@@ -180,6 +191,8 @@ class TempoCoordinatorCharm(CharmBase):
             worker_ports=self._get_worker_ports,
             workload_tracing_protocols=["otlp_http"],
             catalogue_item=self._catalogue_item,
+            worker_telemetry_proxy_config=self._worker_telemetry_proxy_config,
+            charm_mesh_policies=self._charm_mesh_policies,
         )
 
         self._telemetry_correlation = TelemetryCorrelation(self, self.coordinator)
@@ -235,6 +248,50 @@ class TempoCoordinatorCharm(CharmBase):
     ######################
     # UTILITY PROPERTIES #
     ######################
+    @property
+    def _worker_telemetry_proxy_config(self) -> WorkerTelemetryProxyConfig:
+        """Get the http and https ports for proxying worker telemetry."""
+        return WorkerTelemetryProxyConfig(
+            http_port=PROXY_WORKER_TELEMETRY_PORT,
+            https_port=PROXY_WORKER_TELEMETRY_PORT,
+        )
+
+    @property
+    def _charm_mesh_policies(self) -> List[Union[AppPolicy, UnitPolicy]]:
+        """Return the mesh policies specific to Tempo."""
+        return [
+            # Allow access to tempo api ports over the coordinator's service url for charms related over the tempo-api relation.
+            # No path or method restriction is applied.
+            AppPolicy(
+                relation="tempo-api",
+                endpoints=[
+                    Endpoint(
+                        ports=[
+                            Tempo.server_ports["tempo_http"],
+                            Tempo.server_ports["tempo_grpc"],
+                        ],
+                    )
+                ],
+            ),
+            # Allow access to the requested receiver ports for the charms related over the tracing relation.
+            # No path restriction is applied.
+            AppPolicy(
+                relation="tracing",
+                endpoints=[
+                    Endpoint(
+                        # allow access only to requested receiver's ports'
+                        ports=[
+                            Tempo.receiver_ports[enabled_receiver]
+                            for enabled_receiver in self._requested_receivers
+                        ],
+                        methods=[
+                            Method.post
+                        ],  # tracing ingestion is always a POST call
+                    )
+                ],
+            ),
+        ]
+
     @property
     def peers(self):
         """Fetch the "peers" peer relation."""
@@ -388,7 +445,6 @@ class TempoCoordinatorCharm(CharmBase):
     ###################
     # UTILITY METHODS #
     ###################
-
     def update_peer_data(self) -> None:
         """Update peer unit data bucket with this unit's hostname."""
         if self.peers and self.peers.data:
@@ -709,7 +765,8 @@ class TempoCoordinatorCharm(CharmBase):
         # if it gets changed by any other influencing relation.
         self._update_grafana_source()
         # open the necessary ports on this unit
-        self.unit.set_ports(*self._nginx_ports)
+        # open the port through which worker telemetry is proxied
+        self.unit.set_ports(*self._nginx_ports, PROXY_WORKER_TELEMETRY_PORT)
         self._update_tempo_api_relations()
 
     def _get_grafana_source_uids(self) -> Dict[str, Dict[str, str]]:

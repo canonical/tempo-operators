@@ -94,6 +94,9 @@ def patch_all():
                 get_status=lambda _: ActiveStatus(""),
             )
         )
+        stack.enter_context(
+            patch("coordinated_workers.coordinator.Coordinator._reconcile_charm_labels")
+        )
         yield
 
         # cleanup: some tests create a spurious src folder for alert rules in ./
