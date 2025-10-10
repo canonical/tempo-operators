@@ -4,10 +4,6 @@ on:
     workflow_dispatch:
     schedule:
     - cron: "0 0 * * 1"  # Runs at midnight UTC every Monday
-    # DO NOT MERGE: here only to test the workflow
-    pull_request:
-        branches:
-        - main
 jobs:
     tiobe-scan-coordinator:
         name: TiCs-coordinator
