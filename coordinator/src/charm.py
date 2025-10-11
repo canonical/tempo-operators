@@ -44,12 +44,12 @@ from coordinated_workers.nginx import (
     KEY_PATH,
     NginxConfig,
 )
+from coordinated_workers.telemetry_correlation import TelemetryCorrelation
 from cosl.interfaces.datasource_exchange import DatasourceDict
 from cosl.interfaces.utils import DatabagModel
 from ops import CollectStatusEvent
 from ops.charm import CharmBase
 
-from telemetry_correlation import TelemetryCorrelation
 from tempo import Tempo
 from tempo_config import TEMPO_ROLES_CONFIG, TempoRole
 from nginx_config import upstreams, server_ports_to_locations
@@ -182,7 +182,11 @@ class TempoCoordinatorCharm(CharmBase):
             catalogue_item=self._catalogue_item,
         )
 
-        self._telemetry_correlation = TelemetryCorrelation(self, self.coordinator)
+        self._telemetry_correlation = TelemetryCorrelation(
+            self,
+            grafana_ds_endpoint="grafana-source",
+            grafana_dsx_endpoint="receive-datasource",
+        )
 
         # configure this tempo as a datasource in grafana
         self.grafana_source_provider = GrafanaSourceProvider(
@@ -745,8 +749,11 @@ class TempoCoordinatorCharm(CharmBase):
         If there are multiple datasources that fit this description, we can assume that they are all
         equivalent and we can use any of them.
         """
-        if datasource := self._telemetry_correlation.find_datasource(
-            "send-remote-write", PROMETHEUS_DS_TYPE
+        if datasource := self._telemetry_correlation.find_correlated_datasource(
+            datasource_type=PROMETHEUS_DS_TYPE,
+            correlation_feature="service graph",
+            # we need the specific mimir/prometheus that we're sending span metrics to
+            endpoint="send-remote-write",
         ):
             return {
                 "serviceMap": {
@@ -756,8 +763,9 @@ class TempoCoordinatorCharm(CharmBase):
         return {}
 
     def _build_traces_to_logs_config(self) -> Dict[str, Any]:
-        if datasource := self._telemetry_correlation.find_datasource(
-            "logging", LOKI_DS_TYPE
+        if datasource := self._telemetry_correlation.find_correlated_datasource(
+            datasource_type=LOKI_DS_TYPE,
+            correlation_feature="traces-to-logs",
         ):
             return {
                 "tracesToLogsV2": {
