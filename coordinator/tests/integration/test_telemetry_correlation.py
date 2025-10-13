@@ -131,7 +131,7 @@ def test_setup(juju: Juju):
         all_active,
         timeout=2000,
         delay=10,
-        successes=6,
+        successes=9,
     )
 
 
