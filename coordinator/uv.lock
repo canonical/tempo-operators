@@ -133,7 +133,7 @@ wheels = [
 
 [[package]]
 name = "coordinated-workers"
-version = "2.0.24"
+version = "2.0.25"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cosl" },
@@ -143,9 +143,9 @@ dependencies = [
     { name = "ops", extra = ["tracing"] },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/17/3d/e9b2168532fdfcb640f36503e84272eb23fe479abc9fe1affe68ed7d63c5/coordinated_workers-2.0.24.tar.gz", hash = "sha256:767ff8b34044a4ed0c57ce9545f9876eb1c4483d7ab7d92041d62dd7d698991f", size = 135334, upload_time = "2025-10-13T08:39:32.434Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a9/d3/9366695c97aa89a4732c5d78d772eff5054343c31493dcc05d1295ede8bc/coordinated_workers-2.0.25.tar.gz", hash = "sha256:0b1eea3217c1cd92301f700769415de45e86100e96c2de3dbe26fbfbc4bd05ff", size = 135399, upload_time = "2025-10-13T12:25:54.873Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/db/52/f691fa70ee013759af9dc738f98aa28066ca65a75ebb59fd6ea99f0d8aa2/coordinated_workers-2.0.24-py3-none-any.whl", hash = "sha256:a83f21fb38ac510a35827135debf3a6eb4c2a41bac31b21c2e1683a06327004f", size = 50326, upload_time = "2025-10-13T08:39:31.219Z" },
+    { url = "https://files.pythonhosted.org/packages/e2/b4/660714c0cb96b0a9958eed93a4c02175864a9d63da644fcca73fca9cf69f/coordinated_workers-2.0.25-py3-none-any.whl", hash = "sha256:42be0f8d2edf2863a78b476143f8cf4330bf23b1ce6084d0af568884a6c26c07", size = 50381, upload_time = "2025-10-13T12:25:53.059Z" },
 ]
 
 [[package]]

@@ -183,9 +183,9 @@ class TempoCoordinatorCharm(CharmBase):
         )
 
         self._telemetry_correlation = TelemetryCorrelation(
-            self,
-            grafana_ds_endpoint="grafana-source",
-            grafana_dsx_endpoint="receive-datasource",
+            app_name=self.app.name,
+            grafana_source_relations=self.model.relations["grafana-source"],
+            datasource_exchange_relations=self.model.relations["receive-datasource"],
         )
 
         # configure this tempo as a datasource in grafana
@@ -730,7 +730,7 @@ class TempoCoordinatorCharm(CharmBase):
             datasource_type=PROMETHEUS_DS_TYPE,
             correlation_feature="service graph",
             # we need the specific mimir/prometheus that we're sending span metrics to
-            endpoint="send-remote-write",
+            endpoint_relations=self.model.relations["send-remote-write"],
         ):
             return {
                 "serviceMap": {
