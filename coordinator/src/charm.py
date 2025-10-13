@@ -716,29 +716,6 @@ class TempoCoordinatorCharm(CharmBase):
         self.unit.set_ports(*self._nginx_ports)
         self._update_tempo_api_relations()
 
-    def _get_grafana_source_uids(self) -> Dict[str, Dict[str, str]]:
-        """Helper method to retrieve the databags of any grafana-source relations.
-
-        Duplicate implementation of GrafanaSourceProvider.get_source_uids() to use in the
-        situation where we want to access relation data when the GrafanaSourceProvider object
-        is not yet initialised.
-        """
-        uids = {}
-        for rel in self.model.relations.get("grafana-source", []):
-            if not rel:
-                continue
-            app_databag = rel.data[rel.app]
-            grafana_uid = app_databag.get("grafana_uid")
-            if not grafana_uid:
-                logger.warning(
-                    "remote end is using an old grafana_datasource interface: "
-                    "`grafana_uid` field not found."
-                )
-                continue
-
-            uids[grafana_uid] = json.loads(app_databag.get("datasource_uids", "{}"))
-        return uids
-
     def _build_service_graph_config(self) -> Dict[str, Any]:
         """Build the service graph config based on matching datasource UIDs.
 
