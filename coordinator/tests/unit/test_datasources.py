@@ -457,7 +457,6 @@ def test_traces_to_metrics_config_loki_datasource(
     nginx_prometheus_exporter_container,
 ):
     # GIVEN a datasource exchange relations with a prometheus type
-    # AND a metrics-endpoint relation with that same prometheus
     relations = [
         PeerRelation("peers", peers_data={1: {}, 2: {}}),
         s3,
@@ -467,10 +466,6 @@ def test_traces_to_metrics_config_loki_datasource(
             datasources=[
                 {"type": "prometheus", "uid": "prom_1", "grafana_uid": "graf_1"}
             ]
-        ),
-        Relation(
-            "metrics-endpoint",
-            remote_app_name="remote",
         ),
     ]
     state_in = State(
