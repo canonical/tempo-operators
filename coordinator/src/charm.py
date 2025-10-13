@@ -57,8 +57,12 @@ from cosl.reconciler import all_events, observe_events
 
 logger = logging.getLogger(__name__)
 PEERS_RELATION_ENDPOINT_NAME = "peers"
-PROMETHEUS_DS_TYPE = "prometheus"
-LOKI_DS_TYPE = "loki"
+# TODO: move these constants into the telemetry correlation lib https://github.com/canonical/cos-coordinated-workers/issues/101
+_PROMETHEUS_DS_TYPE = "prometheus"
+_LOKI_DS_TYPE = "loki"
+_TRACES_TO_METRICS_CORRELATION_FEATURE = "traces-to-metrics"
+_TRACES_TO_LOGS_CORRELATION_FEATURE = "traces-to-logs"
+_SERVICE_GRAPH_CORRELATION_FEATURE = "service graph"
 
 
 class TempoCoordinator(Coordinator):
@@ -727,8 +731,8 @@ class TempoCoordinatorCharm(CharmBase):
         equivalent and we can use any of them.
         """
         if datasource := self._telemetry_correlation.find_correlated_datasource(
-            datasource_type=PROMETHEUS_DS_TYPE,
-            correlation_feature="service graph",
+            datasource_type=_PROMETHEUS_DS_TYPE,
+            correlation_feature=_SERVICE_GRAPH_CORRELATION_FEATURE,
             # we need the specific mimir/prometheus that we're sending span metrics to
             endpoint_relations=self.model.relations["send-remote-write"],
         ):
@@ -741,8 +745,8 @@ class TempoCoordinatorCharm(CharmBase):
 
     def _build_traces_to_logs_config(self) -> Dict[str, Any]:
         if datasource := self._telemetry_correlation.find_correlated_datasource(
-            datasource_type=LOKI_DS_TYPE,
-            correlation_feature="traces-to-logs",
+            datasource_type=_LOKI_DS_TYPE,
+            correlation_feature=_TRACES_TO_LOGS_CORRELATION_FEATURE,
         ):
             return {
                 "tracesToLogsV2": {
@@ -756,6 +760,28 @@ class TempoCoordinatorCharm(CharmBase):
                     "filterBySpanID": False,
                     "customQuery": True,
                     "query": '{ $$__tags } |= "$${__span.traceId}"',
+                }
+            }
+
+        return {}
+
+    def _build_traces_to_metrics_config(self) -> Dict[str, Any]:
+        if datasource := self._telemetry_correlation.find_correlated_datasource(
+            datasource_type=_PROMETHEUS_DS_TYPE,
+            correlation_feature=_TRACES_TO_METRICS_CORRELATION_FEATURE,
+        ):
+            return {
+                "tracesToMetrics": {
+                    "datasourceUid": datasource.uid,
+                    "tags": [
+                        {"key": "juju_application", "value": ""},
+                        {"key": "juju_model", "value": ""},
+                        {"key": "juju_model_uuid", "value": ""},
+                        {"key": "juju_unit", "value": ""},
+                        # TODO: https://github.com/canonical/cos-lib/issues/159
+                        # excluding juju_charm because metrics are inconsistently labeled — some use juju_charm, others use juju_charm_name
+                    ],
+                    "queries": [{"name": "All metrics", "query": "{$$__tags}"}],
                 }
             }
 
@@ -775,18 +801,25 @@ class TempoCoordinatorCharm(CharmBase):
         # "lokiSearch": {
         #     "datasourceUid": "juju_svcgraph_61e32e2f-50ac-40e7-8ee8-1b7297a3e47f_loki_0"
         # },
+        # # https://grafana.com/blog/2022/08/18/new-in-grafana-9.1-trace-to-metrics-allows-users-to-navigate-from-a-trace-span-to-a-selected-data-source/
+        #  "tracesToMetrics": {
+        #      "datasourceUid": "juju_svcgraph_61e32e2f-50ac-40e7-8ee8-1b7297a3e47f_prometheus_0",
+        # },
 
         svc_graph_config = self._build_service_graph_config()
 
         traces_to_logs_config = self._build_traces_to_logs_config()
 
-        if not svc_graph_config and not traces_to_logs_config:
+        traces_to_metrics_config = self._build_traces_to_metrics_config()
+
+        if not any((svc_graph_config, traces_to_logs_config, traces_to_metrics_config)):
             return None
 
         return {
             "httpMethod": "GET",
             **svc_graph_config,
             **traces_to_logs_config,
+            **traces_to_metrics_config,
         }
 
     @property
