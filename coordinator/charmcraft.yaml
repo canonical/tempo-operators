@@ -156,11 +156,6 @@ requires:
       Allow a cross-model application access to alertmanager via the service mesh.
       This relation provides additional data required by the service mesh to enforce cross-model authorization policies.
 
-storage:
-  data:
-    type: filesystem
-    location: /tempo-data
-
 actions:
   list-receivers:
     description: |

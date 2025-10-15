@@ -53,9 +53,7 @@ def test_scaled_status_with_s3_and_workers(
     assert state_out.unit_status.name == "active"
 
 
-@patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
 def test_happy_status(
-    workload_ready_mock,
     context,
     s3,
     all_worker,
@@ -82,9 +80,7 @@ def test_happy_status(
     "coordinated_workers.coordinator.KubernetesComputeResourcesPatch.get_status",
     MagicMock(return_value=ops.BlockedStatus("`juju trust` this application")),
 )
-@patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
 def test_k8s_patch_failed(
-    workload_ready_mock,
     context,
     s3,
     all_worker,
@@ -111,9 +107,7 @@ def test_k8s_patch_failed(
     "coordinated_workers.coordinator.KubernetesComputeResourcesPatch.get_status",
     MagicMock(return_value=ops.WaitingStatus("waiting")),
 )
-@patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
 def test_k8s_patch_waiting(
-    workload_ready_mock,
     context,
     s3,
     all_worker,
@@ -136,9 +130,7 @@ def test_k8s_patch_waiting(
     assert state_out.unit_status == ops.WaitingStatus("waiting")
 
 
-@patch("charm.TempoCoordinatorCharm.is_workload_ready", return_value=True)
 def test_metrics_generator(
-    workload_ready_mock,
     context,
     s3,
     nginx_container,

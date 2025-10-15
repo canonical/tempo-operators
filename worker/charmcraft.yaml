@@ -29,9 +29,9 @@ requires:
     limit: 1
 
 storage:
-  data:
+  wal:
     type: filesystem
-    description: Common storage point for all components
+    description: Storage for Tempo's WAL files
 
 
 # workloads
@@ -40,8 +40,8 @@ containers:
   tempo:
     resource: tempo-image
     mounts:
-      - storage: data
-        location: /data
+      - storage: wal
+        location: /etc/tempo
 
 resources:
   tempo-image:
