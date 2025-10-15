@@ -254,7 +254,12 @@ def deploy_distributed_cluster(
 
 
 def get_traces(
-    tempo_host: str, service_name="tracegen", tls=True, nonce: Optional[str] = None, source_pod: Optional[str] = None, juju: Optional[Juju] = None
+    tempo_host: str,
+    service_name="tracegen",
+    tls=True,
+    nonce: Optional[str] = None,
+    source_pod: Optional[str] = None,
+    juju: Optional[Juju] = None,
 ):
     # query params are logfmt-encoded. Space-separated.
     nonce_param = f"%20tracegen.nonce={nonce}" if nonce else ""
@@ -283,10 +288,22 @@ def get_traces(
 # retry up to 20 times, waiting 20 seconds between attempts
 @retry(stop=stop_after_attempt(20), wait=wait_fixed(20))
 def get_traces_patiently(
-    tempo_host, service_name="tracegen", tls=True, nonce: Optional[str] = None, source_pod: Optional[str] = None, juju: Optional[Juju] = None
+    tempo_host,
+    service_name="tracegen",
+    tls=True,
+    nonce: Optional[str] = None,
+    source_pod: Optional[str] = None,
+    juju: Optional[Juju] = None,
 ):
     logger.info(f"polling {tempo_host} for service {service_name!r} traces...")
-    traces = get_traces(tempo_host, service_name=service_name, tls=tls, nonce=nonce, source_pod=source_pod, juju=juju)
+    traces = get_traces(
+        tempo_host,
+        service_name=service_name,
+        tls=tls,
+        nonce=nonce,
+        source_pod=source_pod,
+        juju=juju,
+    )
     assert len(traces) > 0, "no traces found"
     return traces
 

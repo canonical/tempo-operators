@@ -150,8 +150,8 @@ wheels = [
 
 [[package]]
 name = "coordinated-workers"
-version = "2.0.23"
-source = { git = "https://github.com/canonical/cos-coordinated-workers.git?rev=feature%2Fmesh#313c4587d4f95805d2191756dae063b87095af7f" }
+version = "2.0.25"
+source = { git = "https://github.com/canonical/cos-coordinated-workers.git?rev=feature%2Fmesh#2c4087e5fb57ca8b44366a67b40ca1a997dc98fd" }
 dependencies = [
     { name = "charmed-service-mesh-helpers" },
     { name = "cosl" },

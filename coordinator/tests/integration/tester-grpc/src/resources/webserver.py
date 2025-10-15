@@ -145,7 +145,9 @@ def init_overlord():
     )
 
     provider = TracerProvider(resource=resource)
-    processor = BatchSpanProcessor(OTLPSpanExporter(endpoint=TEMPO_ENDPOINT, insecure=True))
+    processor = BatchSpanProcessor(
+        OTLPSpanExporter(endpoint=TEMPO_ENDPOINT, insecure=True)
+    )
     provider.add_span_processor(processor)
     trace.set_tracer_provider(provider)
     tracer = trace.get_tracer(__name__)

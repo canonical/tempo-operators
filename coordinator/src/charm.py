@@ -64,8 +64,6 @@ from cosl.reconciler import all_events, observe_events
 
 logger = logging.getLogger(__name__)
 PEERS_RELATION_ENDPOINT_NAME = "peers"
-PROMETHEUS_DS_TYPE = "prometheus"
-LOKI_DS_TYPE = "loki"
 PROXY_WORKER_TELEMETRY_PORT = 3300
 # TODO: move these constants into the telemetry correlation lib https://github.com/canonical/cos-coordinated-workers/issues/101
 _PROMETHEUS_DS_TYPE = "prometheus"

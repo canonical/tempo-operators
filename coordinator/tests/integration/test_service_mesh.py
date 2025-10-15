@@ -8,7 +8,15 @@ import yaml
 from jubilant import Juju
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from helpers import WORKER_APP, deploy_monolithic_cluster, TEMPO_APP, deploy_istio, deploy_istio_beacon, ISTIO_APP, ISTIO_BEACON_APP
+from helpers import (
+    WORKER_APP,
+    deploy_monolithic_cluster,
+    TEMPO_APP,
+    deploy_istio,
+    deploy_istio_beacon,
+    ISTIO_APP,
+    ISTIO_BEACON_APP,
+)
 from tests.integration.helpers import get_traces_patiently
 
 TESTER_METADATA = yaml.safe_load(
@@ -129,12 +137,16 @@ spec:
         - "3000"  # Tester service port
 """
 
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         f.write(policy_content)
         f.flush()
         try:
-            result = subprocess.run(['kubectl', 'apply', '-f', f.name],
-                                  capture_output=True, text=True, check=True)
+            result = subprocess.run(
+                ["kubectl", "apply", "-f", f.name],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
             print(f"Policy applied successfully: {result.stdout}")
         except subprocess.CalledProcessError as e:
             print(f"Failed to apply policy. Error: {e.stderr}")
@@ -151,14 +163,22 @@ spec:
     )
 
     # Re-add the relation with retry
-    @retry(stop=stop_after_attempt(10), wait=wait_exponential(multiplier=1, min=2, max=30))
+    @retry(
+        stop=stop_after_attempt(10), wait=wait_exponential(multiplier=1, min=2, max=30)
+    )
     def add_relation_with_retry():
         juju.integrate(TEMPO_APP + ":tracing", TESTER_GRPC_APP_NAME + ":tracing")
 
     add_relation_with_retry()
     juju.wait(
         lambda status: jubilant.all_active(
-            status, TEMPO_APP, WORKER_APP, TESTER_APP_NAME, TESTER_GRPC_APP_NAME, ISTIO_APP, ISTIO_BEACON_APP
+            status,
+            TEMPO_APP,
+            WORKER_APP,
+            TESTER_APP_NAME,
+            TESTER_GRPC_APP_NAME,
+            ISTIO_APP,
+            ISTIO_BEACON_APP,
         ),
         timeout=1000,
     )
@@ -171,7 +191,7 @@ def test_verify_traces_http_from_pod(juju: Juju):
         service_name="TempoTesterCharm",
         tls=False,
         source_pod=f"{WORKER_APP}/0",
-        juju=juju
+        juju=juju,
     )
     assert traces, (
         f"There's no trace of charm exec traces in tempo. {json.dumps(traces, indent=2)}"
@@ -185,7 +205,7 @@ def test_verify_traces_grpc_from_pod(juju: Juju):
         service_name="tester_grpc",  # Fixed service name
         tls=False,
         source_pod=f"{WORKER_APP}/0",
-        juju=juju
+        juju=juju,
     )
     assert traces, (
         f"There's no trace of generated grpc traces in tempo. {json.dumps(traces, indent=2)}"
@@ -196,7 +216,7 @@ def test_verify_api_readiness_from_tester(juju: Juju):
     # Test that tempo API readiness endpoint is accessible from tester pod
     result = juju.exec(
         f"curl -f http://tempo.{juju.model}.svc.cluster.local:3200/ready",
-        unit=f"{TESTER_APP_NAME}/0"
+        unit=f"{TESTER_APP_NAME}/0",
     )
     assert "200" in result.stdout or "ready" in result.stdout.lower()
 
@@ -205,7 +225,7 @@ def test_verify_tempo_api_access_from_tester(juju: Juju):
     # Test that tester charm can access tempo API through mesh
     result = juju.exec(
         f"curl -f http://tempo.{juju.model}.svc.cluster.local:3200/api/search/tag/service.name/values",
-        unit=f"{TESTER_APP_NAME}/0"
+        unit=f"{TESTER_APP_NAME}/0",
     )
     assert "200" in result.stdout or "TempoTesterCharm" in result.stdout
 
