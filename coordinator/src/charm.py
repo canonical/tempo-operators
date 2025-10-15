@@ -284,9 +284,6 @@ class TempoCoordinatorCharm(CharmBase):
                             Tempo.receiver_ports[enabled_receiver]
                             for enabled_receiver in self._requested_receivers
                         ],
-                        methods=[
-                            Method.post
-                        ],  # tracing ingestion is always a POST call
                     )
                 ],
             ),

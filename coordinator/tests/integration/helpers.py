@@ -34,6 +34,8 @@ WORKER_APP = "tempo-worker"
 TEMPO_APP = "tempo"
 SSC_APP = "ssc"
 TRAEFIK_APP = "trfk"
+ISTIO_APP = "istio-k8s"
+ISTIO_BEACON_APP = "istio-beacon-k8s"
 
 ALL_ROLES = [role.value for role in TempoRole.all_nonmeta()]
 ALL_WORKERS = [f"{WORKER_APP}-" + role for role in ALL_ROLES]
@@ -256,6 +258,26 @@ def deploy_prometheus(juju: Juju):
     )
 
 
+def deploy_istio(juju: Juju):
+    """Deploy Istio service mesh."""
+    juju.deploy(
+        "istio-k8s",
+        app=ISTIO_APP,
+        channel=INTEGRATION_TESTERS_CHANNEL,
+        trust=True,
+    )
+
+
+def deploy_istio_beacon(juju: Juju):
+    """Deploy Istio beacon for ambient mode support."""
+    juju.deploy(
+        "istio-beacon-k8s",
+        app=ISTIO_BEACON_APP,
+        channel=INTEGRATION_TESTERS_CHANNEL,
+        trust=True,
+    )
+
+
 def deploy_distributed_cluster(
     juju: Juju,
     roles: Sequence[str],
@@ -292,28 +314,39 @@ def deploy_distributed_cluster(
 
 
 def get_traces(
-    tempo_host: str, service_name="tracegen", tls=True, nonce: Optional[str] = None
+    tempo_host: str, service_name="tracegen", tls=True, nonce: Optional[str] = None, source_pod: Optional[str] = None, juju: Optional[Juju] = None
 ):
     # query params are logfmt-encoded. Space-separated.
     nonce_param = f"%20tracegen.nonce={nonce}" if nonce else ""
     url = f"{'https' if tls else 'http'}://{tempo_host}:3200/api/search?tags=service.name={service_name}{nonce_param}"
-    req = requests.get(
-        url,
-        verify=False,
-        timeout=5,
-    )
-    assert req.status_code == 200, req.reason
-    traces = json.loads(req.text)["traces"]
-    return traces
+
+    if source_pod is not None and juju is not None:
+        # Run curl from specified pod using juju exec
+        logger.info(f"Running curl from pod {source_pod} to {url}")
+        result = juju.exec(f"curl -s {url}", unit=source_pod)
+        response_text = result.stdout
+        logger.info(f"Pod response: {response_text}")
+        traces = json.loads(response_text)["traces"]
+        return traces
+    else:
+        # Run from host (backward compatibility)
+        req = requests.get(
+            url,
+            verify=False,
+            timeout=5,
+        )
+        assert req.status_code == 200, req.reason
+        traces = json.loads(req.text)["traces"]
+        return traces
 
 
 # retry up to 20 times, waiting 20 seconds between attempts
 @retry(stop=stop_after_attempt(20), wait=wait_fixed(20))
 def get_traces_patiently(
-    tempo_host, service_name="tracegen", tls=True, nonce: Optional[str] = None
+    tempo_host, service_name="tracegen", tls=True, nonce: Optional[str] = None, source_pod: Optional[str] = None, juju: Optional[Juju] = None
 ):
     logger.info(f"polling {tempo_host} for service {service_name!r} traces...")
-    traces = get_traces(tempo_host, service_name=service_name, tls=tls, nonce=nonce)
+    traces = get_traces(tempo_host, service_name=service_name, tls=tls, nonce=nonce, source_pod=source_pod, juju=juju)
     assert len(traces) > 0, "no traces found"
     return traces
 

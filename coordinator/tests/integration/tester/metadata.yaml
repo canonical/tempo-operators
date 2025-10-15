@@ -21,6 +21,9 @@ requires:
   tracing:
     interface: tracing
     limit: 1
+  tempo-api:
+    interface: tempo_api
+    limit: 1
 
 peers:
   replicas:
