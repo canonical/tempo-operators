@@ -42,7 +42,6 @@ containers:
     mounts:
       - storage: wal
         location: /etc/tempo
-        minimum-size: 1G
 
 resources:
   tempo-image:
