@@ -44,12 +44,12 @@ from coordinated_workers.nginx import (
     KEY_PATH,
     NginxConfig,
 )
+from coordinated_workers.telemetry_correlation import TelemetryCorrelation
 from cosl.interfaces.datasource_exchange import DatasourceDict
 from cosl.interfaces.utils import DatabagModel
 from ops import CollectStatusEvent
 from ops.charm import CharmBase
 
-from telemetry_correlation import TelemetryCorrelation
 from tempo import Tempo
 from tempo_config import TEMPO_ROLES_CONFIG, TempoRole
 from nginx_config import upstreams, server_ports_to_locations
@@ -57,8 +57,12 @@ from cosl.reconciler import all_events, observe_events
 
 logger = logging.getLogger(__name__)
 PEERS_RELATION_ENDPOINT_NAME = "peers"
-PROMETHEUS_DS_TYPE = "prometheus"
-LOKI_DS_TYPE = "loki"
+# TODO: move these constants into the telemetry correlation lib https://github.com/canonical/cos-coordinated-workers/issues/101
+_PROMETHEUS_DS_TYPE = "prometheus"
+_LOKI_DS_TYPE = "loki"
+_TRACES_TO_METRICS_CORRELATION_FEATURE = "traces-to-metrics"
+_TRACES_TO_LOGS_CORRELATION_FEATURE = "traces-to-logs"
+_SERVICE_GRAPH_CORRELATION_FEATURE = "service graph"
 
 
 class TempoCoordinator(Coordinator):
@@ -182,7 +186,11 @@ class TempoCoordinatorCharm(CharmBase):
             catalogue_item=self._catalogue_item,
         )
 
-        self._telemetry_correlation = TelemetryCorrelation(self, self.coordinator)
+        self._telemetry_correlation = TelemetryCorrelation(
+            app_name=self.app.name,
+            grafana_source_relations=self.model.relations["grafana-source"],
+            datasource_exchange_relations=self.model.relations["receive-datasource"],
+        )
 
         # configure this tempo as a datasource in grafana
         self.grafana_source_provider = GrafanaSourceProvider(
@@ -712,29 +720,6 @@ class TempoCoordinatorCharm(CharmBase):
         self.unit.set_ports(*self._nginx_ports)
         self._update_tempo_api_relations()
 
-    def _get_grafana_source_uids(self) -> Dict[str, Dict[str, str]]:
-        """Helper method to retrieve the databags of any grafana-source relations.
-
-        Duplicate implementation of GrafanaSourceProvider.get_source_uids() to use in the
-        situation where we want to access relation data when the GrafanaSourceProvider object
-        is not yet initialised.
-        """
-        uids = {}
-        for rel in self.model.relations.get("grafana-source", []):
-            if not rel:
-                continue
-            app_databag = rel.data[rel.app]
-            grafana_uid = app_databag.get("grafana_uid")
-            if not grafana_uid:
-                logger.warning(
-                    "remote end is using an old grafana_datasource interface: "
-                    "`grafana_uid` field not found."
-                )
-                continue
-
-            uids[grafana_uid] = json.loads(app_databag.get("datasource_uids", "{}"))
-        return uids
-
     def _build_service_graph_config(self) -> Dict[str, Any]:
         """Build the service graph config based on matching datasource UIDs.
 
@@ -745,8 +730,11 @@ class TempoCoordinatorCharm(CharmBase):
         If there are multiple datasources that fit this description, we can assume that they are all
         equivalent and we can use any of them.
         """
-        if datasource := self._telemetry_correlation.find_datasource(
-            "send-remote-write", PROMETHEUS_DS_TYPE
+        if datasource := self._telemetry_correlation.find_correlated_datasource(
+            datasource_type=_PROMETHEUS_DS_TYPE,
+            correlation_feature=_SERVICE_GRAPH_CORRELATION_FEATURE,
+            # we need the specific mimir/prometheus that we're sending span metrics to
+            endpoint_relations=self.model.relations["send-remote-write"],
         ):
             return {
                 "serviceMap": {
@@ -756,8 +744,9 @@ class TempoCoordinatorCharm(CharmBase):
         return {}
 
     def _build_traces_to_logs_config(self) -> Dict[str, Any]:
-        if datasource := self._telemetry_correlation.find_datasource(
-            "logging", LOKI_DS_TYPE
+        if datasource := self._telemetry_correlation.find_correlated_datasource(
+            datasource_type=_LOKI_DS_TYPE,
+            correlation_feature=_TRACES_TO_LOGS_CORRELATION_FEATURE,
         ):
             return {
                 "tracesToLogsV2": {
@@ -771,6 +760,28 @@ class TempoCoordinatorCharm(CharmBase):
                     "filterBySpanID": False,
                     "customQuery": True,
                     "query": '{ $$__tags } |= "$${__span.traceId}"',
+                }
+            }
+
+        return {}
+
+    def _build_traces_to_metrics_config(self) -> Dict[str, Any]:
+        if datasource := self._telemetry_correlation.find_correlated_datasource(
+            datasource_type=_PROMETHEUS_DS_TYPE,
+            correlation_feature=_TRACES_TO_METRICS_CORRELATION_FEATURE,
+        ):
+            return {
+                "tracesToMetrics": {
+                    "datasourceUid": datasource.uid,
+                    "tags": [
+                        {"key": "juju_application", "value": ""},
+                        {"key": "juju_model", "value": ""},
+                        {"key": "juju_model_uuid", "value": ""},
+                        {"key": "juju_unit", "value": ""},
+                        # TODO: https://github.com/canonical/cos-lib/issues/159
+                        # excluding juju_charm because metrics are inconsistently labeled — some use juju_charm, others use juju_charm_name
+                    ],
+                    "queries": [{"name": "All metrics", "query": "{$$__tags}"}],
                 }
             }
 
@@ -790,18 +801,25 @@ class TempoCoordinatorCharm(CharmBase):
         # "lokiSearch": {
         #     "datasourceUid": "juju_svcgraph_61e32e2f-50ac-40e7-8ee8-1b7297a3e47f_loki_0"
         # },
+        # # https://grafana.com/blog/2022/08/18/new-in-grafana-9.1-trace-to-metrics-allows-users-to-navigate-from-a-trace-span-to-a-selected-data-source/
+        #  "tracesToMetrics": {
+        #      "datasourceUid": "juju_svcgraph_61e32e2f-50ac-40e7-8ee8-1b7297a3e47f_prometheus_0",
+        # },
 
         svc_graph_config = self._build_service_graph_config()
 
         traces_to_logs_config = self._build_traces_to_logs_config()
 
-        if not svc_graph_config and not traces_to_logs_config:
+        traces_to_metrics_config = self._build_traces_to_metrics_config()
+
+        if not any((svc_graph_config, traces_to_logs_config, traces_to_metrics_config)):
             return None
 
         return {
             "httpMethod": "GET",
             **svc_graph_config,
             **traces_to_logs_config,
+            **traces_to_metrics_config,
         }
 
     @property
