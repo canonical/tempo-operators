@@ -9,7 +9,7 @@ dependencies = [
     # TODO: UPDATE coordinated-workers depedency to pypi package bvefore merging
     "coordinated-workers @ git+https://github.com/canonical/cos-coordinated-workers.git@feature/mesh",
     "charmed-service-mesh-helpers>=0.2.0",
-    "lightkube-extensions@git+https://github.com/canonical/lightkube-extensions.git",
+    "lightkube-extensions@git+https://github.com/canonical/lightkube-extensions.git@0.1.0",
 ]
 
 [project.optional-dependencies]

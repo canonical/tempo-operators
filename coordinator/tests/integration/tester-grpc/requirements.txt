@@ -1,4 +1,4 @@
 ops >= 1.4.0
 charmed-service-mesh-helpers >= 0.2.0
-lightkube-extensions@git+https://github.com/canonical/lightkube-extensions.git
+lightkube-extensions@git+https://github.com/canonical/lightkube-extensions.git@0.1.0
 opentelemetry-exporter-otlp-proto-grpc>=1.21.0
