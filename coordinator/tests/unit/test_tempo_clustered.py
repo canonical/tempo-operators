@@ -35,6 +35,7 @@ def coordinator_with_initial_config():
         "query-frontend": {"localhost"},
         "distributor": {"localhost"},
     }
+    new_coordinator_mock.return_value.remote_write_endpoints = []
 
     return new_coordinator_mock
 
