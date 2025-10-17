@@ -10,7 +10,7 @@ import jubilant
 import requests
 import yaml
 from coordinated_workers.nginx import CA_CERT_PATH
-from jubilant import Juju
+from jubilant import Juju, all_active
 from minio import Minio
 from pytest_jubilant import pack
 from tenacity import retry, stop_after_attempt, wait_fixed
@@ -265,7 +265,7 @@ def get_traces(
     nonce_param = f"%20tracegen.nonce={nonce}" if nonce else ""
     url = f"{'https' if tls else 'http'}://{tempo_host}:3200/api/search?tags=service.name={service_name}{nonce_param}"
 
-    if source_pod is not None and juju is not None:
+    if source_pod and juju:
         # Run curl from specified pod using juju exec
         logger.info(f"Running curl from pod {source_pod} to {url}")
         result = juju.exec(f"curl -s {url}", unit=source_pod)
@@ -414,3 +414,37 @@ def get_ingress_proxied_hostname(juju: Juju):
             "proxied-endpoints"
         ]
     )[TRAEFIK_APP]["url"].split("://")[1]
+
+
+def service_mesh(
+    enable: bool,
+    juju: Juju,
+    beacon_app_name: str,
+    apps_to_be_related_with_beacon: List[str],
+):
+    """Enable or disable the service-mesh in the model.
+
+    This puts the entire model, that the beacon app is part of, on mesh.
+    This integrates the apps_to_be_related_with_beacon with the beacon app via the `service-mesh` relation.
+    """
+    juju.config(ISTIO_BEACON_APP, {"model-on-mesh": str(enable).lower()})
+    # lets wait for all active state before further actions.
+    # the wait is necessary to make sure all the charms have recovered from the network changes.
+    juju.wait(
+        all_active,
+        timeout=1000,
+    )
+    if enable:
+        for app in apps_to_be_related_with_beacon:
+            juju.integrate(beacon_app_name + ":service-mesh", app + ":service-mesh")
+    else:
+        for app in apps_to_be_related_with_beacon:
+            juju.remove_relation(
+                beacon_app_name + ":service-mesh", app + ":service-mesh", force=True
+            )
+    juju.wait(
+        all_active,
+        timeout=1000,
+        delay=5,
+        successes=5,
+    )

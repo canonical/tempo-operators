@@ -258,7 +258,7 @@ class TempoCoordinatorCharm(CharmBase):
     ######################
     @property
     def _worker_telemetry_proxy_config(self) -> WorkerTelemetryProxyConfig:
-        """Get the http and https ports for proxying worker telemetry."""
+        """Generate the WorkerTelemetryProxyConfig for the Coordinator."""
         return WorkerTelemetryProxyConfig(
             http_port=PROXY_WORKER_TELEMETRY_PORT,
             https_port=PROXY_WORKER_TELEMETRY_PORT,
@@ -266,7 +266,20 @@ class TempoCoordinatorCharm(CharmBase):
 
     @property
     def _charm_mesh_policies(self) -> List[Union[AppPolicy, UnitPolicy]]:
-        """Return the mesh policies specific to Tempo."""
+        """Return the mesh policies specific to Tempo.
+
+        This covers access to the charms relating to Tempo over:
+        - `tempo-api`
+        - `tracing`
+        - `grafana-source`
+
+        All other policies (those about endpoints that are defined in the Coordinator class) are managed by the Coordinator.
+        This includes:
+        - metrics
+
+        NOTE: If there is a suspicion of missing policices, kiali charm can be used to identify Tempo's network traffic.
+        Kiali tutorial: https://canonical-service-mesh-documentation.readthedocs-hosted.com/en/latest/tutorial/monitor-the-istio-mesh-using-kiali/
+        """
         return [
             # Allow access to tempo api ports over the coordinator's service url for charms related over the tempo-api relation.
             # No path or method restriction is applied.
@@ -291,6 +304,18 @@ class TempoCoordinatorCharm(CharmBase):
                         ports=[
                             Tempo.receiver_ports[enabled_receiver]
                             for enabled_receiver in self._requested_receivers
+                        ],
+                    )
+                ],
+            ),
+            # Allow access to tempo api http port over the coordinator's service url for charms related over the grafana-source relation.
+            # No path or method restriction is applied. When ingressed, this policy will be handles by the service mesh ingress.
+            AppPolicy(
+                relation="grafana-source",
+                endpoints=[
+                    Endpoint(
+                        ports=[
+                            Tempo.server_ports["tempo_http"],
                         ],
                     )
                 ],

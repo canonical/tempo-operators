@@ -3,15 +3,18 @@
 type: "charm"
 bases:
   - build-on:
-    - name: "ubuntu"
-      channel: "22.04"
+      - name: "ubuntu"
+        channel: "22.04"
     run-on:
-    - name: "ubuntu"
-      channel: "22.04"
+      - name: "ubuntu"
+        channel: "22.04"
 parts:
   charm:
+    build-packages:
+      - git
     charm-binary-python-packages:
       - "pydantic>=2"
       - "cryptography"
       - "jsonschema"
       - "opentelemetry-exporter-otlp-proto-http==1.21.0"
+

@@ -24,6 +24,27 @@ requires:
   tempo-api:
     interface: tempo_api
     limit: 1
+  grafana-source:
+    optional: true
+    interface: grafana_datasource
+  service-mesh:
+    limit: 1
+    interface: service_mesh
+    description: |
+      Subscribe this tester charm into a service mesh and create the necessary authorization policies.
+  require-cmr-mesh:
+    interface: cross_model_mesh
+    description: |
+      Allow a cross-model application access to the tester service via the service mesh.
+      This relation provides additional data required by the service mesh to enforce cross-model authorization policies.
+
+provides:
+  provide-cmr-mesh:
+    optional: true
+    interface: cross_model_mesh
+    description: |
+      Allow cross-model applications to make HTTP requests to the tester service via the service mesh.
+      This relation provides additional data required by the service mesh to create cross-model authorization policies.
 
 peers:
   replicas:

@@ -157,7 +157,7 @@ class Tempo:
     def _build_metrics_generator_config(
         self, use_tls=False, remote_write_endpoints=None
     ):
-        if not remote_write_endpoints or len(remote_write_endpoints) == 0:
+        if not remote_write_endpoints:
             return None
 
         # Assumptions:

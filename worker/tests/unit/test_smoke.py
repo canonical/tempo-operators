@@ -22,6 +22,7 @@ from tests.unit.helpers import set_role
 from coordinated_workers.worker import CONFIG_FILE
 from cosl.juju_topology import JujuTopology
 
+
 @pytest.fixture(autouse=True)
 def patch_urllib_request():
     with patch("urllib.request.urlopen", new=partial(_urlopen_patch, resp="ready")):
@@ -116,7 +117,9 @@ def test_pebble_ready_plan(ctx, workload_tracing_receivers, expected_env, role):
     }
 
     if expected_env:
-        expected_plan["services"]["tempo"].setdefault("environment", {}).update(expected_env)
+        expected_plan["services"]["tempo"].setdefault("environment", {}).update(
+            expected_env
+        )
 
     state_out = ctx.run(
         ctx.on.pebble_ready(tempo_container),
