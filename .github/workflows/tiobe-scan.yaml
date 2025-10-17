@@ -7,14 +7,14 @@ on:
 jobs:
     tiobe-scan-coordinator:
         name: TiCs-coordinator
-        uses: canonical/observability/.github/workflows/charm-tiobe-scan.yaml@v1
+        uses: canonical/observability/.github/workflows/charm-tiobe-scan.yaml@dd6c66dc595da864fcc880464f9d7526aa2d6b2b # v1
         with:
             charm-path: ./coordinator
             tiobe-project-name: tempo-coordinator-k8s-operator
         secrets: inherit
     tiobe-scan-worker:
         name: TiCs-worker
-        uses: canonical/observability/.github/workflows/charm-tiobe-scan.yaml@v1
+        uses: canonical/observability/.github/workflows/charm-tiobe-scan.yaml@dd6c66dc595da864fcc880464f9d7526aa2d6b2b # v1
         with:
             charm-path: ./worker
             tiobe-project-name: tempo-worker-k8s-operator
