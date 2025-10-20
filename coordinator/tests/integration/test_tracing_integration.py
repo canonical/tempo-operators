@@ -104,6 +104,8 @@ def test_relate(juju: Juju):
             status, TEMPO_APP, WORKER_APP, TESTER_APP_NAME, TESTER_GRPC_APP_NAME
         ),
         timeout=1000,
+        delay=2,
+        successes=5,
     )
 
 
