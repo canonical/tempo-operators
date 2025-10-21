@@ -184,7 +184,7 @@ class TempoCoordinatorCharm(CharmBase):
             worker_ports=self._get_worker_ports,
             workload_tracing_protocols=["otlp_http"],
             catalogue_item=self._catalogue_item,
-            coordinator_peers_relation="peers",
+            peer_relation="peers",
         )
 
         self._telemetry_correlation = TelemetryCorrelation(
