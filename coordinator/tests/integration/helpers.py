@@ -9,6 +9,7 @@ from typing import Optional, Sequence, Union, List, cast, Set
 import jubilant
 import requests
 import yaml
+from contextlib import contextmanager
 from coordinated_workers.nginx import CA_CERT_PATH
 from jubilant import Juju, all_active
 from minio import Minio
@@ -253,7 +254,40 @@ def deploy_distributed_cluster(
     return _deploy_cluster(juju, all_workers, coordinator=coordinator)
 
 
-def get_traces(
+def _get_query_url(
+    tempo_host: str, service_name="tracegen", tls=True, nonce: Optional[str] = None
+):
+    # query params are logfmt-encoded. Space-separated.
+    nonce_param = f"%20tracegen.nonce={nonce}" if nonce else ""
+    url = f"{'https' if tls else 'http'}://{tempo_host}:3200/api/search?tags=service.name={service_name}{nonce_param}"
+    return url
+
+
+def query_traces_from_client_localhost(
+    tempo_host: str,
+    service_name="tracegen",
+    tls=True,
+    nonce: Optional[str] = None,
+):
+    """Query traces by running requests.get from the test host machine (outside the cluster)."""
+    url = _get_query_url(
+        tempo_host,
+        service_name,
+        tls,
+        nonce,
+    )
+    # Run from host (backward compatibility)
+    req = requests.get(
+        url,
+        verify=False,
+        timeout=5,
+    )
+    assert req.status_code == 200, req.reason
+    traces = json.loads(req.text)["traces"]
+    return traces
+
+
+def query_traces_from_client_pod(
     tempo_host: str,
     service_name="tracegen",
     tls=True,
@@ -261,33 +295,44 @@ def get_traces(
     source_pod: Optional[str] = None,
     juju: Optional[Juju] = None,
 ):
-    # query params are logfmt-encoded. Space-separated.
-    nonce_param = f"%20tracegen.nonce={nonce}" if nonce else ""
-    url = f"{'https' if tls else 'http'}://{tempo_host}:3200/api/search?tags=service.name={service_name}{nonce_param}"
-
-    if source_pod and juju:
-        # Run curl from specified pod using juju exec
-        logger.info(f"Running curl from pod {source_pod} to {url}")
-        result = juju.exec(f"curl -s {url}", unit=source_pod)
-        response_text = result.stdout
-        logger.info(f"Pod response: {response_text}")
-        traces = json.loads(response_text)["traces"]
-        return traces
-    else:
-        # Run from host (backward compatibility)
-        req = requests.get(
-            url,
-            verify=False,
-            timeout=5,
-        )
-        assert req.status_code == 200, req.reason
-        traces = json.loads(req.text)["traces"]
-        return traces
+    """Query traces by running curl from inside a pod (within the cluster)."""
+    url = _get_query_url(
+        tempo_host,
+        service_name,
+        tls,
+        nonce,
+    )
+    # Run curl from specified pod using juju exec
+    logger.info(f"Running curl from pod {source_pod} to {url}")
+    result = juju.exec(f"curl -s {url}", unit=source_pod)
+    response_text = result.stdout
+    logger.info(f"Pod response: {response_text}")
+    traces = json.loads(response_text)["traces"]
+    return traces
 
 
 # retry up to 20 times, waiting 20 seconds between attempts
 @retry(stop=stop_after_attempt(20), wait=wait_fixed(20))
-def get_traces_patiently(
+def query_traces_patiently_from_client_localhost(
+    tempo_host,
+    service_name="tracegen",
+    tls=True,
+    nonce: Optional[str] = None,
+):
+    """Query traces from localhost with retries until traces are found."""
+    logger.info(f"polling {tempo_host} for service {service_name!r} traces...")
+    traces = query_traces_from_client_localhost(
+        tempo_host,
+        service_name=service_name,
+        tls=tls,
+        nonce=nonce,
+    )
+    assert len(traces) > 0, "no traces found"
+    return traces
+
+
+@retry(stop=stop_after_attempt(20), wait=wait_fixed(20))
+def query_traces_patiently_from_client_pod(
     tempo_host,
     service_name="tracegen",
     tls=True,
@@ -295,8 +340,9 @@ def get_traces_patiently(
     source_pod: Optional[str] = None,
     juju: Optional[Juju] = None,
 ):
+    """Query traces from inside a pod with retries until traces are found."""
     logger.info(f"polling {tempo_host} for service {service_name!r} traces...")
-    traces = get_traces(
+    traces = query_traces_from_client_pod(
         tempo_host,
         service_name=service_name,
         tls=tls,
@@ -416,32 +462,39 @@ def get_ingress_proxied_hostname(juju: Juju):
     )[TRAEFIK_APP]["url"].split("://")[1]
 
 
+@contextmanager
 def service_mesh(
-    enable: bool,
     juju: Juju,
     beacon_app_name: str,
     apps_to_be_related_with_beacon: List[str],
 ):
-    """Enable or disable the service-mesh in the model.
+    """Temporarily the service-mesh in the model.
 
     This puts the entire model, that the beacon app is part of, on mesh.
+    This assumes the beacon app is already deployed and active.
     This integrates the apps_to_be_related_with_beacon with the beacon app via the `service-mesh` relation.
     """
-    juju.config(ISTIO_BEACON_APP, {"model-on-mesh": str(enable).lower()})
-    # lets wait for all active state before further actions.
-    # the wait is necessary to make sure all the charms have recovered from the network changes.
+    # enable mesh
+    juju.config(ISTIO_BEACON_APP, {"model-on-mesh": "true"})
+
+    for app in apps_to_be_related_with_beacon:
+        juju.integrate(beacon_app_name + ":service-mesh", app + ":service-mesh")
     juju.wait(
         all_active,
         timeout=1000,
+        delay=5,
+        successes=5,
     )
-    if enable:
-        for app in apps_to_be_related_with_beacon:
-            juju.integrate(beacon_app_name + ":service-mesh", app + ":service-mesh")
-    else:
-        for app in apps_to_be_related_with_beacon:
-            juju.remove_relation(
-                beacon_app_name + ":service-mesh", app + ":service-mesh", force=True
-            )
+
+    yield
+
+    # disable mesh
+    juju.config(ISTIO_BEACON_APP, {"model-on-mesh": "false"})
+
+    for app in apps_to_be_related_with_beacon:
+        juju.remove_relation(
+            beacon_app_name + ":service-mesh", app + ":service-mesh", force=True
+        )
     juju.wait(
         all_active,
         timeout=1000,
