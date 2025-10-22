@@ -6,6 +6,11 @@ variable "model" {
   type        = string
 }
 
+variable "channel" {
+  description = "Charm channel to deploy"
+  type        = string
+}
+
 variable "endpoint" {
   description = "s3 endpoint to use"
   type        = string
