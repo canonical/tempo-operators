@@ -211,7 +211,7 @@ jobs:
     name: Run terraform deployment tests
     uses: canonical/observability/.github/workflows/run-tox-environment.yaml@v1
     with:
-      tox-env-name: terraform-deploy
+      tox-env-name: terraform
       prepare-host-env: true
       extra-snaps: terraform
     secrets: inherit
