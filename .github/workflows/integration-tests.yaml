@@ -92,117 +92,126 @@ jobs:
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   pack-charms:
-      name: Pack The Coordinator & Worker Charms
-      needs: [modes-matrix]
-      if: ${{ needs.modes-matrix.outputs.modes != '[]' }}
-      runs-on: ubuntu-latest
-      steps:
-        - name: Checkout
-          uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
-        - name: Setup LXD
-          uses: canonical/setup-lxd@main
-        - name: Install charmcraft
-          run: sudo snap install charmcraft --classic
-        - name: Cache wheels
-          uses: actions/cache@v4
-          with:
-              path: /home/runner/snap/charmcraft/common/cache/charmcraft
-              key: ${{ runner.os }}-wheel-cache-${{ hashFiles('./uv.lock') }}
-              # If the above cache key doesn't match, it's because the uv.lock has changed.
-              # Even so, pre-existing caches may still contain useful cached builds for some
-              # portion of the dependencies, and restore-keys can partially match a cache.
-              restore-keys: |
-                  ${{ runner.os }}-wheel-cache-
-        - name: Run charmcraft pack on the coordinator
-          run: |
-            cd coordinator
-            charmcraft pack -v
-        - name: Run charmcraft pack on the worker
-          run: |
-            cd worker
-            charmcraft pack -v
-        - name: Upload coordinator charm artifact
-          uses: actions/upload-artifact@v4
-          with:
-            name: coordinator-charms-tests
-            path: coordinator/*.charm
-        - name: Upload worker charm artifact
-          uses: actions/upload-artifact@v4
-          with:
-            name: worker-charms-tests
-            path: worker/*.charm
+    name: Pack The Coordinator & Worker Charms
+    needs: [modes-matrix]
+    if: ${{ needs.modes-matrix.outputs.modes != '[]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+      - name: Setup LXD
+        uses: canonical/setup-lxd@main
+      - name: Install charmcraft
+        run: sudo snap install charmcraft --classic
+      - name: Cache wheels
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/snap/charmcraft/common/cache/charmcraft
+          key: ${{ runner.os }}-wheel-cache-${{ hashFiles('./uv.lock') }}
+          # If the above cache key doesn't match, it's because the uv.lock has changed.
+          # Even so, pre-existing caches may still contain useful cached builds for some
+          # portion of the dependencies, and restore-keys can partially match a cache.
+          restore-keys: |
+            ${{ runner.os }}-wheel-cache-
+      - name: Run charmcraft pack on the coordinator
+        run: |
+          cd coordinator
+          charmcraft pack -v
+      - name: Run charmcraft pack on the worker
+        run: |
+          cd worker
+          charmcraft pack -v
+      - name: Upload coordinator charm artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coordinator-charms-tests
+          path: coordinator/*.charm
+      - name: Upload worker charm artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: worker-charms-tests
+          path: worker/*.charm
 
   integration-matrix:
-      name: Define Integration Tests Matrix
-      runs-on: ubuntu-latest
-      needs: [pack-charms]
-      outputs:
-          suites: ${{ steps.suites.outputs.suites }}
-      steps:
-        - name: Checkout
-          uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
-        - name: Generate matrix list
-          id: suites
-          run: |
-              list="$(find tests/integration -name 'test_*.py' -printf '%f\n' | jq -r -ncR '[inputs]')"
-              echo "suites=$list"
-              echo "suites=$list" >> "$GITHUB_OUTPUT"
+    name: Define Integration Tests Matrix
+    runs-on: ubuntu-latest
+    needs: [pack-charms]
+    outputs:
+      suites: ${{ steps.suites.outputs.suites }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+      - name: Generate matrix list
+        id: suites
+        run: |
+          list="$(find tests/integration -name 'test_*.py' -printf '%f\n' | jq -r -ncR '[inputs]')"
+          echo "suites=$list"
+          echo "suites=$list" >> "$GITHUB_OUTPUT"
 
   integration-test:
-      name: Integration Tests (${{ matrix.mode }} | ${{ matrix.suite }})
-      runs-on: ubuntu-latest
-      needs: [modes-matrix, pack-charms, integration-matrix]
-      strategy:
-          fail-fast: false
-          matrix:
-              suite: ${{ fromJSON(needs.integration-matrix.outputs.suites) }}
-              # Run the solution-level integration tests in the following deployment modes.
-              mode: ${{ fromJson(needs.modes-matrix.outputs.modes) }}
-      env:
-          CONCIERGE_JUJU_CHANNEL: 3.6/stable
-          CONCIERGE_MICROK8S_CHANNEL: 1.32-strict/stable
-          CONCIERGE_CHARMCRAFT_CHANNEL: 3.x/candidate
-      steps:
-          - name: Checkout
-            uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
-          - name: Install dependencies
-            run: |
-              sudo snap install concierge --classic
-              sudo concierge prepare -p microk8s --extra-snaps=astral-uv
-              sudo snap install kubectl --classic
-              juju model-defaults automatically-retry-hooks=true
-          - name: Download coordinator charm artifact
-            uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
-            with:
-              name: coordinator-charms-tests
-              path: ./coordinator
-          - name: Download worker charm artifact
-            uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
-            with:
-              name: worker-charms-tests
-              path: ./worker
-          - name: Run integration tests
-            run: |
-              coord_relative_path="$(find ./coordinator -maxdepth 1 -name '*.charm' | tail -n1)"
-              worker_relative_path="$(find ./worker -maxdepth 1 -name '*.charm' | tail -n1)"
-              channel="2/edge"
-              if [ "${{ matrix.mode }}" = "local-coordinator" ]; then
-                  COORDINATOR_CHARM_PATH="$(realpath "$coord_relative_path")"
-                  export COORDINATOR_CHARM_PATH
-                  WORKER_CHARM_CHANNEL="$channel"
-                  export WORKER_CHARM_CHANNEL
-              elif [ "${{ matrix.mode }}" = "local-worker" ]; then
-                  WORKER_CHARM_PATH="$(realpath "$worker_relative_path")"
-                  export WORKER_CHARM_PATH
-                  COORDINATOR_CHARM_CHANNEL="$channel"
-                  export COORDINATOR_CHARM_CHANNEL
-              elif [ "${{ matrix.mode }}" = "local-both" ]; then
-                  COORDINATOR_CHARM_PATH="$(realpath "$coord_relative_path")"
-                  export COORDINATOR_CHARM_PATH
-                  WORKER_CHARM_PATH="$(realpath "$worker_relative_path")"
-                  export WORKER_CHARM_PATH
-              else
-                  echo "Unknown mode: ${{ matrix.mode }}"
-                  exit 1
-              fi
-              uvx tox -e integration -- -k "${{ matrix.suite }}"
+    name: Integration Tests (${{ matrix.mode }} | ${{ matrix.suite }})
+    runs-on: ubuntu-latest
+    needs: [modes-matrix, pack-charms, integration-matrix]
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ${{ fromJSON(needs.integration-matrix.outputs.suites) }}
+        # Run the solution-level integration tests in the following deployment modes.
+        mode: ${{ fromJson(needs.modes-matrix.outputs.modes) }}
+    env:
+      CONCIERGE_JUJU_CHANNEL: 3.6/stable
+      CONCIERGE_MICROK8S_CHANNEL: 1.32-strict/stable
+      CONCIERGE_CHARMCRAFT_CHANNEL: 3.x/candidate
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+      - name: Install dependencies
+        run: |
+          sudo snap install concierge --classic
+          sudo concierge prepare -p microk8s --extra-snaps=astral-uv
+          sudo snap install kubectl --classic
+          juju model-defaults automatically-retry-hooks=true
+      - name: Download coordinator charm artifact
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: coordinator-charms-tests
+          path: ./coordinator
+      - name: Download worker charm artifact
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: worker-charms-tests
+          path: ./worker
+      - name: Run integration tests
+        run: |
+          coord_relative_path="$(find ./coordinator -maxdepth 1 -name '*.charm' | tail -n1)"
+          worker_relative_path="$(find ./worker -maxdepth 1 -name '*.charm' | tail -n1)"
+          channel="2/edge"
+          if [ "${{ matrix.mode }}" = "local-coordinator" ]; then
+            COORDINATOR_CHARM_PATH="$(realpath "$coord_relative_path")"
+            export COORDINATOR_CHARM_PATH
+            WORKER_CHARM_CHANNEL="$channel"
+            export WORKER_CHARM_CHANNEL
+          elif [ "${{ matrix.mode }}" = "local-worker" ]; then
+            WORKER_CHARM_PATH="$(realpath "$worker_relative_path")"
+            export WORKER_CHARM_PATH
+            COORDINATOR_CHARM_CHANNEL="$channel"
+            export COORDINATOR_CHARM_CHANNEL
+          elif [ "${{ matrix.mode }}" = "local-both" ]; then
+            COORDINATOR_CHARM_PATH="$(realpath "$coord_relative_path")"
+            export COORDINATOR_CHARM_PATH
+            WORKER_CHARM_PATH="$(realpath "$worker_relative_path")"
+            export WORKER_CHARM_PATH
+          else
+            echo "Unknown mode: ${{ matrix.mode }}"
+            exit 1
+          fi
+          uvx tox -e integration -- -k "${{ matrix.suite }}"
+
+  terraform-deploy-tests:
+    name: Run terraform deployment tests
+    uses: canonical/observability/.github/workflows/run-tox-environment.yaml@v1
+    with:
+      tox-env-name: terraform-deploy
+      prepare-host-env: true
+      extra-snaps: terraform
+    secrets: inherit

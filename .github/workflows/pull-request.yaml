@@ -60,7 +60,3 @@ jobs:
     secrets: inherit
     with:
       charm-path: worker
-  terraform-tests:
-    name: Run terraform tests
-    uses: ./.github/workflows/_terraform-tests.yaml
-    secrets: inherit

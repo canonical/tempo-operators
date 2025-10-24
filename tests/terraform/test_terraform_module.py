@@ -1,6 +1,5 @@
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
-import os
 import jubilant
 import pathlib
 import pytest
@@ -14,7 +13,7 @@ from pytest_bdd import given, when, then
 
 
 THIS_DIRECTORY = pathlib.Path(__file__).parent.resolve()
-CHARM_CHANNEL = os.getenv("CHARM_CHANNEL", "2/edge")
+CHARM_CHANNEL = "2/edge"
 
 
 def get_unit_ip_address(juju: jubilant.Juju, app_name: str, unit_no: int):
