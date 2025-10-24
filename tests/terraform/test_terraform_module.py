@@ -1,20 +1,19 @@
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
-import logging
-import pathlib
-import subprocess
 import jubilant
+import pathlib
 import pytest
 import requests
-from time import sleep
+import shlex
+import subprocess
 
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from pytest_bdd import given, when, then
 
-logger = logging.getLogger(__name__)
 
-TESTS_DIR = pathlib.Path(__file__).parent.resolve()
+THIS_DIRECTORY = pathlib.Path(__file__).parent.resolve()
+CHARM_CHANNEL = "2/edge"
 
 
 def get_unit_ip_address(juju: jubilant.Juju, app_name: str, unit_no: int):
@@ -50,10 +49,13 @@ def bucket(juju, seaweedfs):
 @when("you run terraform apply using the provided module")
 def test_terraform_apply(juju, bucket):
     endpoint = f"http://{get_unit_ip_address(juju, 'seaweedfs', 0)}:8333"
-    subprocess.check_call(["terraform", f"-chdir={TESTS_DIR}", "init"])
-    subprocess.check_output(
-        f'terraform -chdir={TESTS_DIR} apply -var "model={juju.model}" -var "endpoint={endpoint}" -auto-approve',
-        shell=True,
+    subprocess.run(shlex.split(f"terraform -chdir={THIS_DIRECTORY} init"), check=True)
+    subprocess.run(
+        shlex.split(
+            f'terraform -chdir={THIS_DIRECTORY} apply -var="channel={CHARM_CHANNEL}" '
+            f'-var="model={juju.model}" -var "endpoint={endpoint}" -auto-approve'
+        ),
+        check=True,
     )
 
 

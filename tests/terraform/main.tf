@@ -4,7 +4,7 @@
 module "tempo" {
   source        = "../../terraform"
   model         = var.model
-  channel       = "2/edge"
+  channel       = var.channel
   s3_endpoint   = var.endpoint
   s3_access_key = "placeholder"
   s3_secret_key = "placeholder"
