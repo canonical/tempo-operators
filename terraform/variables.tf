@@ -46,6 +46,12 @@ variable "s3_endpoint" {
 
 # -------------- # App Names --------------
 
+variable "coordinator_name" {
+  description = "Name of the Tempo coordinator app"
+  type        = string
+  default     = "tempo"
+}
+
 variable "querier_name" {
   description = "Name of the Tempo querier app"
   type        = string
