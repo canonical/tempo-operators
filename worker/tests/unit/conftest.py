@@ -1,4 +1,4 @@
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 from pathlib import PosixPath
 from unittest.mock import MagicMock
 import socket
@@ -28,20 +28,28 @@ class NonWriteablePath(PosixPath):
 
 @pytest.fixture(autouse=True)
 def patch_all():
-    with patch.multiple(
-        "coordinated_workers.worker.KubernetesComputeResourcesPatch",
-        _namespace="test-namespace",
-        _patch=lambda _: None,
-        get_status=lambda _: ActiveStatus(""),
-        is_ready=lambda _: True,
-    ):
-        with patch("lightkube.core.client.GenericSyncClient"):
-            with patch("subprocess.run"):
-                with patch(
-                    "coordinated_workers.worker.ROOT_CA_CERT",
-                    new=NonWriteablePath(ROOT_CA_CERT),
-                ):
-                    yield
+    with ExitStack() as stack:
+        stack.enter_context(
+            patch.multiple(
+                "coordinated_workers.worker.KubernetesComputeResourcesPatch",
+                _namespace="test-namespace",
+                _patch=lambda _: None,
+                get_status=lambda _: ActiveStatus(""),
+                is_ready=lambda _: True,
+            )
+        )
+        stack.enter_context(patch("lightkube.core.client.GenericSyncClient"))
+        stack.enter_context(
+            patch("coordinated_workers.worker.Worker._reconcile_charm_labels")
+        )
+        stack.enter_context(patch("subprocess.run"))
+        stack.enter_context(
+            patch(
+                "coordinated_workers.worker.ROOT_CA_CERT",
+                new=NonWriteablePath(ROOT_CA_CERT),
+            )
+        )
+        yield
 
 
 @pytest.fixture

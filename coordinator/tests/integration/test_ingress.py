@@ -14,7 +14,7 @@ from helpers import (
     deploy_monolithic_cluster,
     emit_trace,
     get_tempo_ingressed_endpoint,
-    get_traces_patiently,
+    query_traces_patiently_from_client_localhost,
     protocols_endpoints,
     TRAEFIK_APP,
     TEMPO_APP,
@@ -91,7 +91,9 @@ def test_verify_traces_force_enabled_protocols(juju: Juju, nonce, protocol):
         service_name=service_name,
     )
     # THEN using the ingress url, we can verify that the trace has been ingested
-    get_traces_patiently(tempo_host, service_name=service_name, nonce=nonce)
+    query_traces_patiently_from_client_localhost(
+        tempo_host, service_name=service_name, nonce=nonce
+    )
 
 
 def test_workload_traces(juju: Juju):
@@ -99,7 +101,7 @@ def test_workload_traces(juju: Juju):
     tempo_host = get_ingress_proxied_hostname(juju)
     # WHEN the tempo cluster is in active/idle
     # THEN using the ingress url, we can verify that traces from the tempo workload are ingested
-    assert get_traces_patiently(
+    assert query_traces_patiently_from_client_localhost(
         tempo_host,
         service_name="tempo-scalable-single-binary",
     )

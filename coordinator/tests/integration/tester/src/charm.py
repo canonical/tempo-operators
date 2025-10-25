@@ -11,6 +11,10 @@ from charms.tempo_coordinator_k8s.v0.tracing import (
     TracingEndpointRequirer,
     charm_tracing_config,
 )
+from charms.istio_beacon_k8s.v0.service_mesh import (
+    ServiceMeshConsumer,
+    UnitPolicy,
+)
 from ops.charm import CharmBase, PebbleReadyEvent
 from ops.main import main
 from ops.model import (
@@ -48,6 +52,15 @@ class TempoTesterCharm(CharmBase):
             self, relation_name="tracing", protocols=["otlp_http", "otlp_grpc"]
         )
         self.tempo_otlp_http_endpoint, _ = charm_tracing_config(self.tracing, None)
+
+        self._mesh = ServiceMeshConsumer(
+            self,
+            policies=[
+                UnitPolicy(  # This unit policy allows the tester to coomunicate with its peers without restriction.
+                    relation="replicas",
+                )
+            ],
+        )
         # Core lifecycle events
         self.framework.observe(self.on.config_changed, self._update)
 
