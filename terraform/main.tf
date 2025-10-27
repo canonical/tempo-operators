@@ -40,6 +40,7 @@ resource "juju_application" "s3_integrator" {
 module "tempo_coordinator" {
   source = "git::https://github.com/canonical/tempo-operators//coordinator/terraform"
 
+  app_name           = var.coordinator_name
   channel            = var.channel
   config             = var.coordinator_config
   constraints        = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=tempo,anti-pod.topology-key=kubernetes.io/hostname" : var.coordinator_constraints

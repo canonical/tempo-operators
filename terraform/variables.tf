@@ -46,6 +46,12 @@ variable "s3_endpoint" {
 
 # -------------- # App Names --------------
 
+variable "coordinator_name" {
+  description = "Name of the Tempo coordinator app"
+  type        = string
+  default     = "tempo"
+}
+
 variable "querier_name" {
   description = "Name of the Tempo querier app"
   type        = string
@@ -197,7 +203,7 @@ variable "worker_revision" {
 variable "s3_integrator_revision" {
   description = "Revision number of the s3-integrator application"
   type        = number
-  default     = 157 # FIXME: https://github.com/canonical/observability/issues/342
+  default     = null
 }
 
 # -------------- # Storage directives --------------
