@@ -1,6 +1,6 @@
 version = 1
-revision = 2
-requires-python = ">=3.12.0, <3.13"
+revision = 3
+requires-python = "==3.12.*"
 
 [[package]]
 name = "annotated-types"
@@ -759,8 +759,10 @@ name = "tempo-coordinator-k8s"
 version = "0.1"
 source = { virtual = "." }
 dependencies = [
+    { name = "charmed-service-mesh-helpers" },
     { name = "coordinated-workers" },
     { name = "cryptography" },
+    { name = "lightkube-extensions" },
     { name = "pydantic" },
     { name = "requests" },
 ]
@@ -783,10 +785,12 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "charmed-service-mesh-helpers", specifier = ">=0.2.0" },
     { name = "coordinated-workers" },
     { name = "coverage", extras = ["toml"], marker = "extra == 'dev'" },
     { name = "cryptography" },
     { name = "jubilant", marker = "extra == 'dev'" },
+    { name = "lightkube-extensions" },
     { name = "minio", marker = "extra == 'dev'" },
     { name = "ops", extras = ["testing", "tracing"], marker = "extra == 'dev'" },
     { name = "pydantic", specifier = "<3" },
