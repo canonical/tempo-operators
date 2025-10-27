@@ -166,6 +166,9 @@ class TempoCoordinatorCharm(CharmBase):
                 "send-datasource": None,
                 "receive-datasource": "receive-datasource",
                 "catalogue": "catalogue",
+                "service-mesh": None,
+                "service-mesh-provide-cmr-mesh": None,
+                "service-mesh-require-cmr-mesh": None,
             },
             nginx_config=NginxConfig(
                 server_name=self.hostname,
