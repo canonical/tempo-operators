@@ -16,8 +16,8 @@ description: |
 
 links:
   documentation: https://discourse.charmhub.io/t/tempo-worker-k8s-index/15420
-  source: https://github.com/canonical/tempo-worker-k8s-operator
-  issues: https://github.com/canonical/tempo-worker-k8s-operator/issues
+  source: https://github.com/canonical/tempo-operators
+  issues: https://github.com/canonical/tempo-operators/issues
 
 
 # relations
