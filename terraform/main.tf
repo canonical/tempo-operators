@@ -118,6 +118,7 @@ module "tempo_distributor" {
   units              = var.distributor_units
 }
 
+
 module "tempo_compactor" {
   source     = "git::https://github.com/canonical/tempo-operators//worker/terraform"
   depends_on = [module.tempo_coordinator]
