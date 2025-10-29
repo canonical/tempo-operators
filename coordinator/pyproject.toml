@@ -12,6 +12,8 @@ dependencies = [
     # lib/charms/tls_certificates_interface/v4/tls_certificates.py
     "cryptography",
     "requests>=2.32.5",
+    "charmed-service-mesh-helpers>=0.2.0",
+    "lightkube-extensions",
 ]
 
 [project.optional-dependencies]

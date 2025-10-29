@@ -166,6 +166,10 @@ class TempoCoordinatorCharm(CharmBase):
                 "send-datasource": None,
                 "receive-datasource": "receive-datasource",
                 "catalogue": "catalogue",
+                # TODO: Enable service mesh integration. See https://github.com/canonical/tempo-operators/pull/210.
+                "service-mesh": None,
+                "service-mesh-provide-cmr-mesh": None,
+                "service-mesh-require-cmr-mesh": None,
             },
             nginx_config=NginxConfig(
                 server_name=self.hostname,
@@ -184,6 +188,7 @@ class TempoCoordinatorCharm(CharmBase):
             worker_ports=self._get_worker_ports,
             workload_tracing_protocols=["otlp_http"],
             catalogue_item=self._catalogue_item,
+            peer_relation="peers",
         )
 
         self._telemetry_correlation = TelemetryCorrelation(
