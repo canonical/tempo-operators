@@ -166,6 +166,7 @@ class TempoCoordinatorCharm(CharmBase):
                 "send-datasource": None,
                 "receive-datasource": "receive-datasource",
                 "catalogue": "catalogue",
+                # TODO: Enable service mesh integration. See https://github.com/canonical/tempo-operators/pull/210.
                 "service-mesh": None,
                 "service-mesh-provide-cmr-mesh": None,
                 "service-mesh-require-cmr-mesh": None,
