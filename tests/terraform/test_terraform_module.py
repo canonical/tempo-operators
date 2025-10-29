@@ -1,5 +1,6 @@
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
+import json
 import jubilant
 import pathlib
 import pytest
@@ -48,12 +49,14 @@ def bucket(juju, seaweedfs):
 @given("a juju model")
 @when("you run terraform apply using the provided module")
 def test_terraform_apply(juju, bucket):
+    model_output = juju.cli('show-model', '--format', 'json', juju.model, include_model=False)
+    model_uuid = json.loads(model_output)[juju.model]['model-uuid']
     endpoint = f"http://{get_unit_ip_address(juju, 'seaweedfs', 0)}:8333"
     subprocess.run(shlex.split(f"terraform -chdir={THIS_DIRECTORY} init"), check=True)
     subprocess.run(
         shlex.split(
             f'terraform -chdir={THIS_DIRECTORY} apply -var="channel={CHARM_CHANNEL}" '
-            f'-var="model={juju.model}" -var "endpoint={endpoint}" -auto-approve'
+            f'-var="model_uuid={model_uuid}" -var "endpoint={endpoint}" -auto-approve'
         ),
         check=True,
     )

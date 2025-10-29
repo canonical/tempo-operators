@@ -3,7 +3,7 @@
 
 module "tempo" {
   source        = "../../terraform"
-  model         = var.model
+  model_uuid    = var.model_uuid
   channel       = var.channel
   s3_endpoint   = var.endpoint
   s3_access_key = "placeholder"
