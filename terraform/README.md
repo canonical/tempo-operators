@@ -11,25 +11,25 @@ This is a Terraform module facilitating the deployment of Tempo solution, using 
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.5 |
-| <a name="requirement_juju"></a> [juju](#requirement\_juju) | >= 1.0.0 |
+| <a name="requirement_juju"></a> [juju](#requirement\_juju) | ~> 1.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_juju"></a> [juju](#provider\_juju) | >= 1.0.0 |
+| <a name="provider_juju"></a> [juju](#provider\_juju) | ~> 1.0 |
 
 ## Modules
 
 | Name | Source | Version |
 |------|--------|---------|
-| <a name="module_tempo_compactor"></a> [tempo\_compactor](#module\_tempo\_compactor) | git::https://github.com/canonical/tempo-operators//worker/terraform | fix/tf-version-gt-v1 |
-| <a name="module_tempo_coordinator"></a> [tempo\_coordinator](#module\_tempo\_coordinator) | git::https://github.com/canonical/tempo-operators//coordinator/terraform | fix/tf-version-gt-v1 |
-| <a name="module_tempo_distributor"></a> [tempo\_distributor](#module\_tempo\_distributor) | git::https://github.com/canonical/tempo-operators//worker/terraform | fix/tf-version-gt-v1 |
-| <a name="module_tempo_ingester"></a> [tempo\_ingester](#module\_tempo\_ingester) | git::https://github.com/canonical/tempo-operators//worker/terraform | fix/tf-version-gt-v1 |
-| <a name="module_tempo_metrics_generator"></a> [tempo\_metrics\_generator](#module\_tempo\_metrics\_generator) | git::https://github.com/canonical/tempo-operators//worker/terraform | fix/tf-version-gt-v1 |
-| <a name="module_tempo_querier"></a> [tempo\_querier](#module\_tempo\_querier) | git::https://github.com/canonical/tempo-operators//worker/terraform | fix/tf-version-gt-v1 |
-| <a name="module_tempo_query_frontend"></a> [tempo\_query\_frontend](#module\_tempo\_query\_frontend) | git::https://github.com/canonical/tempo-operators//worker/terraform | fix/tf-version-gt-v1 |
+| <a name="module_tempo_compactor"></a> [tempo\_compactor](#module\_tempo\_compactor) | git::https://github.com/canonical/tempo-operators//worker/terraform | n/a |
+| <a name="module_tempo_coordinator"></a> [tempo\_coordinator](#module\_tempo\_coordinator) | git::https://github.com/canonical/tempo-operators//coordinator/terraform | n/a |
+| <a name="module_tempo_distributor"></a> [tempo\_distributor](#module\_tempo\_distributor) | git::https://github.com/canonical/tempo-operators//worker/terraform | n/a |
+| <a name="module_tempo_ingester"></a> [tempo\_ingester](#module\_tempo\_ingester) | git::https://github.com/canonical/tempo-operators//worker/terraform | n/a |
+| <a name="module_tempo_metrics_generator"></a> [tempo\_metrics\_generator](#module\_tempo\_metrics\_generator) | git::https://github.com/canonical/tempo-operators//worker/terraform | n/a |
+| <a name="module_tempo_querier"></a> [tempo\_querier](#module\_tempo\_querier) | git::https://github.com/canonical/tempo-operators//worker/terraform | n/a |
+| <a name="module_tempo_query_frontend"></a> [tempo\_query\_frontend](#module\_tempo\_query\_frontend) | git::https://github.com/canonical/tempo-operators//worker/terraform | n/a |
 
 ## Inputs
 

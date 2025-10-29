@@ -38,7 +38,7 @@ resource "juju_application" "s3_integrator" {
 }
 
 module "tempo_coordinator" {
-  source = "git::https://github.com/canonical/tempo-operators//coordinator/terraform?ref=fix/tf-version-gt-v1"
+  source = "git::https://github.com/canonical/tempo-operators//coordinator/terraform"
 
   app_name           = var.coordinator_name
   channel            = var.channel
@@ -51,7 +51,7 @@ module "tempo_coordinator" {
 }
 
 module "tempo_querier" {
-  source     = "git::https://github.com/canonical/tempo-operators//worker/terraform?ref=fix/tf-version-gt-v1"
+  source     = "git::https://github.com/canonical/tempo-operators//worker/terraform"
   depends_on = [module.tempo_coordinator]
 
   app_name = var.querier_name
@@ -68,7 +68,7 @@ module "tempo_querier" {
 }
 
 module "tempo_query_frontend" {
-  source     = "git::https://github.com/canonical/tempo-operators//worker/terraform?ref=fix/tf-version-gt-v1"
+  source     = "git::https://github.com/canonical/tempo-operators//worker/terraform"
   depends_on = [module.tempo_coordinator]
 
   app_name    = var.query_frontend_name
@@ -85,7 +85,7 @@ module "tempo_query_frontend" {
 }
 
 module "tempo_ingester" {
-  source     = "git::https://github.com/canonical/tempo-operators//worker/terraform?ref=fix/tf-version-gt-v1"
+  source     = "git::https://github.com/canonical/tempo-operators//worker/terraform"
   depends_on = [module.tempo_coordinator]
 
   app_name    = var.ingester_name
@@ -102,7 +102,7 @@ module "tempo_ingester" {
 }
 
 module "tempo_distributor" {
-  source     = "git::https://github.com/canonical/tempo-operators//worker/terraform?ref=fix/tf-version-gt-v1"
+  source     = "git::https://github.com/canonical/tempo-operators//worker/terraform"
   depends_on = [module.tempo_coordinator]
 
   app_name    = var.distributor_name
@@ -119,7 +119,7 @@ module "tempo_distributor" {
 }
 
 module "tempo_compactor" {
-  source     = "git::https://github.com/canonical/tempo-operators//worker/terraform?ref=fix/tf-version-gt-v1"
+  source     = "git::https://github.com/canonical/tempo-operators//worker/terraform"
   depends_on = [module.tempo_coordinator]
 
   app_name    = var.compactor_name
@@ -136,7 +136,7 @@ module "tempo_compactor" {
 }
 
 module "tempo_metrics_generator" {
-  source     = "git::https://github.com/canonical/tempo-operators//worker/terraform?ref=fix/tf-version-gt-v1"
+  source     = "git::https://github.com/canonical/tempo-operators//worker/terraform"
   depends_on = [module.tempo_coordinator]
 
   app_name    = var.metrics_generator_name
