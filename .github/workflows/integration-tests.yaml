@@ -122,12 +122,12 @@ jobs:
           cd worker
           charmcraft pack -v
       - name: Upload coordinator charm artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: coordinator-charms-tests
           path: coordinator/*.charm
       - name: Upload worker charm artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: worker-charms-tests
           path: worker/*.charm
@@ -172,12 +172,12 @@ jobs:
           sudo snap install kubectl --classic
           juju model-defaults automatically-retry-hooks=true
       - name: Download coordinator charm artifact
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with:
           name: coordinator-charms-tests
           path: ./coordinator
       - name: Download worker charm artifact
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with:
           name: worker-charms-tests
           path: ./worker
