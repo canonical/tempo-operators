@@ -10,7 +10,7 @@ import re
 import socket
 from pathlib import Path
 from subprocess import CalledProcessError, getoutput
-from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast, get_args
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, Literal, cast, get_args
 
 import ops
 import ops_tracing
@@ -37,6 +37,15 @@ from charms.tempo_coordinator_k8s.v0.tracing import (
     receiver_protocol_to_transport_protocol,
 )
 from charms.traefik_k8s.v0.traefik_route import TraefikRouteRequirer
+from charms.istio_ingress_k8s.v0.istio_ingress_route import (
+    BackendRef,
+    HTTPRoute,
+    GRPCRoute,
+    IstioIngressRouteConfig,
+    IstioIngressRouteRequirer,
+    Listener,
+    ProtocolType,
+)
 from charms.istio_beacon_k8s.v0.service_mesh import (
     AppPolicy,
     UnitPolicy,
@@ -135,6 +144,9 @@ class TempoCoordinatorCharm(CharmBase):
             self.model.get_relation("ingress"),  # type: ignore
             "ingress",
         )
+        self.istio_ingress = IstioIngressRouteRequirer(
+            self, relation_name="istio-ingress"
+        )
         self.tracing = TracingEndpointProvider(
             self, external_url=self._most_external_url
         )
@@ -211,7 +223,7 @@ class TempoCoordinatorCharm(CharmBase):
             source_type="tempo",
             source_url=self._external_http_server_url,
             extra_fields=self._build_grafana_source_extra_fields(),
-            is_ingress_per_app=self._is_ingress_ready,
+            is_ingress_per_app=self._is_ingress_ready or self._is_istio_ingress_ready,
         )
 
         # wokeignore:rule=blackbox
@@ -354,15 +366,26 @@ class TempoCoordinatorCharm(CharmBase):
         )
 
     @property
+    def _is_istio_ingress_ready(self) -> bool:
+        "Return True if istio ingress is configured and ready, otherwise False."
+        return bool(self.istio_ingress.is_ready() and self.istio_ingress.external_host)
+
+    @property
     def _external_http_server_url(self) -> str:
         """External url of the http(s) server."""
         return f"{self._most_external_url}:{Tempo.tempo_http_server_port}"
 
     @property
     def _external_url(self) -> Optional[str]:
-        """Return the external URL if the ingress is configured and ready, otherwise None."""
+        """Return the external URL if an ingress is configured and ready, otherwise None."""
         if self._is_ingress_ready:
             ingress_url = f"{self.ingress.scheme}://{self.ingress.external_host}"
+            logger.debug("This unit's ingress URL: %s", ingress_url)
+            return ingress_url
+
+        if self._is_istio_ingress_ready:
+            scheme = "https" if self.istio_ingress.tls_enabled else "http"
+            ingress_url = f"{scheme}://{self.istio_ingress.external_host}"
             logger.debug("This unit's ingress URL: %s", ingress_url)
             return ingress_url
 
@@ -488,7 +511,7 @@ class TempoCoordinatorCharm(CharmBase):
         return PeerData.load(self.peers.data.get(unit, {}))
 
     def _update_ingress_relation(self) -> None:
-        """Make sure the traefik route is up-to-date."""
+        """Make sure the traefik route / istio ingress route is up-to-date."""
         if not self.unit.is_leader():
             return
 
@@ -496,6 +519,9 @@ class TempoCoordinatorCharm(CharmBase):
             self.ingress.submit_to_traefik(
                 self._ingress_config, static=self._static_ingress_config
             )
+
+        if self.istio_ingress.is_ready():
+            self.istio_ingress.submit_config(self._istio_ingress_config)
 
     def _update_tempo_api_relations(self) -> None:
         """Update all applications related to us via the tempo-api relation."""
@@ -584,6 +610,51 @@ class TempoCoordinatorCharm(CharmBase):
             receiver: self.get_receiver_url(receiver)
             for receiver in self._requested_receivers
         }
+
+    @property
+    def _istio_ingress_config(self) -> IstioIngressRouteConfig:
+        """Build a K8s Gateway configuration for istio ingress."""
+
+        listeners: List[Listener] = []
+        http_routes: List[HTTPRoute] = []
+        grpc_routes: List[GRPCRoute] = []
+
+        def _get_route_class(
+            protocol_type: Literal[ProtocolType.HTTP, ProtocolType.GRPC],
+        ):
+            if protocol_type == ProtocolType.HTTP:
+                return HTTPRoute, http_routes
+            elif protocol_type == ProtocolType.GRPC:
+                return GRPCRoute, grpc_routes
+
+        for protocol, port in self.tempo.all_ports.items():
+            sanitized_protocol = protocol.replace("_", "-")
+            protocol_type = (
+                ProtocolType.GRPC if "grpc" in protocol else ProtocolType.HTTP
+            )
+            Route, routes = _get_route_class(protocol_type)
+            listener = Listener(port=port, protocol=protocol_type)
+            route = Route(  # type: ignore
+                name=f"juju-{self.model.name}-{self.model.app.name}-{sanitized_protocol}",
+                listener=listener,
+                backends=[
+                    BackendRef(
+                        service=self.app.name,
+                        port=port,
+                        weight=100,  # Let the service take care of load balancing.
+                    ),
+                ],
+            )
+
+            listeners.append(listener)
+            routes.append(route)  # type: ignore
+
+        return IstioIngressRouteConfig(
+            model=self.model.name,
+            listeners=listeners,
+            http_routes=http_routes,
+            grpc_routes=grpc_routes,
+        )
 
     @property
     def _static_ingress_config(self) -> dict:
@@ -696,6 +767,14 @@ class TempoCoordinatorCharm(CharmBase):
                 self.ingress.external_host
                 if protocol_type == TransportProtocolType.grpc
                 else f"{self.ingress.scheme}://{self.ingress.external_host}"
+            )
+        elif self._is_istio_ingress_ready:
+            http_scheme = "https" if self.istio_ingress.tls_enabled else "http"
+            # TODO: publish information about TLS also if the protocol_type is gRPC. See https://github.com/canonical/tempo-operators/issues/241.
+            url = (
+                self.istio_ingress.external_host
+                if protocol_type == TransportProtocolType.grpc
+                else f"{http_scheme}://{self.istio_ingress.external_host}"
             )
         else:
             url = (
