@@ -14,6 +14,12 @@ variable "anti_affinity" {
   default     = true
 }
 
+variable "monolithic" {
+  description = "Enable monolithic mode"
+  type        = bool
+  default     = false
+}
+
 # -------------- # S3 object storage --------------
 
 variable "s3_integrator_channel" {
@@ -50,6 +56,12 @@ variable "coordinator_name" {
   description = "Name of the Tempo coordinator app"
   type        = string
   default     = "tempo"
+}
+
+variable "all_name" {
+  description = "Name of the Tempo all meta app"
+  type        = string
+  default     = "tempo-worker"
 }
 
 variable "querier_name" {
@@ -98,6 +110,12 @@ variable "s3_integrator_name" {
 
 variable "coordinator_config" {
   description = "Map of the coordinator configuration options"
+  type        = map(string)
+  default     = {}
+}
+
+variable "all_config" {
+  description = "Map of the all worker configuration options"
   type        = map(string)
   default     = {}
 }
@@ -234,6 +252,16 @@ variable "compactor_units" {
   default     = 1
   validation {
     condition     = var.compactor_units >= 1
+    error_message = "The number of units must be greater than or equal to 1."
+  }
+}
+
+variable "all_units" {
+  description = "Number of Tempo worker units with all meta role"
+  type        = number
+  default     = 1
+  validation {
+    condition     = var.all_units >= 1
     error_message = "The number of units must be greater than or equal to 1."
   }
 }
