@@ -371,6 +371,11 @@ class TempoCoordinatorCharm(CharmBase):
         return bool(self.istio_ingress.is_ready() and self.istio_ingress.external_host)
 
     @property
+    def _has_multiple_ingresses(self) -> bool:
+        """Return True if both traefik and istio ingresses are ready."""
+        return self._is_ingress_ready and self._is_istio_ingress_ready
+
+    @property
     def _external_http_server_url(self) -> str:
         """External url of the http(s) server."""
         return f"{self._most_external_url}:{Tempo.tempo_http_server_port}"
@@ -486,6 +491,12 @@ class TempoCoordinatorCharm(CharmBase):
 
     def _on_collect_status(self, e: CollectStatusEvent):
         # add Tempo coordinator-specific statuses
+
+        # block if multiple ingresses are configured
+        if self._has_multiple_ingresses:
+            e.add_status(ops.BlockedStatus("Use only one ingress integration"))
+            return
+
         if (
             "metrics-generator" in self.coordinator.cluster.gather_roles()
             and not self._remote_write_endpoints()
@@ -512,7 +523,7 @@ class TempoCoordinatorCharm(CharmBase):
         return PeerData.load(self.peers.data.get(unit, {}))
 
     def _update_ingress_relation(self) -> None:
-        """Make sure the traefik rout route is up-to-date."""
+        """Make sure the traefik route is up-to-date."""
         if not self.unit.is_leader():
             return
 
