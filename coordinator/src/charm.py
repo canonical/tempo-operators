@@ -646,7 +646,7 @@ class TempoCoordinatorCharm(CharmBase):
             routes = grpc_routes if protocol_type == ProtocolType.GRPC else http_routes
 
             listener = Listener(port=port, protocol=protocol_type)
-            route = Route(  # type: ignore
+            route = Route(
                 name=f"juju-{self.model.name}-{self.model.app.name}-{sanitized_protocol}",
                 listener=listener,
                 backends=[
