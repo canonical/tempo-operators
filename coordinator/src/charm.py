@@ -378,18 +378,19 @@ class TempoCoordinatorCharm(CharmBase):
     @property
     def _external_url(self) -> Optional[str]:
         """Return the external URL if an ingress is configured and ready, otherwise None."""
+        ingress_url: Optional[str] = None
+
         if self._is_ingress_ready:
             ingress_url = f"{self.ingress.scheme}://{self.ingress.external_host}"
-            logger.debug("This unit's ingress URL: %s", ingress_url)
             return ingress_url
 
         if self._is_istio_ingress_ready:
             scheme = "https" if self.istio_ingress.tls_enabled else "http"
             ingress_url = f"{scheme}://{self.istio_ingress.external_host}"
-            logger.debug("This unit's ingress URL: %s", ingress_url)
             return ingress_url
 
-        return None
+        logger.debug("This unit's ingress URL: %s", ingress_url)
+        return ingress_url
 
     @property
     def _most_external_url(self) -> str:
@@ -511,7 +512,7 @@ class TempoCoordinatorCharm(CharmBase):
         return PeerData.load(self.peers.data.get(unit, {}))
 
     def _update_ingress_relation(self) -> None:
-        """Make sure the traefik route / istio ingress route is up-to-date."""
+        """Make sure the traefik rout route is up-to-date."""
         if not self.unit.is_leader():
             return
 
@@ -519,6 +520,11 @@ class TempoCoordinatorCharm(CharmBase):
             self.ingress.submit_to_traefik(
                 self._ingress_config, static=self._static_ingress_config
             )
+
+    def _update_istio_ingress_relation(self) -> None:
+        """Make sure the traefik route / istio ingress route is up-to-date."""
+        if not self.unit.is_leader():
+            return
 
         if self.istio_ingress.is_ready():
             self.istio_ingress.submit_config(self._istio_ingress_config)
@@ -619,20 +625,15 @@ class TempoCoordinatorCharm(CharmBase):
         http_routes: List[HTTPRoute] = []
         grpc_routes: List[GRPCRoute] = []
 
-        def _get_route_class(
-            protocol_type: Literal[ProtocolType.HTTP, ProtocolType.GRPC],
-        ):
-            if protocol_type == ProtocolType.HTTP:
-                return HTTPRoute, http_routes
-            elif protocol_type == ProtocolType.GRPC:
-                return GRPCRoute, grpc_routes
-
         for protocol, port in self.tempo.all_ports.items():
             sanitized_protocol = protocol.replace("_", "-")
+
             protocol_type = (
                 ProtocolType.GRPC if "grpc" in protocol else ProtocolType.HTTP
             )
-            Route, routes = _get_route_class(protocol_type)
+            Route = GRPCRoute if protocol_type == ProtocolType.GRPC else HTTPRoute
+            routes = grpc_routes if protocol_type == ProtocolType.GRPC else http_routes
+
             listener = Listener(port=port, protocol=protocol_type)
             route = Route(  # type: ignore
                 name=f"juju-{self.model.name}-{self.model.app.name}-{sanitized_protocol}",
@@ -868,6 +869,7 @@ class TempoCoordinatorCharm(CharmBase):
         # reason is, if we miss these events because our coordinator cannot process events (inconsistent status),
         # we need to 'remember' to run this logic as soon as we become ready, which is hard and error-prone
         self._update_ingress_relation()
+        self._update_istio_ingress_relation()
         self._update_tracing_relations()
         self._update_source_exchange()
         # reconcile grafana-source databags to update `extra_fields`
