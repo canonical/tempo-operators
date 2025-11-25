@@ -11,6 +11,7 @@ import socket
 from pathlib import Path
 from subprocess import CalledProcessError, getoutput
 from typing import Any, Dict, List, Optional, Set, Tuple, Union, Literal, cast, get_args
+from urllib.parse import urlparse
 
 import ops
 import ops_tracing
@@ -385,14 +386,20 @@ class TempoCoordinatorCharm(CharmBase):
         """Return the external URL if an ingress is configured and ready, otherwise None."""
         ingress_url: Optional[str] = None
 
+        # If multiple ingresses are active, we behave as if there is no ingress at all.
+        if self._has_multiple_ingresses:
+            logger.error(
+                "Multiple ingresses are configured and ready; cannot determine external URL."
+                "Falling back to internal URL."
+            )
+            return ingress_url
+
         if self._is_ingress_ready:
             ingress_url = f"{self.ingress.scheme}://{self.ingress.external_host}"
-            return ingress_url
 
         if self._is_istio_ingress_ready:
             scheme = "https" if self.istio_ingress.tls_enabled else "http"
             ingress_url = f"{scheme}://{self.istio_ingress.external_host}"
-            return ingress_url
 
         logger.debug("This unit's ingress URL: %s", ingress_url)
         return ingress_url
@@ -402,7 +409,7 @@ class TempoCoordinatorCharm(CharmBase):
         """Return the most external url known about by this charm.
 
         This will return the first of:
-        - the external URL, if the ingress is configured and ready
+        - the external URL, if an ingress is configured and ready
         - the internal URL
         """
         external_url = self._external_url
@@ -494,8 +501,11 @@ class TempoCoordinatorCharm(CharmBase):
 
         # block if multiple ingresses are configured
         if self._has_multiple_ingresses:
-            e.add_status(ops.BlockedStatus("Use only one ingress integration"))
-            return
+            e.add_status(
+                ops.BlockedStatus(
+                    "Multiple ingress relations are active. Use only one."
+                )
+            )
 
         if (
             "metrics-generator" in self.coordinator.cluster.gather_roles()
@@ -773,29 +783,14 @@ class TempoCoordinatorCharm(CharmBase):
         """
         protocol_type = receiver_protocol_to_transport_protocol.get(protocol)
         receiver_port = self.tempo.receiver_ports[protocol]
+        receiver_url = self._most_external_url
 
-        if self._is_ingress_ready:
-            url = (
-                self.ingress.external_host
-                if protocol_type == TransportProtocolType.grpc
-                else f"{self.ingress.scheme}://{self.ingress.external_host}"
-            )
-        elif self._is_istio_ingress_ready:
-            http_scheme = "https" if self.istio_ingress.tls_enabled else "http"
+        if protocol_type == TransportProtocolType.grpc:
+            # There is no "real" gRPC scheme, so just use netloc.
             # TODO: publish information about TLS also if the protocol_type is gRPC. See https://github.com/canonical/tempo-operators/issues/241.
-            url = (
-                self.istio_ingress.external_host
-                if protocol_type == TransportProtocolType.grpc
-                else f"{http_scheme}://{self.istio_ingress.external_host}"
-            )
-        else:
-            url = (
-                self.app_hostname
-                if protocol_type == TransportProtocolType.grpc
-                else self._internal_url
-            )
+            receiver_url = urlparse(receiver_url).netloc
 
-        return f"{url}:{receiver_port}"
+        return f"{receiver_url}:{receiver_port}"
 
     def is_workload_ready(self):
         """Whether the tempo built-in readiness check reports 'ready'."""
