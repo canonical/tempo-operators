@@ -386,7 +386,9 @@ class TempoCoordinatorCharm(CharmBase):
         """Return the external URL if an ingress is configured and ready, otherwise None."""
         ingress_url: Optional[str] = None
 
-        # If multiple ingresses are active, we behave as if there is no ingress at all.
+        # NOTE: There are no technical restrictions to using both ingress relations at the same time. But if
+        # multiple ingresses are active, we cannot be sure of which one the admin intends to advertise as
+        # ingestion endpoint to other applications; so we don't publish either one, and set blocked.
         if self._has_multiple_ingresses:
             logger.error(
                 "Multiple ingresses are configured and ready; cannot determine external URL."
@@ -503,7 +505,7 @@ class TempoCoordinatorCharm(CharmBase):
         if self._has_multiple_ingresses:
             e.add_status(
                 ops.BlockedStatus(
-                    "Multiple ingress relations are active. Use only one."
+                    "Multiple ingress relations are active ('ingress' and 'istio-ingress'). Remove one of the two."
                 )
             )
 
