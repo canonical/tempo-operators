@@ -160,7 +160,7 @@ def test_multiple_ingresses_blocked(
         ),
     )
     assert state_out.unit_status == ops.BlockedStatus(
-        "Multiple ingress relations are active. Use only one."
+        "Multiple ingress relations are active ('ingress' and 'istio-ingress'). Remove one of the two."
     )
 
 
