@@ -114,6 +114,14 @@ requires:
       Ingress integration for Tempo server and Tempo receiver endpoints,
       so that cross-model workloads can send their traces to Tempo through the ingress.
       Uses `traefik_route` to open ports on Traefik host for tracing ingesters.
+  istio-ingress:
+    optional: true
+    interface: istio_ingress_route
+    limit: 1
+    description: |
+      Ingress integration for Tempo server and Tempo receiver endpoints,
+      so that cross-model workloads can send their traces to Tempo through the ingress.
+      Uses `istio_ingress_route` to open ports on `istio-ingress-k8s` host for tracing ingesters.
   certificates:
     optional: true
     interface: tls-certificates

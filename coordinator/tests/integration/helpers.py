@@ -9,6 +9,8 @@ from typing import Optional, Sequence, Union, List, cast, Set
 import jubilant
 import requests
 import yaml
+from lightkube import Client
+from lightkube.generic_resource import create_namespaced_resource
 from contextlib import contextmanager
 from coordinated_workers.nginx import CA_CERT_PATH
 from jubilant import Juju, all_active
@@ -36,6 +38,7 @@ SSC_APP = "ssc"
 TRAEFIK_APP = "trfk"
 ISTIO_APP = "istio-k8s"
 ISTIO_BEACON_APP = "istio-beacon-k8s"
+ISTIO_INGRESS_APP = "istio-ingress-k8s"
 
 ALL_ROLES = [role.value for role in TempoRole.all_nonmeta()]
 ALL_WORKERS = [f"{WORKER_APP}-" + role for role in ALL_ROLES]
@@ -460,6 +463,23 @@ def get_ingress_proxied_hostname(juju: Juju):
             "proxied-endpoints"
         ]
     )[TRAEFIK_APP]["url"].split("://")[1]
+
+
+# TODO: this is a workaround. the ingress provider should provide the proxied-endpoints. See https://github.com/canonical/istio-ingress-k8s-operator/issues/108.
+# Update this after the above issue is fixed.
+def get_istio_ingress_ip(juju: Juju, app_name: str = "istio-ingress"):
+    """Get the istio-ingress public IP address from Kubernetes."""
+    gateway_resource = create_namespaced_resource(
+        group="gateway.networking.k8s.io",
+        version="v1",
+        kind="Gateway",
+        plural="gateways",
+    )
+    client = Client()
+    gateway = client.get(gateway_resource, app_name, namespace=juju.model)
+    if gateway.status and gateway.status.get("addresses"):  # type: ignore
+        return gateway.status["addresses"][0]["value"]  # type: ignore
+    raise ValueError(f"No ingress address found for {app_name}")
 
 
 @contextmanager

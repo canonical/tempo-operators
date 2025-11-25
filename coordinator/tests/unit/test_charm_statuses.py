@@ -130,6 +130,40 @@ def test_k8s_patch_waiting(
     assert state_out.unit_status == ops.WaitingStatus("waiting")
 
 
+def test_multiple_ingresses_blocked(
+    context,
+    s3,
+    nginx_container,
+    nginx_prometheus_exporter_container,
+    all_worker,
+):
+    """Test that charm is blocked when both traefik and istio ingresses are configured."""
+    traefik_ingress = Relation(
+        "ingress", remote_app_data={"external_host": "1.2.3.4", "scheme": "http"}
+    )
+    istio_ingress = Relation(
+        "istio-ingress",
+        remote_app_data={"external_host": "5.6.7.8", "tls_enabled": "False"},
+    )
+    state_out = context.run(
+        context.on.update_status(),
+        State(
+            relations=[
+                s3,
+                all_worker,
+                traefik_ingress,
+                istio_ingress,
+            ],
+            containers=[nginx_container, nginx_prometheus_exporter_container],
+            unit_status=ops.ActiveStatus(),
+            leader=True,
+        ),
+    )
+    assert state_out.unit_status == ops.BlockedStatus(
+        "Multiple ingress relations are active. Use only one."
+    )
+
+
 def test_metrics_generator(
     context,
     s3,
