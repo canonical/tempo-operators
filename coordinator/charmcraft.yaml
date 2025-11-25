@@ -34,8 +34,8 @@ resources:
 links:
   documentation: https://discourse.charmhub.io/t/tempo-coordinator-k8s-docs-index/15419
   website: https://charmhub.io/tempo-coordinator-k8s
-  source: https://github.com/canonical/tempo-coordinator-k8s-operator
-  issues: https://github.com/canonical/tempo-coordinator-k8s-operator/issues
+  source: https://github.com/canonical/tempo-operators
+  issues: https://github.com/canonical/tempo-operators/issues
 
 provides:
   tempo-cluster:

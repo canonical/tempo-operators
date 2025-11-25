@@ -210,6 +210,7 @@ class TempoCoordinatorCharm(CharmBase):
             catalogue_item=self._catalogue_item,
             worker_telemetry_proxy_config=self._worker_telemetry_proxy_config,
             charm_mesh_policies=self._charm_mesh_policies,
+            peer_relation="peers",
         )
 
         self._telemetry_correlation = TelemetryCorrelation(

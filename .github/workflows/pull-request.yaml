@@ -57,7 +57,15 @@ jobs:
     secrets: inherit
     with:
       charm-path: worker
-  terraform-tests:
-    name: Run terraform tests
-    uses: ./.github/workflows/_terraform-tests.yaml
-    secrets: inherit
+  interfaces:
+    strategy:
+      fail-fast: false
+      matrix:
+        charm:
+          - tempo-coordinator-k8s
+          - tempo-worker-k8s
+    uses: canonical/charmlibs/.github/workflows/interface-tests.yaml@interface-tests-v0
+    with:
+      charm: ${{ matrix.charm }}
+      charm-repo: ${{ github.event.pull_request.head.repo.full_name }}
+      charm-branch: ${{ github.event.pull_request.head.ref }}

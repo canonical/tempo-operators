@@ -11,13 +11,13 @@ This is a Terraform module facilitating the deployment of Tempo solution, using 
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.5 |
-| <a name="requirement_juju"></a> [juju](#requirement\_juju) | >= 0.14.0 |
+| <a name="requirement_juju"></a> [juju](#requirement\_juju) | ~> 1.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_juju"></a> [juju](#provider\_juju) | >= 0.14.0 |
+| <a name="provider_juju"></a> [juju](#provider\_juju) | ~> 1.0 |
 
 ## Modules
 
@@ -42,6 +42,7 @@ This is a Terraform module facilitating the deployment of Tempo solution, using 
 | <a name="input_compactor_units"></a> [compactor\_units](#input\_compactor\_units) | Number of Tempo worker units with compactor role | `number` | `1` | no |
 | <a name="input_coordinator_config"></a> [coordinator\_config](#input\_coordinator\_config) | Map of the coordinator configuration options | `map(string)` | `{}` | no |
 | <a name="input_coordinator_constraints"></a> [coordinator\_constraints](#input\_coordinator\_constraints) | String listing constraints for the coordinator application | `string` | `"arch=amd64"` | no |
+| <a name="input_coordinator_name"></a> [coordinator\_name](#input\_coordinator\_name) | Name of the Tempo coordinator app | `string` | `"tempo"` | no |
 | <a name="input_coordinator_revision"></a> [coordinator\_revision](#input\_coordinator\_revision) | Revision number of the coordinator application | `number` | `null` | no |
 | <a name="input_coordinator_storage_directives"></a> [coordinator\_storage\_directives](#input\_coordinator\_storage\_directives) | Map of storage used by the coordinator application, which defaults to 1 GB, allocated by Juju | `map(string)` | `{}` | no |
 | <a name="input_coordinator_units"></a> [coordinator\_units](#input\_coordinator\_units) | Number of Tempo coordinator units | `number` | `1` | no |
@@ -54,7 +55,7 @@ This is a Terraform module facilitating the deployment of Tempo solution, using 
 | <a name="input_metrics_generator_config"></a> [metrics\_generator\_config](#input\_metrics\_generator\_config) | Map of the metrics-generator worker configuration options | `map(string)` | `{}` | no |
 | <a name="input_metrics_generator_name"></a> [metrics\_generator\_name](#input\_metrics\_generator\_name) | Name of the Tempo metrics-generator app | `string` | `"tempo-metrics-generator"` | no |
 | <a name="input_metrics_generator_units"></a> [metrics\_generator\_units](#input\_metrics\_generator\_units) | Number of Tempo worker units with metrics-generator role | `number` | `1` | no |
-| <a name="input_model"></a> [model](#input\_model) | Reference to an existing model resource or data source for the model to deploy to | `string` | n/a | yes |
+| <a name="input_model_uuid"></a> [model\_uuid](#input\_model\_uuid) | Reference to an existing model resource or data source for the model to deploy to | `string` | n/a | yes |
 | <a name="input_querier_config"></a> [querier\_config](#input\_querier\_config) | Map of the querier worker configuration options | `map(string)` | `{}` | no |
 | <a name="input_querier_name"></a> [querier\_name](#input\_querier\_name) | Name of the Tempo querier app | `string` | `"tempo-querier"` | no |
 | <a name="input_querier_units"></a> [querier\_units](#input\_querier\_units) | Number of Tempo worker units with querier role | `number` | `1` | no |
@@ -68,7 +69,7 @@ This is a Terraform module facilitating the deployment of Tempo solution, using 
 | <a name="input_s3_integrator_config"></a> [s3\_integrator\_config](#input\_s3\_integrator\_config) | Map of the s3-integrator configuration options | `map(string)` | `{}` | no |
 | <a name="input_s3_integrator_constraints"></a> [s3\_integrator\_constraints](#input\_s3\_integrator\_constraints) | String listing constraints for the s3-integrator application | `string` | `"arch=amd64"` | no |
 | <a name="input_s3_integrator_name"></a> [s3\_integrator\_name](#input\_s3\_integrator\_name) | Name of the s3-integrator app | `string` | `"tempo-s3-integrator"` | no |
-| <a name="input_s3_integrator_revision"></a> [s3\_integrator\_revision](#input\_s3\_integrator\_revision) | Revision number of the s3-integrator application | `number` | `157` | no |
+| <a name="input_s3_integrator_revision"></a> [s3\_integrator\_revision](#input\_s3\_integrator\_revision) | Revision number of the s3-integrator application | `number` | `null` | no |
 | <a name="input_s3_integrator_storage_directives"></a> [s3\_integrator\_storage\_directives](#input\_s3\_integrator\_storage\_directives) | Map of storage used by the s3-integrator application, which defaults to 1 GB, allocated by Juju | `map(string)` | `{}` | no |
 | <a name="input_s3_integrator_units"></a> [s3\_integrator\_units](#input\_s3\_integrator\_units) | Number of S3 integrator units | `number` | `1` | no |
 | <a name="input_s3_secret_key"></a> [s3\_secret\_key](#input\_s3\_secret\_key) | S3 secret-key credential | `string` | n/a | yes |
@@ -90,9 +91,9 @@ This is a Terraform module facilitating the deployment of Tempo solution, using 
 
 Users should ensure that Terraform is aware of the `juju_model` dependency of the charm module.
 
-To deploy this module with its needed dependency, you can run `terraform apply -var="model=<MODEL_NAME>" -auto-approve`. This would deploy all Tempo components in the same model.
+To deploy this module with its needed dependency, you can run `terraform apply -var="model_uuid=<MODEL_UUID>" -auto-approve`. This would deploy all Tempo components in the same model.
 
 ### Microservice deployment
 
-By default, this Terraform module will deploy each Tempo worker with `1` unit. To configure the module to run `x` units of any worker role, you can run `terraform apply -var="model=<MODEL_NAME>" -var="<ROLE>_units=<x>" -auto-approve`.
+By default, this Terraform module will deploy each Tempo worker with `1` unit. To configure the module to run `x` units of any worker role, you can run `terraform apply -var="model_uuid=<MODEL_UUID>" -var="<ROLE>_units=<x>" -auto-approve`.
 See [Tempo worker roles](https://discourse.charmhub.io/t/tempo-worker-roles/15484) for the recommended scale for each role.

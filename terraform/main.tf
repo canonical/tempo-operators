@@ -1,6 +1,6 @@
 resource "juju_secret" "tempo_s3_credentials_secret" {
-  model = var.model
-  name  = "tempo_s3_credentials"
+  model_uuid = var.model_uuid
+  name       = "tempo_s3_credentials"
   value = {
     access-key = var.s3_access_key
     secret-key = var.s3_secret_key
@@ -9,7 +9,7 @@ resource "juju_secret" "tempo_s3_credentials_secret" {
 }
 
 resource "juju_access_secret" "tempo_s3_secret_access" {
-  model = var.model
+  model_uuid = var.model_uuid
   applications = [
     juju_application.s3_integrator.name
   ]
@@ -24,7 +24,7 @@ resource "juju_application" "s3_integrator" {
     credentials = "secret:${juju_secret.tempo_s3_credentials_secret.secret_id}"
   }, var.s3_integrator_config)
   constraints        = var.s3_integrator_constraints
-  model              = var.model
+  model_uuid         = var.model_uuid
   name               = var.s3_integrator_name
   storage_directives = var.s3_integrator_storage_directives
   trust              = true
@@ -40,10 +40,11 @@ resource "juju_application" "s3_integrator" {
 module "tempo_coordinator" {
   source = "git::https://github.com/canonical/tempo-operators//coordinator/terraform"
 
+  app_name           = var.coordinator_name
   channel            = var.channel
   config             = var.coordinator_config
   constraints        = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=tempo,anti-pod.topology-key=kubernetes.io/hostname" : var.coordinator_constraints
-  model              = var.model
+  model_uuid         = var.model_uuid
   revision           = var.coordinator_revision
   storage_directives = var.coordinator_storage_directives
   units              = var.coordinator_units
@@ -60,7 +61,7 @@ module "tempo_querier" {
     role-querier = true
   }, var.querier_config)
   constraints        = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.querier_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
-  model              = var.model
+  model_uuid         = var.model_uuid
   revision           = var.worker_revision
   storage_directives = var.worker_storage_directives
   units              = var.querier_units
@@ -71,7 +72,7 @@ module "tempo_query_frontend" {
   depends_on = [module.tempo_coordinator]
 
   app_name    = var.query_frontend_name
-  model       = var.model
+  model_uuid  = var.model_uuid
   channel     = var.channel
   constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.query_frontend_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
   config = merge({
@@ -88,7 +89,7 @@ module "tempo_ingester" {
   depends_on = [module.tempo_coordinator]
 
   app_name    = var.ingester_name
-  model       = var.model
+  model_uuid  = var.model_uuid
   channel     = var.channel
   constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.ingester_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
   config = merge({
@@ -105,7 +106,7 @@ module "tempo_distributor" {
   depends_on = [module.tempo_coordinator]
 
   app_name    = var.distributor_name
-  model       = var.model
+  model_uuid  = var.model_uuid
   channel     = var.channel
   constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.distributor_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
   config = merge({
@@ -122,7 +123,7 @@ module "tempo_compactor" {
   depends_on = [module.tempo_coordinator]
 
   app_name    = var.compactor_name
-  model       = var.model
+  model_uuid  = var.model_uuid
   channel     = var.channel
   constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.compactor_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
   config = merge({
@@ -139,7 +140,7 @@ module "tempo_metrics_generator" {
   depends_on = [module.tempo_coordinator]
 
   app_name    = var.metrics_generator_name
-  model       = var.model
+  model_uuid  = var.model_uuid
   channel     = var.channel
   constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.metrics_generator_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
   config = merge({
@@ -154,7 +155,7 @@ module "tempo_metrics_generator" {
 # -------------- # Integrations --------------
 
 resource "juju_integration" "coordinator_to_s3_integrator" {
-  model = var.model
+  model_uuid = var.model_uuid
 
   application {
     name     = juju_application.s3_integrator.name
@@ -168,7 +169,7 @@ resource "juju_integration" "coordinator_to_s3_integrator" {
 }
 
 resource "juju_integration" "coordinator_to_querier" {
-  model = var.model
+  model_uuid = var.model_uuid
 
   application {
     name     = module.tempo_coordinator.app_name
@@ -182,7 +183,7 @@ resource "juju_integration" "coordinator_to_querier" {
 }
 
 resource "juju_integration" "coordinator_to_query_frontend" {
-  model = var.model
+  model_uuid = var.model_uuid
 
   application {
     name     = module.tempo_coordinator.app_name
@@ -196,7 +197,7 @@ resource "juju_integration" "coordinator_to_query_frontend" {
 }
 
 resource "juju_integration" "coordinator_to_ingester" {
-  model = var.model
+  model_uuid = var.model_uuid
 
   application {
     name     = module.tempo_coordinator.app_name
@@ -210,7 +211,7 @@ resource "juju_integration" "coordinator_to_ingester" {
 }
 
 resource "juju_integration" "coordinator_to_distributor" {
-  model = var.model
+  model_uuid = var.model_uuid
 
   application {
     name     = module.tempo_coordinator.app_name
@@ -224,7 +225,7 @@ resource "juju_integration" "coordinator_to_distributor" {
 }
 
 resource "juju_integration" "coordinator_to_compactor" {
-  model = var.model
+  model_uuid = var.model_uuid
 
   application {
     name     = module.tempo_coordinator.app_name
@@ -238,7 +239,7 @@ resource "juju_integration" "coordinator_to_compactor" {
 }
 
 resource "juju_integration" "coordinator_to_metrics_generator" {
-  model = var.model
+  model_uuid = var.model_uuid
 
   application {
     name     = module.tempo_coordinator.app_name
