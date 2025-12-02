@@ -16,6 +16,7 @@ from coordinated_workers.coordinator import Coordinator
 import tempo_config
 
 logger = logging.getLogger(__name__)
+#foo
 
 
 class Tempo:
