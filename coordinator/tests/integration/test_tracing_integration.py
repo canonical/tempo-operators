@@ -15,11 +15,11 @@ from tempo import Tempo
 from tests.integration.helpers import get_traces_patiently, get_app_ip_address
 
 TESTER_METADATA = yaml.safe_load(
-    Path("./tests/integration/tester/metadata.yaml").read_text()
+    Path("./tests/integration/tester/charmcraft.yaml").read_text()
 )
 TESTER_APP_NAME = TESTER_METADATA["name"]
 TESTER_GRPC_METADATA = yaml.safe_load(
-    Path("./tests/integration/tester-grpc/metadata.yaml").read_text()
+    Path("./tests/integration/tester-grpc/charmcraft.yaml").read_text()
 )
 TESTER_GRPC_APP_NAME = TESTER_GRPC_METADATA["name"]
 
