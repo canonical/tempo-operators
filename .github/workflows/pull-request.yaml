@@ -46,7 +46,7 @@ jobs:
   pull-request-coordinator:
     needs: charms-changed
     if: needs.charms-changed.outputs.coordinator_changed == 'true'
-    uses: canonical/observability/.github/workflows/charm-pull-request.yaml@v1
+    uses: canonical/observability/.github/workflows/charm-pull-request.yaml@chore/quality-check-space-compress
     secrets: inherit
     with:
       charm-path: coordinator
