@@ -113,7 +113,10 @@ def test_relate(juju: Juju):
     )
 
 
-@pytest.mark.parametrize("enable_service_mesh", [True, False])
+@pytest.mark.parametrize("enable_service_mesh", [
+    pytest.param(True, marks=pytest.mark.skip(reason="Service mesh tests disabled until worker charm is released to charmhub.")),
+    False
+])
 def test_verify_traces_http(juju: Juju, enable_service_mesh):
     # given a relation between charms
     # when traces endpoint is queried
@@ -169,7 +172,10 @@ def test_verify_buffered_charm_traces_http(juju: Juju):
     assert expected_setup_events.issubset(captured_events)
 
 
-@pytest.mark.parametrize("enable_service_mesh", [True, False])
+@pytest.mark.parametrize("enable_service_mesh", [
+    pytest.param(True, marks=pytest.mark.skip(reason="Service mesh tests disabled until worker charm is released to charmhub.")),
+    False
+])
 def test_verify_traces_grpc(juju: Juju, enable_service_mesh):
     # the tester-grpc charm emits a single grpc trace in its common exit hook
     # we verify it's there even when in a service mesh
@@ -264,7 +270,10 @@ def test_verify_non_requested_receiver_endpoints_not_routed(juju: Juju):
             requests.get("http://" + tempo_worker_ip + port, timeout=0.5)
 
 
-@pytest.mark.parametrize("enable_service_mesh", [True, False])
+@pytest.mark.parametrize("enable_service_mesh", [
+    pytest.param(True, marks=pytest.mark.skip(reason="Service mesh tests disabled until worker charm is released to charmhub.")),
+    False
+])
 def test_verify_tempo_api_integration(juju: Juju, enable_service_mesh):
     # Test that tester charm can access tempo API through mesh
     with (
@@ -297,7 +306,10 @@ def test_verify_tempo_api_integration(juju: Juju, enable_service_mesh):
         juju.wait(all_active, delay=3, successes=5)
 
 
-@pytest.mark.parametrize("enable_service_mesh", [True, False])
+@pytest.mark.parametrize("enable_service_mesh", [
+    pytest.param(True, marks=pytest.mark.skip(reason="Service mesh tests disabled until worker charm is released to charmhub.")),
+    False
+])
 def test_verify_grafana_datasource_integration(juju: Juju, enable_service_mesh):
     # Test that tester charm can access tempo API through mesh
     with (
