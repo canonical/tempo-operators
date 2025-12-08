@@ -15,7 +15,7 @@ from helpers import (
     ALL_WORKERS,
 )
 from tempo import Tempo
-from tests.integration.helpers import get_traces_patiently
+from tests.integration.helpers import query_traces_patiently_from_client_localhost
 
 
 @pytest.mark.setup
@@ -33,7 +33,7 @@ def test_trace_ingestion(juju):
     emit_trace(tempo_ingestion_endpoint, juju)
 
     # THEN we can verify it's been ingested
-    get_traces_patiently(
+    query_traces_patiently_from_client_localhost(
         tempo_address,
         tls=False,
     )
