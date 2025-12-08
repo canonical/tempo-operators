@@ -11,7 +11,7 @@ on:
 jobs:
   quality-gates-coordinator:
     name: Run quality gates
-    uses: canonical/observability/.github/workflows/charm-quality-gates.yaml@chore/quality-check-space-compress
+    uses: canonical/observability/.github/workflows/charm-quality-gates.yaml@v1
     secrets: inherit
     with:
       charm-path: coordinator

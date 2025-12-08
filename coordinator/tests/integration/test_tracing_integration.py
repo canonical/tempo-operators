@@ -114,7 +114,7 @@ def test_relate(juju: Juju):
 
 
 @pytest.mark.parametrize("enable_service_mesh", [
-    pytest.param(True, marks=pytest.mark.skip(reason="Service mesh tests disabled until worker charm is released to charmhub.")),
+    pytest.param(True, marks=pytest.mark.xfail(reason="Service mesh tests disabled until worker charm is released to charmhub.", run=False)),
     False
 ])
 def test_verify_traces_http(juju: Juju, enable_service_mesh):
@@ -173,7 +173,7 @@ def test_verify_buffered_charm_traces_http(juju: Juju):
 
 
 @pytest.mark.parametrize("enable_service_mesh", [
-    pytest.param(True, marks=pytest.mark.skip(reason="Service mesh tests disabled until worker charm is released to charmhub.")),
+    pytest.param(True, marks=pytest.mark.xfail(reason="Service mesh tests disabled until worker charm is released to charmhub.", run=False)),
     False
 ])
 def test_verify_traces_grpc(juju: Juju, enable_service_mesh):
@@ -271,7 +271,7 @@ def test_verify_non_requested_receiver_endpoints_not_routed(juju: Juju):
 
 
 @pytest.mark.parametrize("enable_service_mesh", [
-    pytest.param(True, marks=pytest.mark.skip(reason="Service mesh tests disabled until worker charm is released to charmhub.")),
+    pytest.param(True, marks=pytest.mark.xfail(reason="Service mesh tests disabled until worker charm is released to charmhub.", run=False)),
     False
 ])
 def test_verify_tempo_api_integration(juju: Juju, enable_service_mesh):
@@ -307,7 +307,7 @@ def test_verify_tempo_api_integration(juju: Juju, enable_service_mesh):
 
 
 @pytest.mark.parametrize("enable_service_mesh", [
-    pytest.param(True, marks=pytest.mark.skip(reason="Service mesh tests disabled until worker charm is released to charmhub.")),
+    pytest.param(True, marks=pytest.mark.xfail(reason="Service mesh tests disabled until worker charm is released to charmhub.", run=False)),
     False
 ])
 def test_verify_grafana_datasource_integration(juju: Juju, enable_service_mesh):
