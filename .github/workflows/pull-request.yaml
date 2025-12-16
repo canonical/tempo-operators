@@ -2,9 +2,6 @@ name: Pull Requests
 
 on:
   pull_request:
-    branches:
-      - main
-      - track/**
 
 jobs:
   charms-changed:

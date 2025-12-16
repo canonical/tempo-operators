@@ -1,5 +1,9 @@
 # Learn more about charmcraft.yaml configuration at:
 # https://juju.is/docs/sdk/charmcraft-config
+name: tester-grpc
+description: tempo tester GRPC charm
+summary: tempo tester GRPC charm
+
 type: "charm"
 bases:
   - build-on:
@@ -10,8 +14,60 @@ bases:
       channel: "22.04"
 parts:
   charm:
+    build-packages:
+      - git
     charm-binary-python-packages:
       - "pydantic>=2"
       - "cryptography"
       - "jsonschema"
       - "opentelemetry-exporter-otlp-proto-http==1.21.0"
+
+containers:
+  workload:
+    resource: workload
+
+resources:
+  workload:
+    type: oci-image
+    description: OCI image for the workload
+    # Included for simplicity in integration tests
+    upstream-source: python:slim-buster
+
+requires:
+  tracing:
+    interface: tracing
+    limit: 1
+  service-mesh:
+    limit: 1
+    interface: service_mesh
+    description: |
+      Subscribe this tester charm into a service mesh and create the necessary authorization policies.
+  require-cmr-mesh:
+    interface: cross_model_mesh
+    description: |
+      Allow a cross-model application access to the tester service via the service mesh.
+      This relation provides additional data required by the service mesh to enforce cross-model authorization policies.
+
+provides:
+  provide-cmr-mesh:
+    optional: true
+    interface: cross_model_mesh
+    description: |
+      Allow cross-model applications to make HTTP requests to the tester service via the service mesh.
+      This relation provides additional data required by the service mesh to create cross-model authorization policies.
+
+peers:
+  replicas:
+    interface: replicas
+
+config:
+  options:
+    port:
+      description: port at which the webserver should run
+      type: int
+      default: 3000
+
+    host:
+      description: host at which the webserver should run
+      type: string
+      default: 0.0.0.0

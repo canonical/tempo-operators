@@ -8,20 +8,44 @@ import pytest
 import requests
 from pytest_jubilant import pack, get_resources
 import yaml
-from jubilant import Juju
+from contextlib import nullcontext
+from jubilant import Juju, all_active
 
-from helpers import WORKER_APP, deploy_monolithic_cluster, TEMPO_APP
+from helpers import (
+    WORKER_APP,
+    deploy_monolithic_cluster,
+    TEMPO_APP,
+    deploy_istio,
+    deploy_istio_beacon,
+    ISTIO_APP,
+    ISTIO_BEACON_APP,
+    service_mesh,
+)
 from tempo import Tempo
-from tests.integration.helpers import get_traces_patiently, get_app_ip_address
+from tests.integration.helpers import (
+    query_traces_patiently_from_client_pod,
+    get_app_ip_address,
+)
 
 TESTER_METADATA = yaml.safe_load(
-    Path("./tests/integration/tester/metadata.yaml").read_text()
+    Path("./tests/integration/tester/charmcraft.yaml").read_text()
 )
 TESTER_APP_NAME = TESTER_METADATA["name"]
 TESTER_GRPC_METADATA = yaml.safe_load(
-    Path("./tests/integration/tester-grpc/metadata.yaml").read_text()
+    Path("./tests/integration/tester-grpc/charmcraft.yaml").read_text()
 )
 TESTER_GRPC_APP_NAME = TESTER_GRPC_METADATA["name"]
+
+
+@pytest.mark.setup
+def test_deploy_istio(juju: Juju):
+    # Deploy Istio components
+    deploy_istio(juju)
+    deploy_istio_beacon(juju)
+    juju.wait(
+        lambda status: jubilant.all_active(status, ISTIO_APP, ISTIO_BEACON_APP),
+        timeout=1000,
+    )
 
 
 @pytest.mark.setup
@@ -34,6 +58,7 @@ def test_build_deploy_tester(juju: Juju):
         TESTER_APP_NAME,
         resources=resources,
         num_units=3,
+        trust=True,  # trust is needed when service mesh is enabled for the tester
     )
 
 
@@ -47,6 +72,7 @@ def test_build_deploy_tester_grpc(juju: Juju):
         TESTER_GRPC_APP_NAME,
         resources=resources,
         num_units=3,
+        trust=True,  # trust is needed when service mesh is enabled for the tester
     )
 
 
@@ -82,20 +108,43 @@ def test_relate(juju: Juju):
             status, TEMPO_APP, WORKER_APP, TESTER_APP_NAME, TESTER_GRPC_APP_NAME
         ),
         timeout=1000,
+        delay=2,
+        successes=5,
     )
 
 
-def test_verify_traces_http(juju: Juju):
+@pytest.mark.parametrize("enable_service_mesh", [
+    pytest.param(True, marks=pytest.mark.xfail(reason="Service mesh tests disabled until worker charm is released to charmhub.", run=False)),
+    False
+])
+def test_verify_traces_http(juju: Juju, enable_service_mesh):
     # given a relation between charms
     # when traces endpoint is queried
-    # then it should contain traces from the tester charm
-    app_ip = get_app_ip_address(juju, TEMPO_APP)
-    traces = get_traces_patiently(
-        tempo_host=app_ip, service_name="TempoTesterCharm", tls=False
-    )
-    assert traces, (
-        f"There's no trace of charm exec traces in tempo. {json.dumps(traces, indent=2)}"
-    )
+    # then it should contain traces from the tester charms
+    # and the behavior should not change when the charm is in a service mesh
+    with (
+        service_mesh(
+            juju=juju,
+            beacon_app_name=ISTIO_BEACON_APP,
+            apps_to_be_related_with_beacon=[
+                TEMPO_APP,
+                TESTER_APP_NAME,
+                TESTER_GRPC_APP_NAME,
+            ],
+        )
+        if enable_service_mesh
+        else nullcontext()
+    ):
+        traces = query_traces_patiently_from_client_pod(
+            tempo_host=f"tempo.{juju.model}.svc.cluster.local",
+            service_name="TempoTesterCharm",
+            tls=False,
+            source_pod=f"{WORKER_APP}/0",
+            juju=juju,
+        )
+        assert traces, (
+            f"There's no trace of charm exec traces in tempo. {json.dumps(traces, indent=2)}"
+        )
 
 
 @pytest.mark.skip(reason="fails because search query results are not stable")
@@ -104,7 +153,7 @@ def test_verify_buffered_charm_traces_http(juju: Juju):
     # given a relation between charms
     # when traces endpoint is queried
     # then it should contain all traces from the tester charm since the setup phase, thanks to the buffer
-    traces = get_traces_patiently(
+    traces = query_traces_patiently_from_client_pod(
         tempo_host=get_app_ip_address(juju, TEMPO_APP),
         service_name="TempoTesterCharm",
         tls=False,
@@ -123,17 +172,36 @@ def test_verify_buffered_charm_traces_http(juju: Juju):
     assert expected_setup_events.issubset(captured_events)
 
 
-def test_verify_traces_grpc(juju: Juju):
+@pytest.mark.parametrize("enable_service_mesh", [
+    pytest.param(True, marks=pytest.mark.xfail(reason="Service mesh tests disabled until worker charm is released to charmhub.", run=False)),
+    False
+])
+def test_verify_traces_grpc(juju: Juju, enable_service_mesh):
     # the tester-grpc charm emits a single grpc trace in its common exit hook
-    # we verify it's there
-    traces = get_traces_patiently(
-        tempo_host=get_app_ip_address(juju, TEMPO_APP),
-        service_name="TempoTesterGrpcCharm",
-        tls=False,
-    )
-    assert traces, (
-        f"There's no trace of generated grpc traces in tempo. {json.dumps(traces, indent=2)}"
-    )
+    # we verify it's there even when in a service mesh
+    with (
+        service_mesh(
+            juju=juju,
+            beacon_app_name=ISTIO_BEACON_APP,
+            apps_to_be_related_with_beacon=[
+                TEMPO_APP,
+                TESTER_APP_NAME,
+                TESTER_GRPC_APP_NAME,
+            ],
+        )
+        if enable_service_mesh
+        else nullcontext()
+    ):
+        traces = query_traces_patiently_from_client_pod(
+            tempo_host=f"tempo.{juju.model}.svc.cluster.local",
+            service_name="TempoTesterGrpcCharm",
+            tls=False,
+            source_pod=f"{WORKER_APP}/0",
+            juju=juju,
+        )
+        assert traces, (
+            f"There's no trace of generated grpc traces in tempo. {json.dumps(traces, indent=2)}"
+        )
 
 
 def test_verify_only_requested_receiver_endpoints_listed(juju: Juju):
@@ -202,6 +270,82 @@ def test_verify_non_requested_receiver_endpoints_not_routed(juju: Juju):
             requests.get("http://" + tempo_worker_ip + port, timeout=0.5)
 
 
+@pytest.mark.parametrize("enable_service_mesh", [
+    pytest.param(True, marks=pytest.mark.xfail(reason="Service mesh tests disabled until worker charm is released to charmhub.", run=False)),
+    False
+])
+def test_verify_tempo_api_integration(juju: Juju, enable_service_mesh):
+    # Test that tester charm can access tempo API through mesh
+    with (
+        service_mesh(
+            juju=juju,
+            beacon_app_name=ISTIO_BEACON_APP,
+            apps_to_be_related_with_beacon=[
+                TEMPO_APP,
+                TESTER_APP_NAME,
+                TESTER_GRPC_APP_NAME,
+            ],
+        )
+        if enable_service_mesh
+        else nullcontext()
+    ):
+        juju.integrate(TEMPO_APP + ":tempo-api", TESTER_APP_NAME + ":tempo-api")
+        juju.wait(all_active, delay=3, successes=5)
+
+        # ATM this is purely an access test, that tests access to the API.
+        result = juju.exec(
+            f"curl -f http://tempo.{juju.model}.svc.cluster.local:3200/api/search/tag/service.name/values",
+            unit=f"{TESTER_APP_NAME}/0",
+        )
+        assert "200" in result.stdout or "TempoTesterCharm" in result.stdout
+
+        # remove the relation to leave a clean state for other endpoint integration tests.
+        juju.remove_relation(
+            TEMPO_APP + ":tempo-api", TESTER_APP_NAME + ":tempo-api", force=True
+        )
+        juju.wait(all_active, delay=3, successes=5)
+
+
+@pytest.mark.parametrize("enable_service_mesh", [
+    pytest.param(True, marks=pytest.mark.xfail(reason="Service mesh tests disabled until worker charm is released to charmhub.", run=False)),
+    False
+])
+def test_verify_grafana_datasource_integration(juju: Juju, enable_service_mesh):
+    # Test that tester charm can access tempo API through mesh
+    with (
+        service_mesh(
+            juju=juju,
+            beacon_app_name=ISTIO_BEACON_APP,
+            apps_to_be_related_with_beacon=[
+                TEMPO_APP,
+                TESTER_APP_NAME,
+                TESTER_GRPC_APP_NAME,
+            ],
+        )
+        if enable_service_mesh
+        else nullcontext()
+    ):
+        juju.integrate(
+            TEMPO_APP + ":grafana-source", TESTER_APP_NAME + ":grafana-source"
+        )
+        juju.wait(all_active, delay=3, successes=5)
+
+        # ATM this is purely an access test, that tests access to the API.
+        result = juju.exec(
+            f"curl -f http://tempo.{juju.model}.svc.cluster.local:3200/api/search/tag/service.name/values",
+            unit=f"{TESTER_APP_NAME}/0",
+        )
+        assert "200" in result.stdout or "TempoTesterCharm" in result.stdout
+
+        # remove the relation to leave a clean state for other endpoint integration tests.
+        juju.remove_relation(
+            TEMPO_APP + ":grafana-source",
+            TESTER_APP_NAME + ":grafana-source",
+            force=True,
+        )
+        juju.wait(all_active, delay=3, successes=5)
+
+
 @pytest.mark.teardown
 def test_remove_relation(juju: Juju):
     # given related charms
@@ -212,12 +356,10 @@ def test_remove_relation(juju: Juju):
 
     juju.wait(lambda status: status.apps[TEMPO_APP].is_active, timeout=1000)
 
-    (
-        juju.wait(
-            lambda status: jubilant.all_active(status, TEMPO_APP),
-            error=lambda status: jubilant.any_blocked(status, TEMPO_APP),
-            timeout=1000,
-        ),
+    juju.wait(
+        lambda status: jubilant.all_active(status, TEMPO_APP),
+        error=lambda status: jubilant.any_blocked(status, TEMPO_APP),
+        timeout=1000,
     )
     # for tester, depending on the result of race with tempo it's either waiting or active
     juju.wait(
