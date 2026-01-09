@@ -1,0 +1,64 @@
+version: "prometheus/v1"
+service: "tempo-coordinator"
+labels:
+  repo: "canonical/tempo-operators"
+slos:
+  # Request availability - Track 5xx errors on tempo requests
+  - name: "requests-availability"
+    objective: <OBJECTIVE>
+    description: "Track the availability of Tempo requests (excluding 5xx errors)"
+    sli:
+      events:
+        error_query: sum(rate(tempo_request_duration_seconds_count{status_code=~"5.."}[{{.window}}]))
+        total_query: sum(rate(tempo_request_duration_seconds_count[{{.window}}]))
+    alerting:
+      name: TempoRequestsAvailability
+      page_alert:
+        disable: true
+      ticket_alert:
+        disable: true
+  
+  # Request latency - Track requests exceeding latency threshold
+  - name: "requests-latency"
+    objective: <OBJECTIVE>
+    description: "Track the proportion of Tempo requests that complete within acceptable latency (fill in threshold)"
+    sli:
+      events:
+        error_query: sum(rate(tempo_request_duration_seconds_count[{{.window}}])) - sum(rate(tempo_request_duration_seconds_bucket{le="<MAX_ACCEPTABLE_REQ_DURATION>"}[{{.window}}]))
+        total_query: sum(rate(tempo_request_duration_seconds_count[{{.window}}]))
+    alerting:
+      name: TempoRequestsLatency
+      page_alert:
+        disable: true
+      ticket_alert:
+        disable: true
+  
+  # Span ingestion availability - Track discarded spans
+  - name: "span-ingestion-availability"
+    objective: <OBJECTIVE>
+    description: "Track the availability of span ingestion (excluding discarded spans)"
+    sli:
+      events:
+        error_query: sum(rate(tempo_discarded_spans_total[{{.window}}]))
+        total_query: sum(rate(tempo_distributor_spans_received_total[{{.window}}]))
+    alerting:
+      name: TempoSpanIngestion
+      page_alert:
+        disable: true
+      ticket_alert:
+        disable: true
+  
+  # Distributor push latency - Track distributor push performance
+  - name: "distributor-push-latency"
+    objective: <OBJECTIVE>
+    description: "Track the proportion of distributor push operations that complete within acceptable latency (fill in threshold)"
+    sli:
+      events:
+        error_query: sum(rate(tempo_distributor_push_duration_seconds_count[{{.window}}])) - sum(rate(tempo_distributor_push_duration_seconds_bucket{le="<MAX_ACCEPTABLE_PUSH_LATENCY>"}[{{.window}}]))
+        total_query: sum(rate(tempo_distributor_push_duration_seconds_count[{{.window}}]))
+    alerting:
+      name: TempoDistributorPushLatency
+      page_alert:
+        disable: true
+      ticket_alert:
+        disable: true
