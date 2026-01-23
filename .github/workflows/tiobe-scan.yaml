@@ -9,6 +9,6 @@ jobs:
         name: TiCs-scan
         uses: canonical/observability/.github/workflows/charm-tiobe-scan.yaml@v1
         with:
-            coverage-folder: coverage
+            coverage-folder: .cover
             tiobe-project-name: tempo-operators
         secrets: inherit
