@@ -83,6 +83,11 @@ provides:
 
       To use this relation, you must also have either the `service-mesh` relation in place (e.g. to an istio-beacon charm) OR
       have the istio-beacon charm be configured to put the whole model on the mesh (via its config option).
+  slos:
+    optional: true
+    interface: slo
+    description: |
+      Provides SLO (Service Level Objective) specifications to Sloth for generating Prometheus recording and alerting rules.
 
 requires:
   s3:
@@ -161,6 +166,19 @@ actions:
   list-receivers:
     description: |
       Returns a list of all enabled receiver endpoints.
+  get-slo-template:
+    description: |
+      Returns a template SLO specification for Tempo with placeholders for customization.
+      The template includes example SLOs for request availability, latency, span ingestion, and distributor performance.
+      
+      Usage:
+        # Extract template to file (recommended):
+        juju run tempo-coordinator-k8s/0 get-slo-template --format=json | jq -r '.template' > tempo-slo.yaml
+        
+        # Then edit tempo-slo.yaml to fill in the <OBJECTIVE> placeholder for each SLO.
+        
+        # Apply the configuration:
+        juju config tempo-coordinator-k8s slos="$(cat tempo-slo.yaml)"
 
 peers:
   peers:
@@ -233,3 +251,10 @@ config:
         e.g. "1Gi". Default is unset (no limit). This is DEPRECATED and will be removed in track 3.
         The right way to do this now is to set constraints using the juju API.
       type: string
+    slos:
+      description: |
+        YAML-formatted SLO definitions for the Tempo coordinator. If not set, no SLOs are defined.
+        See https://grafana.com/docs/tempo/latest/operations/slo/ for more information on SLO definitions.
+      type: string
+      default: ""
+

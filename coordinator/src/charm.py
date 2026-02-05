@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 
 import ops
 import ops_tracing
+import yaml
 
 # wokeignore:rule=blackbox
 from charms.blackbox_exporter_k8s.v0.blackbox_probes import (
@@ -25,6 +26,7 @@ from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
 from charms.prometheus_k8s.v1.prometheus_remote_write import (
     PrometheusRemoteWriteConsumer,
 )
+from charms.sloth_k8s.v0.slo import SLOProvider
 from charms.tempo_coordinator_k8s.v0.tempo_api import (
     DEFAULT_RELATION_NAME as tempo_api_relation_name,
 )
@@ -254,15 +256,22 @@ class TempoCoordinatorCharm(CharmBase):
             app=self.app,
         )
 
+        # SLO Provider
+        self.slo_provider = SLOProvider(self, relation_name="slos")
+
+        # actions - register these BEFORE the can_handle_events check
+        # so actions work even when the charm is blocked
+        self.framework.observe(
+            self.on.list_receivers_action, self._on_list_receivers_action
+        )
+        self.framework.observe(
+            self.on.get_slo_template_action, self._on_get_slo_template_action
+        )
+
         # refuse to handle any other event as we can't possibly know what to do.
         if not self.coordinator.can_handle_events:
             # logging is handled by the Coordinator object
             return
-
-        # actions
-        self.framework.observe(
-            self.on.list_receivers_action, self._on_list_receivers_action
-        )
 
         # do this regardless of what event we are processing
         observe_events(self, all_events, self._reconcile)
@@ -499,6 +508,16 @@ class TempoCoordinatorCharm(CharmBase):
             res[receiver.replace("_", "-")] = self.get_receiver_url(receiver)
         event.set_results(res)
 
+    def _on_get_slo_template_action(self, event: ops.ActionEvent):
+        """Handle the get-slo-template action."""
+        sli_template_path = Path(__file__).parent / "sli_templates" / "sli.yaml"
+        try:
+            with open(sli_template_path, "r") as f:
+                template = f.read()
+            event.set_results({"template": template})
+        except Exception as e:
+            event.fail(f"Failed to read SLI template: {e}")
+
     def _on_collect_status(self, e: CollectStatusEvent):
         # add Tempo coordinator-specific statuses
 
@@ -596,6 +615,33 @@ class TempoCoordinatorCharm(CharmBase):
             self.tracing.publish_receivers(
                 [(p, self.get_receiver_url(p)) for p in requested_receivers]
             )
+
+    def _update_slo_provider(self) -> None:
+        """Update SLO provider with configured SLOs."""
+        if not self.unit.is_leader():
+            return
+
+        slo_config = self.config.get("slos")
+        if not slo_config:
+            return
+
+        try:
+            # Parse the YAML config - it can contain multiple SLO documents (separated by ---)
+            slo_specs = list(yaml.safe_load_all(slo_config))
+            if not slo_specs:
+                return
+
+            # Filter out any None values from empty documents
+            slo_specs = [spec for spec in slo_specs if spec is not None]
+            if not slo_specs:
+                return
+
+            # Provide all SLO specs to sloth in one call (they get merged)
+            self.slo_provider.provide_slos(slo_specs)
+        except yaml.YAMLError as e:
+            logger.error("Failed to parse SLO config: %s", e)
+        except Exception as e:
+            logger.error("Failed to provide SLOs: %s", e)
 
     def _collect_requested_receivers(self) -> Tuple[ReceiverProtocol, ...]:
         """List what receivers we should activate, based on the active tracing relations and config-enabled extra receivers."""
@@ -888,6 +934,7 @@ class TempoCoordinatorCharm(CharmBase):
         # open the port through which worker telemetry is proxied
         self.unit.set_ports(*self._nginx_ports, PROXY_WORKER_TELEMETRY_PORT)
         self._update_tempo_api_relations()
+        self._update_slo_provider()
 
     def _build_service_graph_config(self) -> Dict[str, Any]:
         """Build the service graph config based on matching datasource UIDs.
