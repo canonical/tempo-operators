@@ -2,7 +2,7 @@
 # Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""Charmed Operator for Tempo; a lightweight object storage based tracing backend."""
+"""Charmed Operator for Tempo, a lightweight object storage based tracing backend."""
 
 import json
 import logging
