@@ -8,6 +8,10 @@ from pathlib import Path
 from typing import List, Optional
 
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer
+from charms.istio_beacon_k8s.v0.service_mesh import (
+    ServiceMeshConsumer,
+    UnitPolicy,
+)
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
@@ -43,6 +47,15 @@ class TempoTesterGrpcCharm(CharmBase):
 
         self.tracing = TracingEndpointRequirer(
             self, relation_name="tracing", protocols=["otlp_grpc"]
+        )
+
+        self._mesh = ServiceMeshConsumer(
+            self,
+            policies=[
+                UnitPolicy(  # This unit policy allows the tester to communicate with its peers without restriction.
+                    relation="replicas",
+                )
+            ],
         )
 
         # Core lifecycle events

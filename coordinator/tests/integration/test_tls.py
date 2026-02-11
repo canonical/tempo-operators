@@ -12,7 +12,7 @@ from helpers import (
     deploy_monolithic_cluster,
     emit_trace,
     get_tempo_ingressed_endpoint,
-    get_traces_patiently,
+    query_traces_patiently_from_client_localhost,
     protocols_endpoints,
     TRAEFIK_APP,
     SSC_APP,
@@ -70,7 +70,7 @@ def test_verify_trace_http_no_tls_fails(juju: Juju, nonce, unit):
     # redecorate the original function with shorter retries for this negative test
     get_traces_patiently_short = tenacity.retry(
         stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_fixed(10)
-    )(get_traces_patiently.__wrapped__)
+    )(query_traces_patiently_from_client_localhost.__wrapped__)
 
     # THEN we can verify it's not been ingested
     with pytest.raises(tenacity.RetryError):
@@ -95,7 +95,7 @@ def test_verify_traces_otlp_http_tls(juju: Juju, nonce, unit):
         service_name=service_name,
     )
     # THEN we can verify it's been ingested
-    get_traces_patiently(
+    query_traces_patiently_from_client_localhost(
         get_app_ip_address(juju, TEMPO_APP), service_name=service_name, nonce=nonce
     )
 
@@ -142,14 +142,16 @@ def test_verify_traces_force_enabled_protocols_tls(juju: Juju, nonce, protocol):
         service_name=service_name,
     )
     # verify it's been ingested
-    get_traces_patiently(tempo_host, service_name=service_name, nonce=nonce)
+    query_traces_patiently_from_client_localhost(
+        tempo_host, service_name=service_name, nonce=nonce
+    )
 
 
 @pytest.mark.skip(reason="SSL error on jaeger_thrift_http")
 def test_workload_traces_tls(juju: Juju):
     tempo_host = get_ingress_proxied_hostname(juju)
     # verify traces from tempo-scalable-single-binary are ingested
-    assert get_traces_patiently(
+    assert query_traces_patiently_from_client_localhost(
         tempo_host,
         service_name="tempo-scalable-single-binary",
     )

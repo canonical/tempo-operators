@@ -33,6 +33,7 @@ def copy_charm_libs_into_tester_charm():
         "tls_certificates_interface/v4/tls_certificates.py",
         "tempo_coordinator_k8s/v0/charm_tracing.py",
         "tempo_coordinator_k8s/v0/tracing.py",
+        "istio_beacon_k8s/v0/service_mesh.py",
     ]
 
     copies = []
@@ -54,6 +55,7 @@ def copy_charm_libs_into_tester_grpc_charm():
     """Ensure the tester GRPC charm has the libraries it uses."""
     libraries = [
         "tempo_coordinator_k8s/v0/tracing.py",
+        "istio_beacon_k8s/v0/service_mesh.py",
     ]
 
     copies = []

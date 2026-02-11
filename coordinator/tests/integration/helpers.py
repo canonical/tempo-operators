@@ -9,8 +9,11 @@ from typing import Optional, Sequence, Union, List, cast, Set
 import jubilant
 import requests
 import yaml
+from lightkube import Client
+from lightkube.generic_resource import create_namespaced_resource
+from contextlib import contextmanager
 from coordinated_workers.nginx import CA_CERT_PATH
-from jubilant import Juju
+from jubilant import Juju, all_active
 from minio import Minio
 from pytest_jubilant import pack
 from tenacity import retry, stop_after_attempt, wait_fixed
@@ -33,6 +36,9 @@ WORKER_APP = "tempo-worker"
 TEMPO_APP = "tempo"
 SSC_APP = "ssc"
 TRAEFIK_APP = "trfk"
+ISTIO_APP = "istio-k8s"
+ISTIO_BEACON_APP = "istio-beacon-k8s"
+ISTIO_INGRESS_APP = "istio-ingress-k8s"
 
 ALL_ROLES = [role.value for role in TempoRole.all_nonmeta()]
 ALL_WORKERS = [f"{WORKER_APP}-" + role for role in ALL_ROLES]
@@ -199,6 +205,26 @@ def deploy_prometheus(juju: Juju):
     )
 
 
+def deploy_istio(juju: Juju):
+    """Deploy Istio service mesh."""
+    juju.deploy(
+        "istio-k8s",
+        app=ISTIO_APP,
+        channel=INTEGRATION_TESTERS_CHANNEL,
+        trust=True,
+    )
+
+
+def deploy_istio_beacon(juju: Juju):
+    """Deploy Istio beacon for ambient mode support."""
+    juju.deploy(
+        "istio-beacon-k8s",
+        app=ISTIO_BEACON_APP,
+        channel=INTEGRATION_TESTERS_CHANNEL,
+        trust=True,
+    )
+
+
 def deploy_distributed_cluster(
     juju: Juju,
     roles: Sequence[str],
@@ -231,12 +257,29 @@ def deploy_distributed_cluster(
     return _deploy_cluster(juju, all_workers, coordinator=coordinator)
 
 
-def get_traces(
+def _get_query_url(
     tempo_host: str, service_name="tracegen", tls=True, nonce: Optional[str] = None
 ):
     # query params are logfmt-encoded. Space-separated.
     nonce_param = f"%20tracegen.nonce={nonce}" if nonce else ""
     url = f"{'https' if tls else 'http'}://{tempo_host}:3200/api/search?tags=service.name={service_name}{nonce_param}"
+    return url
+
+
+def query_traces_from_client_localhost(
+    tempo_host: str,
+    service_name="tracegen",
+    tls=True,
+    nonce: Optional[str] = None,
+):
+    """Query traces by running requests.get from the test host machine (outside the cluster)."""
+    url = _get_query_url(
+        tempo_host,
+        service_name,
+        tls,
+        nonce,
+    )
+    # Run from host (backward compatibility)
     req = requests.get(
         url,
         verify=False,
@@ -247,13 +290,69 @@ def get_traces(
     return traces
 
 
+def query_traces_from_client_pod(
+    tempo_host: str,
+    service_name="tracegen",
+    tls=True,
+    nonce: Optional[str] = None,
+    source_pod: Optional[str] = None,
+    juju: Optional[Juju] = None,
+):
+    """Query traces by running curl from inside a pod (within the cluster)."""
+    url = _get_query_url(
+        tempo_host,
+        service_name,
+        tls,
+        nonce,
+    )
+    # Run curl from specified pod using juju exec
+    logger.info(f"Running curl from pod {source_pod} to {url}")
+    result = juju.exec(f"curl -s {url}", unit=source_pod)
+    response_text = result.stdout
+    logger.info(f"Pod response: {response_text}")
+    traces = json.loads(response_text)["traces"]
+    return traces
+
+
 # retry up to 20 times, waiting 20 seconds between attempts
 @retry(stop=stop_after_attempt(20), wait=wait_fixed(20))
-def get_traces_patiently(
-    tempo_host, service_name="tracegen", tls=True, nonce: Optional[str] = None
+def query_traces_patiently_from_client_localhost(
+    tempo_host,
+    service_name="tracegen",
+    tls=True,
+    nonce: Optional[str] = None,
 ):
+    """Query traces from localhost with retries until traces are found."""
     logger.info(f"polling {tempo_host} for service {service_name!r} traces...")
-    traces = get_traces(tempo_host, service_name=service_name, tls=tls, nonce=nonce)
+    traces = query_traces_from_client_localhost(
+        tempo_host,
+        service_name=service_name,
+        tls=tls,
+        nonce=nonce,
+    )
+    assert len(traces) > 0, "no traces found"
+    return traces
+
+
+@retry(stop=stop_after_attempt(20), wait=wait_fixed(20))
+def query_traces_patiently_from_client_pod(
+    tempo_host,
+    service_name="tracegen",
+    tls=True,
+    nonce: Optional[str] = None,
+    source_pod: Optional[str] = None,
+    juju: Optional[Juju] = None,
+):
+    """Query traces from inside a pod with retries until traces are found."""
+    logger.info(f"polling {tempo_host} for service {service_name!r} traces...")
+    traces = query_traces_from_client_pod(
+        tempo_host,
+        service_name=service_name,
+        tls=tls,
+        nonce=nonce,
+        source_pod=source_pod,
+        juju=juju,
+    )
     assert len(traces) > 0, "no traces found"
     return traces
 
@@ -364,3 +463,61 @@ def get_ingress_proxied_hostname(juju: Juju):
             "proxied-endpoints"
         ]
     )[TRAEFIK_APP]["url"].split("://")[1]
+
+
+# TODO: this is a workaround. the ingress provider should provide the proxied-endpoints. See https://github.com/canonical/istio-ingress-k8s-operator/issues/108.
+# Update this after the above issue is fixed.
+def get_istio_ingress_ip(juju: Juju, app_name: str = "istio-ingress"):
+    """Get the istio-ingress public IP address from Kubernetes."""
+    gateway_resource = create_namespaced_resource(
+        group="gateway.networking.k8s.io",
+        version="v1",
+        kind="Gateway",
+        plural="gateways",
+    )
+    client = Client()
+    gateway = client.get(gateway_resource, app_name, namespace=juju.model)
+    if gateway.status and gateway.status.get("addresses"):  # type: ignore
+        return gateway.status["addresses"][0]["value"]  # type: ignore
+    raise ValueError(f"No ingress address found for {app_name}")
+
+
+@contextmanager
+def service_mesh(
+    juju: Juju,
+    beacon_app_name: str,
+    apps_to_be_related_with_beacon: List[str],
+):
+    """Temporarily the service-mesh in the model.
+
+    This puts the entire model, that the beacon app is part of, on mesh.
+    This assumes the beacon app is already deployed and active.
+    This integrates the apps_to_be_related_with_beacon with the beacon app via the `service-mesh` relation.
+    """
+    # enable mesh
+    juju.config(ISTIO_BEACON_APP, {"model-on-mesh": "true"})
+
+    for app in apps_to_be_related_with_beacon:
+        juju.integrate(beacon_app_name + ":service-mesh", app + ":service-mesh")
+    juju.wait(
+        all_active,
+        timeout=1000,
+        delay=5,
+        successes=5,
+    )
+
+    yield
+
+    # disable mesh
+    juju.config(ISTIO_BEACON_APP, {"model-on-mesh": "false"})
+
+    for app in apps_to_be_related_with_beacon:
+        juju.remove_relation(
+            beacon_app_name + ":service-mesh", app + ":service-mesh", force=True
+        )
+    juju.wait(
+        all_active,
+        timeout=1000,
+        delay=5,
+        successes=5,
+    )
