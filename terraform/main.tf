@@ -63,7 +63,7 @@ module "tempo_querier" {
   constraints        = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.querier_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
   model_uuid         = var.model_uuid
   revision           = var.worker_revision
-  storage_directives = var.worker_storage_directives
+  storage_directives = var.querier_worker_storage_directives
   units              = var.querier_units
 }
 
@@ -80,7 +80,7 @@ module "tempo_query_frontend" {
     role-query-frontend = true
   }, var.query_frontend_config)
   revision           = var.worker_revision
-  storage_directives = var.worker_storage_directives
+  storage_directives = var.query_frontend_worker_storage_directives
   units              = var.query_frontend_units
 }
 
@@ -97,7 +97,7 @@ module "tempo_ingester" {
     role-ingester = true
   }, var.ingester_config)
   revision           = var.worker_revision
-  storage_directives = var.worker_storage_directives
+  storage_directives = var.ingester_worker_storage_directives
   units              = var.ingester_units
 }
 
@@ -114,7 +114,7 @@ module "tempo_distributor" {
     role-distributor = true
   }, var.distributor_config)
   revision           = var.worker_revision
-  storage_directives = var.worker_storage_directives
+  storage_directives = var.distributor_worker_storage_directives
   units              = var.distributor_units
 }
 
@@ -131,7 +131,7 @@ module "tempo_compactor" {
     role-compactor = true
   }, var.compactor_config)
   revision           = var.worker_revision
-  storage_directives = var.worker_storage_directives
+  storage_directives = var.compactor_worker_storage_directives
   units              = var.compactor_units
 }
 
@@ -148,7 +148,7 @@ module "tempo_metrics_generator" {
     role-metrics-generator = true
   }, var.metrics_generator_config)
   revision           = var.worker_revision
-  storage_directives = var.worker_storage_directives
+  storage_directives = var.metrics_generator_worker_storage_directives
   units              = var.metrics_generator_units
 }
 
