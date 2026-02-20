@@ -50,6 +50,7 @@ jobs:
     secrets: inherit
     with:
       charm-path: coordinator
+      juju-channel: 3.6/edge/3.6.13
   pull-request-worker:
     needs: charms-changed
     if: needs.charms-changed.outputs.worker_changed == 'true'
@@ -57,6 +58,7 @@ jobs:
     secrets: inherit
     with:
       charm-path: worker
+      juju-channel: 3.6/edge/3.6.13
   interfaces:
     strategy:
       fail-fast: false
