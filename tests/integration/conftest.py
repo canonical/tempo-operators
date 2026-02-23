@@ -93,14 +93,6 @@ def deployment_factory(tls, distributed, juju, do_setup, do_teardown):
     with _tls_ctx(tls, juju=juju, distributed=distributed):
         yield juju
 
-    if do_teardown:
-        logger.info("tearing down all apps...")
-        for app_to_remove in {
-            TEMPO_APP,
-            *(ALL_WORKERS if distributed else (WORKER_APP,)),
-        }:
-            juju.remove_application(app_to_remove)
-
 
 @fixture(scope="module")
 def copy_charm_libs_into_tester_charm():
