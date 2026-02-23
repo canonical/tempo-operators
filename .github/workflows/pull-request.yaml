@@ -15,7 +15,7 @@ jobs:
     secrets: inherit
     with:
       charm-path: ${{ matrix.charm-path }}
-      enable-integration: ${{ eq(matrix.charm-path, 'coordinator') }}
+      enable-integration: ${{ matrix.charm-path == 'coordinator' }}
   interfaces:
     strategy:
       fail-fast: false
