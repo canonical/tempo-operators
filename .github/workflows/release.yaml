@@ -52,7 +52,7 @@ jobs:
       default-track: dev
       charm-path: worker
       git-tag-prefix: worker-
-      juju-channel: 3.6/edge/3.6.9
+      juju-channel: 3.6/edge/rpcerrors
   release-coordinator:
     needs: charms-changed
     if: needs.charms-changed.outputs.coordinator_changed == 'true'
@@ -62,4 +62,4 @@ jobs:
       default-track: dev
       charm-path: coordinator
       git-tag-prefix: coordinator-
-      juju-channel: 3.6/edge/3.6.9
+      juju-channel: 3.6/edge/rpcerrors
