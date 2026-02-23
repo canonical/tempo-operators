@@ -11,21 +11,19 @@ import yaml
 from contextlib import nullcontext
 from jubilant import Juju, all_active
 
-from helpers import (
-    WORKER_APP,
-    deploy_monolithic_cluster,
-    TEMPO_APP,
-    deploy_istio,
-    deploy_istio_beacon,
+from tests.integration.helpers import (
     ISTIO_APP,
     ISTIO_BEACON_APP,
+    TEMPO_APP,
+    WORKER_APP,
+    deploy_istio,
+    deploy_istio_beacon,
+    deploy_monolithic_cluster,
+    get_app_ip_address,
+    query_traces_patiently_from_client_pod,
     service_mesh,
 )
 from tempo import Tempo
-from tests.integration.helpers import (
-    query_traces_patiently_from_client_pod,
-    get_app_ip_address,
-)
 
 TESTER_METADATA = yaml.safe_load(
     Path("./tests/integration/tester/charmcraft.yaml").read_text()
@@ -35,6 +33,11 @@ TESTER_GRPC_METADATA = yaml.safe_load(
     Path("./tests/integration/tester-grpc/charmcraft.yaml").read_text()
 )
 TESTER_GRPC_APP_NAME = TESTER_GRPC_METADATA["name"]
+
+pytestmark = pytest.mark.usefixtures(
+    "copy_charm_libs_into_tester_charm",
+    "copy_charm_libs_into_tester_grpc_charm",
+)
 
 
 @pytest.mark.setup
@@ -77,7 +80,7 @@ def test_build_deploy_tester_grpc(juju: Juju):
 
 
 @pytest.mark.setup
-def test_deploy_monolithic_cluster(juju: Juju, tempo_charm: Path):
+def test_deploy_monolithic_cluster(juju: Juju):
     # Given a fresh build of the charm
     # When deploying it together with testers
     # Then applications should eventually be created

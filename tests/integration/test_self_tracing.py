@@ -2,17 +2,15 @@
 # Copyright 2024 Ubuntu
 # See LICENSE file for licensing details.
 
-from pathlib import Path
-
 import pytest
 from jubilant import Juju
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from helpers import (
+from tests.integration.helpers import (
+    TEMPO_APP,
     WORKER_APP,
     deploy_monolithic_cluster,
     get_app_ip_address,
-    TEMPO_APP,
     get_ingested_traces_service_names,
 )
 
@@ -49,7 +47,7 @@ def test_verify_self_traces_collected(juju: Juju):
 
 
 @pytest.mark.setup
-def test_deploy_second_tempo(juju: Juju, tempo_charm: Path):
+def test_deploy_second_tempo(juju: Juju):
     # deploy a second tempo stack
     deploy_monolithic_cluster(
         juju,

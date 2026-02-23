@@ -4,21 +4,21 @@
 
 import json
 import logging
-from pathlib import Path
 
 import jubilant
 import pytest
-import yaml
 from jubilant import Juju
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from tests.integration.helpers import deploy_prometheus, deploy_tempo
-from helpers import run_command, TEMPO_APP
-from tests.integration.helpers import PROMETHEUS_APP
+from tests.integration.helpers import (
+    PROMETHEUS_APP,
+    TEMPO_APP,
+    deploy_prometheus,
+    deploy_tempo,
+    run_command,
+)
 
 logger = logging.getLogger(__name__)
-
-METADATA = yaml.safe_load(Path("./charmcraft.yaml").read_text())
 
 
 # retry up to 20 times, waiting 5 seconds between attempts
@@ -30,7 +30,7 @@ def wait_for_ready_prometheus(juju: Juju):
 
 
 @pytest.mark.setup
-def test_deploy(juju: Juju, tempo_charm: Path):
+def test_deploy(juju: Juju):
     """Build the charm-under-test and deploy it together with related charms."""
     # Deploy the charms and wait for active/idle status
     deploy_tempo(juju)

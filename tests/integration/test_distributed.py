@@ -1,25 +1,24 @@
 import shlex
 import subprocess
-from pathlib import Path
 
 import pytest
 from jubilant import Juju
 
-from helpers import (
+from tempo import Tempo
+from tests.integration.helpers import (
+    ALL_ROLES,
+    ALL_WORKERS,
     TEMPO_APP,
     deploy_distributed_cluster,
     emit_trace,
-    get_tempo_application_endpoint,
     get_app_ip_address,
-    ALL_ROLES,
-    ALL_WORKERS,
+    get_tempo_application_endpoint,
+    query_traces_patiently_from_client_localhost,
 )
-from tempo import Tempo
-from tests.integration.helpers import query_traces_patiently_from_client_localhost
 
 
 @pytest.mark.setup
-def test_deploy_tempo_distributed(juju: Juju, tempo_charm: Path):
+def test_deploy_tempo_distributed(juju: Juju):
     deploy_distributed_cluster(juju, ALL_ROLES)
 
 

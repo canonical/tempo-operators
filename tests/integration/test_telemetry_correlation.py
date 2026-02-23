@@ -2,10 +2,10 @@
 # See LICENSE file for licensing details.
 import pytest
 from jubilant import Juju, all_active
-from helpers import (
-    deploy_monolithic_cluster,
+from tests.integration.helpers import (
     INTEGRATION_TESTERS_CHANNEL,
     TEMPO_APP,
+    deploy_monolithic_cluster,
     get_unit_ip_address,
 )
 import requests

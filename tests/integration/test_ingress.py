@@ -4,26 +4,25 @@
 
 import logging
 from contextlib import contextmanager
-from pathlib import Path
 
 import jubilant
 import pytest
 from jubilant import Juju, all_active
 
-from helpers import (
+from tests.integration.helpers import (
+    INTEGRATION_TESTERS_CHANNEL,
+    ISTIO_APP,
+    ISTIO_INGRESS_APP,
+    TEMPO_APP,
+    TRAEFIK_APP,
     WORKER_APP,
     deploy_monolithic_cluster,
     emit_trace,
-    get_tempo_ingressed_endpoint,
-    query_traces_patiently_from_client_localhost,
-    protocols_endpoints,
-    TRAEFIK_APP,
-    TEMPO_APP,
     get_ingress_proxied_hostname,
     get_istio_ingress_ip,
-    ISTIO_APP,
-    ISTIO_INGRESS_APP,
-    INTEGRATION_TESTERS_CHANNEL,
+    get_tempo_ingressed_endpoint,
+    protocols_endpoints,
+    query_traces_patiently_from_client_localhost,
 )
 
 
@@ -177,12 +176,12 @@ def ingress_setup(request, juju):
 
 
 @pytest.mark.setup
-def test_build_and_deploy(juju: Juju, tempo_charm: Path):
+def test_build_and_deploy(juju: Juju):
     # GIVEN an empty model
     # WHEN deploying the tempo cluster
     deploy_monolithic_cluster(juju)
 
-    # THEN the s3-integrator, coordinator, and worker are all in active/idle state
+    # THEN the s3 backend, coordinator, and worker are all in active/idle state
     juju.wait(
         lambda status: jubilant.all_active(status, TEMPO_APP, WORKER_APP),
         timeout=2000,
