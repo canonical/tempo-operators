@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import jubilant
+import pytest
 from jubilant import Juju
 from pytest import fixture
 

@@ -14,6 +14,7 @@ from jubilant import Juju, all_active
 from tests.integration.helpers import (
     ISTIO_APP,
     ISTIO_BEACON_APP,
+    REPO_ROOT,
     TEMPO_APP,
     WORKER_APP,
     deploy_istio,
@@ -26,11 +27,11 @@ from tests.integration.helpers import (
 from tempo import Tempo
 
 TESTER_METADATA = yaml.safe_load(
-    Path("./tests/integration/tester/charmcraft.yaml").read_text()
+    (REPO_ROOT / "tests/integration/tester/charmcraft.yaml").read_text()
 )
 TESTER_APP_NAME = TESTER_METADATA["name"]
 TESTER_GRPC_METADATA = yaml.safe_load(
-    Path("./tests/integration/tester-grpc/charmcraft.yaml").read_text()
+    (REPO_ROOT / "tests/integration/tester-grpc/charmcraft.yaml").read_text()
 )
 TESTER_GRPC_APP_NAME = TESTER_GRPC_METADATA["name"]
 
@@ -53,7 +54,7 @@ def test_deploy_istio(juju: Juju):
 
 @pytest.mark.setup
 def test_build_deploy_tester(juju: Juju):
-    path = "./tests/integration/tester/"
+    path = REPO_ROOT / "tests/integration/tester"
     charm = pack(path).absolute()
     resources = get_resources(path)
     juju.deploy(
@@ -67,7 +68,7 @@ def test_build_deploy_tester(juju: Juju):
 
 @pytest.mark.setup
 def test_build_deploy_tester_grpc(juju: Juju):
-    path = "./tests/integration/tester-grpc/"
+    path = REPO_ROOT / "tests/integration/tester-grpc"
     charm = pack(path).absolute()
     resources = get_resources(path)
     juju.deploy(
