@@ -119,10 +119,14 @@ def charm_and_channel_and_resources(
     if path_from_env := os.getenv(charm_path_key):
         charm_path = Path(path_from_env).absolute()
         logger.info("Using local %s charm: %s", role, charm_path)
+        # Ensure we read resources from the charm source directory for the
+        # requested role, rather than from the parent of a packed charm file
+        # which may be the repository root and contain a different charm's
+        # metadata.
         return (
             charm_path,
             None,
-            get_resources(charm_path.parent),
+            get_resources(REPO_ROOT / role),
         )
     # else try to pack the charm
     for _ in range(3):
