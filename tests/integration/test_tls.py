@@ -6,20 +6,20 @@ import requests
 import tenacity
 from jubilant import Juju
 
-from helpers import (
+from tests.integration.helpers import (
+    SSC_APP,
+    TEMPO_APP,
+    TRAEFIK_APP,
     WORKER_APP,
     api_endpoints,
     deploy_monolithic_cluster,
     emit_trace,
-    get_tempo_ingressed_endpoint,
-    query_traces_patiently_from_client_localhost,
-    protocols_endpoints,
-    TRAEFIK_APP,
-    SSC_APP,
-    get_tempo_internal_endpoint,
     get_app_ip_address,
     get_ingress_proxied_hostname,
-    TEMPO_APP,
+    get_tempo_ingressed_endpoint,
+    get_tempo_internal_endpoint,
+    protocols_endpoints,
+    query_traces_patiently_from_client_localhost,
 )
 
 

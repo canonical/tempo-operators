@@ -11,30 +11,34 @@ import yaml
 from contextlib import nullcontext
 from jubilant import Juju, all_active
 
-from helpers import (
-    WORKER_APP,
-    deploy_monolithic_cluster,
-    TEMPO_APP,
-    deploy_istio,
-    deploy_istio_beacon,
+from tests.integration.helpers import (
     ISTIO_APP,
     ISTIO_BEACON_APP,
+    REPO_ROOT,
+    TEMPO_APP,
+    WORKER_APP,
+    deploy_istio,
+    deploy_istio_beacon,
+    deploy_monolithic_cluster,
+    get_app_ip_address,
+    query_traces_patiently_from_client_pod,
     service_mesh,
 )
 from tempo import Tempo
-from tests.integration.helpers import (
-    query_traces_patiently_from_client_pod,
-    get_app_ip_address,
-)
 
 TESTER_METADATA = yaml.safe_load(
-    Path("./tests/integration/tester/charmcraft.yaml").read_text()
+    (REPO_ROOT / "tests/integration/tester/charmcraft.yaml").read_text()
 )
 TESTER_APP_NAME = TESTER_METADATA["name"]
 TESTER_GRPC_METADATA = yaml.safe_load(
-    Path("./tests/integration/tester-grpc/charmcraft.yaml").read_text()
+    (REPO_ROOT / "tests/integration/tester-grpc/charmcraft.yaml").read_text()
 )
 TESTER_GRPC_APP_NAME = TESTER_GRPC_METADATA["name"]
+
+pytestmark = pytest.mark.usefixtures(
+    "copy_charm_libs_into_tester_charm",
+    "copy_charm_libs_into_tester_grpc_charm",
+)
 
 
 @pytest.mark.setup
@@ -50,7 +54,7 @@ def test_deploy_istio(juju: Juju):
 
 @pytest.mark.setup
 def test_build_deploy_tester(juju: Juju):
-    path = "./tests/integration/tester/"
+    path = REPO_ROOT / "tests/integration/tester"
     charm = pack(path).absolute()
     resources = get_resources(path)
     juju.deploy(
@@ -64,7 +68,7 @@ def test_build_deploy_tester(juju: Juju):
 
 @pytest.mark.setup
 def test_build_deploy_tester_grpc(juju: Juju):
-    path = "./tests/integration/tester-grpc/"
+    path = REPO_ROOT / "tests/integration/tester-grpc"
     charm = pack(path).absolute()
     resources = get_resources(path)
     juju.deploy(
@@ -77,7 +81,7 @@ def test_build_deploy_tester_grpc(juju: Juju):
 
 
 @pytest.mark.setup
-def test_deploy_monolithic_cluster(juju: Juju, tempo_charm: Path):
+def test_deploy_monolithic_cluster(juju: Juju):
     # Given a fresh build of the charm
     # When deploying it together with testers
     # Then applications should eventually be created

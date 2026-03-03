@@ -1,30 +1,41 @@
-from pathlib import Path
-
 import pytest
 from jubilant import Juju, all_active, all_blocked
 
-from helpers import TEMPO_APP, S3_APP, WORKER_APP
-from tests.integration.helpers import WORKER_RESOURCES, deploy_minio_and_s3
+from tests.integration.helpers import S3_APP, TEMPO_APP, WORKER_APP, deploy_s3
 
 
 @pytest.mark.setup
-def test_deploy_worker(juju: Juju, tempo_worker_charm: Path):
+def test_deploy_worker(juju: Juju, worker_charm):
     # GIVEN an empty model
 
     # WHEN deploying the worker
-    juju.deploy(tempo_worker_charm, WORKER_APP, resources=WORKER_RESOURCES, trust=True)
+    charm_url, channel, resources = worker_charm
+    juju.deploy(
+        charm_url,
+        WORKER_APP,
+        channel=channel,
+        resources=resources,
+        trust=True,
+    )
 
     # THEN worker will be blocked because of missing coordinator integration
     juju.wait(lambda status: all_blocked(status, WORKER_APP), timeout=1000)
 
 
-def test_all_active_when_coordinator_and_s3_added(juju: Juju):
+def test_all_active_when_coordinator_and_s3_added(juju: Juju, coordinator_charm):
     # GIVEN a model with a worker
 
     # WHEN deploying and integrating the minimal tempo cluster
-    deploy_minio_and_s3(juju)
-    juju.deploy("tempo-coordinator-k8s", TEMPO_APP, trust=True, channel="2/edge")
-    juju.integrate(TEMPO_APP + ":s3", S3_APP + ":s3-credentials")
+    deploy_s3(juju)
+    charm_url, channel, resources = coordinator_charm
+    juju.deploy(
+        charm_url,
+        TEMPO_APP,
+        channel=channel,
+        resources=resources,
+        trust=True,
+    )
+    juju.integrate(TEMPO_APP, S3_APP)
     juju.integrate(TEMPO_APP, WORKER_APP)
 
     # THEN both the coordinator and the worker become active
