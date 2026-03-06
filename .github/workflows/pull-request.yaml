@@ -16,6 +16,7 @@ jobs:
     with:
       charm-path: ${{ matrix.charm-path }}
       enable-integration: ${{ matrix.charm-path == 'coordinator' }}
+      juju-channel: 3.6/candidate
   interfaces:
     strategy:
       fail-fast: false
