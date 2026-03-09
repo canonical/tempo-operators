@@ -3,8 +3,13 @@ import shlex
 import subprocess
 from pathlib import Path
 
-import jubilant
 import pytest
+
+pytestmark = pytest.mark.skip(
+    reason="Skipped due to https://github.com/canonical/tempo-operators/issues/275"
+)
+
+import jubilant
 import requests
 from pytest_jubilant import pack, get_resources
 import yaml
@@ -39,7 +44,7 @@ pytestmark = pytest.mark.usefixtures(
     "copy_charm_libs_into_tester_charm",
     "copy_charm_libs_into_tester_grpc_charm",
 )
-pytest.skip("https://github.com/canonical/tempo-operators/issues/275", allow_module_level=True)
+
 
 @pytest.mark.setup
 def test_deploy_istio(juju: Juju):

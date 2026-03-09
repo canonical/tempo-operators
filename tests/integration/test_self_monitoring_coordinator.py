@@ -40,8 +40,10 @@ def test_deploy(juju: Juju):
     )
 
     juju.wait(
-        lambda status: jubilant.all_active(status, PROMETHEUS_APP)
-        and jubilant.all_blocked(status, TEMPO_APP),
+        lambda status: (
+            jubilant.all_active(status, PROMETHEUS_APP)
+            and jubilant.all_blocked(status, TEMPO_APP)
+        ),
         timeout=600,
     )
     wait_for_ready_prometheus(juju)
