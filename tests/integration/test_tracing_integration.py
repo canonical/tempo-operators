@@ -39,7 +39,7 @@ pytestmark = pytest.mark.usefixtures(
     "copy_charm_libs_into_tester_charm",
     "copy_charm_libs_into_tester_grpc_charm",
 )
-
+pytest.skip("https://github.com/canonical/tempo-operators/issues/275", allow_module_level=True)
 
 @pytest.mark.setup
 def test_deploy_istio(juju: Juju):
