@@ -2,6 +2,13 @@ import logging
 
 import jubilant
 import pytest
+
+pytestmark = [
+    pytest.mark.skip(
+        reason="Skipped due to https://github.com/canonical/tempo-operators/issues/276"
+    ),
+]
+
 import requests
 import tenacity
 from jubilant import Juju

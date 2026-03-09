@@ -3,8 +3,19 @@ import shlex
 import subprocess
 from pathlib import Path
 
-import jubilant
 import pytest
+
+pytestmark = [
+    pytest.mark.skip(
+        reason="Skipped due to https://github.com/canonical/tempo-operators/issues/275"
+    ),
+    pytest.mark.usefixtures(
+        "copy_charm_libs_into_tester_charm",
+        "copy_charm_libs_into_tester_grpc_charm",
+    ),
+]
+
+import jubilant
 import requests
 from pytest_jubilant import pack, get_resources
 import yaml
@@ -34,11 +45,6 @@ TESTER_GRPC_METADATA = yaml.safe_load(
     (REPO_ROOT / "tests/integration/tester-grpc/charmcraft.yaml").read_text()
 )
 TESTER_GRPC_APP_NAME = TESTER_GRPC_METADATA["name"]
-
-pytestmark = pytest.mark.usefixtures(
-    "copy_charm_libs_into_tester_charm",
-    "copy_charm_libs_into_tester_grpc_charm",
-)
 
 
 @pytest.mark.setup
