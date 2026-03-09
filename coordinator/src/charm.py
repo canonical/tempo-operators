@@ -3,7 +3,6 @@
 # See LICENSE file for licensing details.
 
 """Charmed Operator for Tempo; a lightweight object storage based tracing backend."""
-# FIXME: Trigger CI
 
 import json
 import logging
