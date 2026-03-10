@@ -14,7 +14,7 @@ jobs:
       worker_changed: ${{ steps.worker-changed-files.outputs.any_modified }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Determine changed files in the coordinator
         id: coordinator-changed-files
         uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47
