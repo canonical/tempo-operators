@@ -23,7 +23,7 @@ dev = [
     "pytest-sugar",
     "requests",
     "minio",
-    "tenacity==9.1.2",
+    "tenacity==9.1.4",
     # INTERFACE TESTS
     "pytest-interface-tester",
 ]
