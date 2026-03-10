@@ -1,2 +1,13 @@
-lib/charms/blackbox_exporter_k8s
+**/lib/charms/blackbox_exporter_k8s
+**/lib/charms/catalogue_k8s
+**/lib/charms/data_platform_libs
+**/lib/charms/grafana_k8s
+**/lib/charms/istio_beacon_k8s
+**/lib/charms/istio_ingress_k8s
+**/lib/charms/loki_k8s
+**/lib/charms/observability_libs
+**/lib/charms/parca
+**/lib/charms/prometheus_k8s
+**/lib/charms/tls_certificates_interface
+**/lib/charms/traefik_k8s
 charmcraft.yaml
