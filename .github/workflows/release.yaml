@@ -46,18 +46,20 @@ jobs:
   release-worker:
     needs: charms-changed
     if: needs.charms-changed.outputs.worker_changed == 'true'
-    uses: canonical/observability/.github/workflows/charm-release.yaml@v1
+    uses: canonical/observability/.github/workflows/charm-release.yaml@main
     secrets: inherit
     with:
       default-track: 2
       charm-path: worker
       git-tag-prefix: worker-
+      provider: k8s
   release-coordinator:
     needs: charms-changed
     if: needs.charms-changed.outputs.coordinator_changed == 'true'
-    uses: canonical/observability/.github/workflows/charm-release.yaml@v1
+    uses: canonical/observability/.github/workflows/charm-release.yaml@main
     secrets: inherit
     with:
       default-track: 2
       charm-path: coordinator
       git-tag-prefix: coordinator-
+      provider: k8s
