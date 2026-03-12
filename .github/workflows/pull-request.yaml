@@ -54,6 +54,7 @@ jobs:
     with:
       charm-path: coordinator
       provider: k8s
+      juju-channel: 3.6/candidate
   pull-request-worker:
     needs: charms-changed
     if: needs.charms-changed.outputs.worker_changed == 'true'
@@ -62,6 +63,7 @@ jobs:
     with:
       charm-path: worker
       provider: k8s
+      juju-channel: 3.6/candidate
   interfaces:
     strategy:
       fail-fast: false

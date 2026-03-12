@@ -53,6 +53,7 @@ jobs:
       charm-path: worker
       git-tag-prefix: worker-
       provider: k8s
+      juju-channel: 3.6/candidate
   release-coordinator:
     needs: charms-changed
     if: needs.charms-changed.outputs.coordinator_changed == 'true'
@@ -63,3 +64,4 @@ jobs:
       charm-path: coordinator
       git-tag-prefix: coordinator-
       provider: k8s
+      juju-channel: 3.6/candidate
