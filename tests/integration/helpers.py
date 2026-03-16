@@ -291,7 +291,10 @@ def deploy_distributed_cluster(
 
 
 def _get_query_url(
-    tempo_host: str, service_name: str = "tracegen", tls: bool = True, nonce: Optional[str] = None
+    tempo_host: str,
+    service_name: str = "tracegen",
+    tls: bool = True,
+    nonce: Optional[str] = None,
 ):
     nonce_param = f"%20tracegen.nonce={nonce}" if nonce else ""
     url = f"{'https' if tls else 'http'}://{tempo_host}:3200/api/search?tags=service.name={service_name}{nonce_param}"
@@ -456,7 +459,9 @@ def _get_endpoint(protocol: str, hostname: str, tls: bool):
 
     if "grpc" in protocol:
         return protocol_endpoint.format(hostname=hostname)
-    return protocol_endpoint.format(hostname=hostname, scheme="https" if tls else "http")
+    return protocol_endpoint.format(
+        hostname=hostname, scheme="https" if tls else "http"
+    )
 
 
 def get_tempo_ingressed_endpoint(hostname: str, protocol: str, tls: bool):
