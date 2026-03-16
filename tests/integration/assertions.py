@@ -1,5 +1,9 @@
-from tests.integration.conftest import ALL_WORKERS, WORKER_APP, TEMPO_APP
-from tests.integration.helpers import get_unit_ip_address
+from tests.integration.helpers import (
+    ALL_WORKERS,
+    TEMPO_APP,
+    WORKER_APP,
+    get_unit_ip_address,
+)
 from tenacity import retry, stop_after_delay, wait_fixed
 
 from jubilant import Juju

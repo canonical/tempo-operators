@@ -10,7 +10,8 @@ import re
 import socket
 from pathlib import Path
 from subprocess import CalledProcessError, getoutput
-from typing import Any, Dict, List, Optional, Set, Tuple, cast, get_args
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, Literal, cast, get_args
+from urllib.parse import urlparse
 
 import ops
 import ops_tracing
@@ -37,6 +38,21 @@ from charms.tempo_coordinator_k8s.v0.tracing import (
     receiver_protocol_to_transport_protocol,
 )
 from charms.traefik_k8s.v0.traefik_route import TraefikRouteRequirer
+from charms.istio_ingress_k8s.v0.istio_ingress_route import (
+    BackendRef,
+    HTTPRoute,
+    GRPCRoute,
+    IstioIngressRouteConfig,
+    IstioIngressRouteRequirer,
+    Listener,
+    ProtocolType,
+)
+from charms.istio_beacon_k8s.v0.service_mesh import (
+    AppPolicy,
+    UnitPolicy,
+    Endpoint,
+    Method,
+)
 from coordinated_workers.coordinator import Coordinator
 from coordinated_workers.nginx import (
     CA_CERT_PATH,
@@ -44,6 +60,7 @@ from coordinated_workers.nginx import (
     KEY_PATH,
     NginxConfig,
 )
+from coordinated_workers.worker_telemetry import WorkerTelemetryProxyConfig
 from coordinated_workers.telemetry_correlation import TelemetryCorrelation
 from cosl.interfaces.datasource_exchange import DatasourceDict
 from cosl.interfaces.utils import DatabagModel
@@ -57,6 +74,7 @@ from cosl.reconciler import all_events, observe_events
 
 logger = logging.getLogger(__name__)
 PEERS_RELATION_ENDPOINT_NAME = "peers"
+PROXY_WORKER_TELEMETRY_PORT = 3300
 # TODO: move these constants into the telemetry correlation lib https://github.com/canonical/cos-coordinated-workers/issues/101
 _PROMETHEUS_DS_TYPE = "prometheus"
 _LOKI_DS_TYPE = "loki"
@@ -127,6 +145,9 @@ class TempoCoordinatorCharm(CharmBase):
             self.model.get_relation("ingress"),  # type: ignore
             "ingress",
         )
+        self.istio_ingress = IstioIngressRouteRequirer(
+            self, relation_name="istio-ingress"
+        )
         self.tracing = TracingEndpointProvider(
             self, external_url=self._most_external_url
         )
@@ -166,10 +187,9 @@ class TempoCoordinatorCharm(CharmBase):
                 "send-datasource": None,
                 "receive-datasource": "receive-datasource",
                 "catalogue": "catalogue",
-                # TODO: Enable service mesh integration. See https://github.com/canonical/tempo-operators/pull/210.
-                "service-mesh": None,
-                "service-mesh-provide-cmr-mesh": None,
-                "service-mesh-require-cmr-mesh": None,
+                "service-mesh": "service-mesh",
+                "service-mesh-provide-cmr-mesh": "provide-cmr-mesh",
+                "service-mesh-require-cmr-mesh": "require-cmr-mesh",
             },
             nginx_config=NginxConfig(
                 server_name=self.hostname,
@@ -188,6 +208,8 @@ class TempoCoordinatorCharm(CharmBase):
             worker_ports=self._get_worker_ports,
             workload_tracing_protocols=["otlp_http"],
             catalogue_item=self._catalogue_item,
+            worker_telemetry_proxy_config=self._worker_telemetry_proxy_config,
+            charm_mesh_policies=self._charm_mesh_policies,
             peer_relation="peers",
         )
 
@@ -203,7 +225,7 @@ class TempoCoordinatorCharm(CharmBase):
             source_type="tempo",
             source_url=self._external_http_server_url,
             extra_fields=self._build_grafana_source_extra_fields(),
-            is_ingress_per_app=self._is_ingress_ready,
+            is_ingress_per_app=self._is_ingress_ready or self._is_istio_ingress_ready,
         )
 
         # wokeignore:rule=blackbox
@@ -249,6 +271,72 @@ class TempoCoordinatorCharm(CharmBase):
     # UTILITY PROPERTIES #
     ######################
     @property
+    def _worker_telemetry_proxy_config(self) -> WorkerTelemetryProxyConfig:
+        """Generate the WorkerTelemetryProxyConfig for the Coordinator."""
+        return WorkerTelemetryProxyConfig(
+            http_port=PROXY_WORKER_TELEMETRY_PORT,
+            https_port=PROXY_WORKER_TELEMETRY_PORT,
+        )
+
+    @property
+    def _charm_mesh_policies(self) -> List[Union[AppPolicy, UnitPolicy]]:
+        """Return the mesh policies specific to Tempo.
+
+        This covers access to the charms relating to Tempo over:
+        - `tempo-api`
+        - `tracing`
+        - `grafana-source`
+
+        All other policies (those about endpoints that are defined in the Coordinator class) are managed by the Coordinator.
+        This includes:
+        - metrics
+
+        NOTE: If there is a suspicion of missing policices, kiali charm can be used to identify Tempo's network traffic.
+        Kiali tutorial: https://canonical-service-mesh-documentation.readthedocs-hosted.com/en/latest/tutorial/monitor-the-istio-mesh-using-kiali/
+        """
+        return [
+            # Allow access to tempo api ports over the coordinator's service url for charms related over the tempo-api relation.
+            # No path or method restriction is applied.
+            AppPolicy(
+                relation="tempo-api",
+                endpoints=[
+                    Endpoint(
+                        ports=[
+                            Tempo.server_ports["tempo_http"],
+                            Tempo.server_ports["tempo_grpc"],
+                        ],
+                    )
+                ],
+            ),
+            # Allow access to the requested receiver ports for the charms related over the tracing relation.
+            # No path restriction is applied.
+            AppPolicy(
+                relation="tracing",
+                endpoints=[
+                    Endpoint(
+                        # allow access only to requested receiver's ports'
+                        ports=[
+                            Tempo.receiver_ports[enabled_receiver]
+                            for enabled_receiver in self._requested_receivers
+                        ],
+                    )
+                ],
+            ),
+            # Allow access to tempo api http port over the coordinator's service url for charms related over the grafana-source relation.
+            # No path or method restriction is applied. When ingressed, this policy will be handles by the service mesh ingress.
+            AppPolicy(
+                relation="grafana-source",
+                endpoints=[
+                    Endpoint(
+                        ports=[
+                            Tempo.server_ports["tempo_http"],
+                        ],
+                    )
+                ],
+            ),
+        ]
+
+    @property
     def peers(self):
         """Fetch the "peers" peer relation."""
         return self.model.get_relation(PEERS_RELATION_ENDPOINT_NAME)
@@ -280,26 +368,51 @@ class TempoCoordinatorCharm(CharmBase):
         )
 
     @property
+    def _is_istio_ingress_ready(self) -> bool:
+        "Return True if istio ingress is configured and ready, otherwise False."
+        return bool(self.istio_ingress.is_ready() and self.istio_ingress.external_host)
+
+    @property
+    def _has_multiple_ingresses(self) -> bool:
+        """Return True if both traefik and istio ingresses are ready."""
+        return self._is_ingress_ready and self._is_istio_ingress_ready
+
+    @property
     def _external_http_server_url(self) -> str:
         """External url of the http(s) server."""
         return f"{self._most_external_url}:{Tempo.tempo_http_server_port}"
 
     @property
     def _external_url(self) -> Optional[str]:
-        """Return the external URL if the ingress is configured and ready, otherwise None."""
-        if self._is_ingress_ready:
-            ingress_url = f"{self.ingress.scheme}://{self.ingress.external_host}"
-            logger.debug("This unit's ingress URL: %s", ingress_url)
+        """Return the external URL if an ingress is configured and ready, otherwise None."""
+        ingress_url: Optional[str] = None
+
+        # NOTE: There are no technical restrictions to using both ingress relations at the same time. But if
+        # multiple ingresses are active, we cannot be sure of which one the admin intends to advertise as
+        # ingestion endpoint to other applications; so we don't publish either one, and set blocked.
+        if self._has_multiple_ingresses:
+            logger.error(
+                "Multiple ingresses are configured and ready; cannot determine external URL."
+                "Falling back to internal URL."
+            )
             return ingress_url
 
-        return None
+        if self._is_ingress_ready:
+            ingress_url = f"{self.ingress.scheme}://{self.ingress.external_host}"
+
+        if self._is_istio_ingress_ready:
+            scheme = "https" if self.istio_ingress.tls_enabled else "http"
+            ingress_url = f"{scheme}://{self.istio_ingress.external_host}"
+
+        logger.debug("This unit's ingress URL: %s", ingress_url)
+        return ingress_url
 
     @property
     def _most_external_url(self) -> str:
         """Return the most external url known about by this charm.
 
         This will return the first of:
-        - the external URL, if the ingress is configured and ready
+        - the external URL, if an ingress is configured and ready
         - the internal URL
         """
         external_url = self._external_url
@@ -388,6 +501,15 @@ class TempoCoordinatorCharm(CharmBase):
 
     def _on_collect_status(self, e: CollectStatusEvent):
         # add Tempo coordinator-specific statuses
+
+        # block if multiple ingresses are configured
+        if self._has_multiple_ingresses:
+            e.add_status(
+                ops.BlockedStatus(
+                    "Multiple ingress relations are active ('ingress' and 'istio-ingress'). Remove one of the two."
+                )
+            )
+
         if (
             "metrics-generator" in self.coordinator.cluster.gather_roles()
             and not self._remote_write_endpoints()
@@ -401,7 +523,6 @@ class TempoCoordinatorCharm(CharmBase):
     ###################
     # UTILITY METHODS #
     ###################
-
     def update_peer_data(self) -> None:
         """Update peer unit data bucket with this unit's hostname."""
         if self.peers and self.peers.data:
@@ -423,6 +544,14 @@ class TempoCoordinatorCharm(CharmBase):
             self.ingress.submit_to_traefik(
                 self._ingress_config, static=self._static_ingress_config
             )
+
+    def _update_istio_ingress_relation(self) -> None:
+        """Make sure the traefik route / istio ingress route is up-to-date."""
+        if not self.unit.is_leader():
+            return
+
+        if self.istio_ingress.is_ready():
+            self.istio_ingress.submit_config(self._istio_ingress_config)
 
     def _update_tempo_api_relations(self) -> None:
         """Update all applications related to us via the tempo-api relation."""
@@ -511,6 +640,46 @@ class TempoCoordinatorCharm(CharmBase):
             receiver: self.get_receiver_url(receiver)
             for receiver in self._requested_receivers
         }
+
+    @property
+    def _istio_ingress_config(self) -> IstioIngressRouteConfig:
+        """Build a K8s Gateway configuration for istio ingress."""
+
+        listeners: List[Listener] = []
+        http_routes: List[HTTPRoute] = []
+        grpc_routes: List[GRPCRoute] = []
+
+        for protocol, port in self.tempo.all_ports.items():
+            sanitized_protocol = protocol.replace("_", "-")
+
+            protocol_type = (
+                ProtocolType.GRPC if "grpc" in protocol else ProtocolType.HTTP
+            )
+            Route = GRPCRoute if protocol_type == ProtocolType.GRPC else HTTPRoute
+            routes = grpc_routes if protocol_type == ProtocolType.GRPC else http_routes
+
+            listener = Listener(port=port, protocol=protocol_type)
+            route = Route(
+                name=f"juju-{self.model.name}-{self.model.app.name}-{sanitized_protocol}",
+                listener=listener,
+                backends=[
+                    BackendRef(
+                        service=self.app.name,
+                        port=port,
+                        weight=100,  # Let the service take care of load balancing.
+                    ),
+                ],
+            )
+
+            listeners.append(listener)
+            routes.append(route)  # type: ignore
+
+        return IstioIngressRouteConfig(
+            model=self.model.name,
+            listeners=listeners,
+            http_routes=http_routes,
+            grpc_routes=grpc_routes,
+        )
 
     @property
     def _static_ingress_config(self) -> dict:
@@ -617,21 +786,14 @@ class TempoCoordinatorCharm(CharmBase):
         """
         protocol_type = receiver_protocol_to_transport_protocol.get(protocol)
         receiver_port = self.tempo.receiver_ports[protocol]
+        receiver_url = self._most_external_url
 
-        if self._is_ingress_ready:
-            url = (
-                self.ingress.external_host
-                if protocol_type == TransportProtocolType.grpc
-                else f"{self.ingress.scheme}://{self.ingress.external_host}"
-            )
-        else:
-            url = (
-                self.app_hostname
-                if protocol_type == TransportProtocolType.grpc
-                else self._internal_url
-            )
+        if protocol_type == TransportProtocolType.grpc:
+            # There is no "real" gRPC scheme, so just use netloc.
+            # TODO: publish information about TLS also if the protocol_type is gRPC. See https://github.com/canonical/tempo-operators/issues/241.
+            receiver_url = urlparse(receiver_url).netloc
 
-        return f"{url}:{receiver_port}"
+        return f"{receiver_url}:{receiver_port}"
 
     def is_workload_ready(self):
         """Whether the tempo built-in readiness check reports 'ready'."""
@@ -716,13 +878,15 @@ class TempoCoordinatorCharm(CharmBase):
         # reason is, if we miss these events because our coordinator cannot process events (inconsistent status),
         # we need to 'remember' to run this logic as soon as we become ready, which is hard and error-prone
         self._update_ingress_relation()
+        self._update_istio_ingress_relation()
         self._update_tracing_relations()
         self._update_source_exchange()
         # reconcile grafana-source databags to update `extra_fields`
         # if it gets changed by any other influencing relation.
         self._update_grafana_source()
         # open the necessary ports on this unit
-        self.unit.set_ports(*self._nginx_ports)
+        # open the port through which worker telemetry is proxied
+        self.unit.set_ports(*self._nginx_ports, PROXY_WORKER_TELEMETRY_PORT)
         self._update_tempo_api_relations()
 
     def _build_service_graph_config(self) -> Dict[str, Any]:

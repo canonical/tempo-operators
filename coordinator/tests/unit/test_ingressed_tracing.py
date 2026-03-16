@@ -18,7 +18,7 @@ def base_state(nginx_container, nginx_prometheus_exporter_container):
 
 
 def test_external_url_present(context, base_state, s3, all_worker):
-    # WHEN ingress is related with external_host
+    # WHEN traefik ingress is related with external_host
     tracing = Relation("tracing", remote_app_data={"receivers": "[]"})
     ingress = Relation(
         "ingress", remote_app_data={"external_host": "1.2.3.4", "scheme": "http"}
@@ -33,6 +33,34 @@ def test_external_url_present(context, base_state, s3, all_worker):
         {
             "protocol": {"name": "otlp_http", "type": "http"},
             "url": "http://1.2.3.4:4318",
+        },
+    ]
+    assert (
+        sorted(
+            json.loads(tracing_out.local_app_data["receivers"]),
+            key=lambda x: x["protocol"]["name"],
+        )
+        == expected_data
+    )
+
+
+def test_external_url_present_istio(context, base_state, s3, all_worker):
+    # WHEN istio-ingress is related with external_host
+    tracing = Relation("tracing", remote_app_data={"receivers": "[]"})
+    istio_ingress = Relation(
+        "istio-ingress",
+        remote_app_data={"external_host": "5.6.7.8", "tls_enabled": "False"},
+    )
+    state = replace(base_state, relations=[tracing, istio_ingress, s3, all_worker])
+
+    out = context.run(context.on.relation_created(tracing), state)
+
+    # THEN external_url is present in tracing relation databag
+    tracing_out = out.get_relations(tracing.endpoint)[0]
+    expected_data = [
+        {
+            "protocol": {"name": "otlp_http", "type": "http"},
+            "url": "http://5.6.7.8:4318",
         },
     ]
     assert (

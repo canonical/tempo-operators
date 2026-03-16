@@ -25,7 +25,7 @@ resources:
   nginx-image:
     type: oci-image
     description: OCI image for nginx
-    upstream-source: ghcr.io/canonical/nginx@sha256:6415a2c5f25f1d313c87315a681bdc84be80f3c79c304c6744737f9b34207993 # 1.27.5 rock 
+    upstream-source: ghcr.io/canonical/nginx@sha256:6415a2c5f25f1d313c87315a681bdc84be80f3c79c304c6744737f9b34207993 # 1.27.5 rock
   nginx-prometheus-exporter-image:
     type: oci-image
     description: OCI image for nginx-prometheus-exporter
@@ -74,6 +74,15 @@ provides:
     interface: tempo_api
     description: |
       Integration to offer other charms the possibility to interact with Tempo's API.
+  provide-cmr-mesh:
+    optional: true
+    interface: cross_model_mesh
+    description: |
+      Allow cross-model applications to make HTTP requests to Tempo via the service mesh.
+      This relation provides additional data required by the service mesh to create cross-model authorization policies.
+
+      To use this relation, you must also have either the `service-mesh` relation in place (e.g. to an istio-beacon charm) OR
+      have the istio-beacon charm be configured to put the whole model on the mesh (via its config option).
 
 requires:
   s3:
@@ -105,6 +114,14 @@ requires:
       Ingress integration for Tempo server and Tempo receiver endpoints,
       so that cross-model workloads can send their traces to Tempo through the ingress.
       Uses `traefik_route` to open ports on Traefik host for tracing ingesters.
+  istio-ingress:
+    optional: true
+    interface: istio_ingress_route
+    limit: 1
+    description: |
+      Ingress integration for Tempo server and Tempo receiver endpoints,
+      so that cross-model workloads can send their traces to Tempo through the ingress.
+      Uses `istio_ingress_route` to open ports on `istio-ingress-k8s` host for tracing ingesters.
   certificates:
     optional: true
     interface: tls-certificates
@@ -127,6 +144,18 @@ requires:
     interface: catalogue
     description: |
       Integration to help users discover Tempo's UI, providing visibility into Tempo's cluster members and their health status.
+  service-mesh:
+    limit: 1
+    interface: service_mesh
+    description: |
+      Subscribe this charm into a service mesh and create the necessary authorization policies.
+      This relation is a pre-requisite for using the `provide-cmr-mesh` relation, unless the istio-beacon charm is
+      set to `model-on-mesh=true`.
+  require-cmr-mesh:
+    interface: cross_model_mesh
+    description: |
+      Allow a cross-model application access to Tempo via the service mesh.
+      This relation provides additional data required by the service mesh to enforce cross-model authorization policies.
 
 actions:
   list-receivers:
@@ -194,13 +223,13 @@ config:
       default: false
     cpu_limit:
       description: |
-        K8s cpu resource limit for the nginx container deployed by the coordinator, 
+        K8s cpu resource limit for the nginx container deployed by the coordinator,
         e.g. "1" or "500m". Default is unset (no limit). This is DEPRECATED and will be removed in track 3.
         The right way to do this now is to set constraints using the juju API.
       type: string
     memory_limit:
       description: |
-        K8s memory resource limit for the nginx container deployed by the coordinator, 
+        K8s memory resource limit for the nginx container deployed by the coordinator,
         e.g. "1Gi". Default is unset (no limit). This is DEPRECATED and will be removed in track 3.
         The right way to do this now is to set constraints using the juju API.
       type: string

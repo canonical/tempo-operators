@@ -33,13 +33,18 @@ def base_state(nginx_container, nginx_prometheus_exporter_container):
 def update_relations_tls_and_verify(
     base_state,
     context,
-    has_ingress,
+    ingress_type,
     local_has_tls,
     local_scheme,
     relations,
     remote_scheme,
     tracing,
 ):
+    """Verify TLS configuration with different ingress types.
+
+    Args:
+        ingress_type: One of "none", "traefik", or "istio"
+    """
     state = replace(base_state, relations=relations)
     with patch.object(TempoCoordinatorCharm, "are_certificates_on_disk", local_has_tls):
         out = context.run(context.on.relation_changed(tracing), state)
@@ -49,6 +54,8 @@ def update_relations_tls_and_verify(
     for receiver in tracing_provider_app_data.receivers:
         if receiver.protocol.name == "otlp_http":
             actual_url = receiver.url
+
+    has_ingress = ingress_type != "none"
     expected_url = f"{remote_scheme if has_ingress else local_scheme}://{socket.getfqdn() if not has_ingress else 'foo.com.org'}:4318"
     assert actual_url == expected_url
     return out
@@ -56,9 +63,9 @@ def update_relations_tls_and_verify(
 
 @pytest.mark.parametrize("remote_has_tls", (True, False))
 @pytest.mark.parametrize("local_has_tls", (True, False))
-@pytest.mark.parametrize("has_ingress", (True, False))
+@pytest.mark.parametrize("ingress_type", ("none", "traefik", "istio"))
 def test_tracing_endpoints_with_tls(
-    context, base_state, s3, all_worker, has_ingress, local_has_tls, remote_has_tls
+    context, base_state, s3, all_worker, ingress_type, local_has_tls, remote_has_tls
 ):
     tracing = Relation(
         "tracing",
@@ -69,7 +76,7 @@ def test_tracing_endpoints_with_tls(
     local_scheme = "https" if local_has_tls else "http"
     remote_scheme = "https" if remote_has_tls else "http"
 
-    if has_ingress:
+    if ingress_type == "traefik":
         relations.append(
             Relation(
                 "ingress",
@@ -79,11 +86,21 @@ def test_tracing_endpoints_with_tls(
                 },
             )
         )
+    elif ingress_type == "istio":
+        relations.append(
+            Relation(
+                "istio-ingress",
+                remote_app_data={
+                    "tls_enabled": "True" if remote_has_tls else "False",
+                    "external_host": "foo.com.org",
+                },
+            )
+        )
 
     update_relations_tls_and_verify(
         base_state,
         context,
-        has_ingress,
+        ingress_type,
         local_has_tls,
         local_scheme,
         relations,
@@ -92,9 +109,9 @@ def test_tracing_endpoints_with_tls(
     )
 
 
-@pytest.mark.parametrize("has_ingress", (True, False))
+@pytest.mark.parametrize("ingress_type", ("none", "traefik", "istio"))
 def test_tracing_endpoints_tls_added_then_removed(
-    context, s3, all_worker, base_state, has_ingress
+    context, s3, all_worker, base_state, ingress_type
 ):
     tracing = Relation(
         "tracing",
@@ -105,7 +122,7 @@ def test_tracing_endpoints_tls_added_then_removed(
     local_scheme = "http"
     remote_scheme = "http"
 
-    if has_ingress:
+    if ingress_type == "traefik":
         relations.append(
             Relation(
                 "ingress",
@@ -115,11 +132,21 @@ def test_tracing_endpoints_tls_added_then_removed(
                 },
             )
         )
+    elif ingress_type == "istio":
+        relations.append(
+            Relation(
+                "istio-ingress",
+                remote_app_data={
+                    "tls_enabled": "False",
+                    "external_host": "foo.com.org",
+                },
+            )
+        )
 
     result_state = update_relations_tls_and_verify(
         base_state,
         context,
-        has_ingress,
+        ingress_type,
         False,
         local_scheme,
         relations,
@@ -132,7 +159,7 @@ def test_tracing_endpoints_tls_added_then_removed(
     local_scheme = "https"
     remote_scheme = "https"
 
-    if has_ingress:
+    if ingress_type == "traefik":
         # as remote_scheme changed, we need to update the ingress relation
         relations.pop()
         relations.append(
@@ -144,11 +171,22 @@ def test_tracing_endpoints_tls_added_then_removed(
                 },
             )
         )
+    elif ingress_type == "istio":
+        relations.pop()
+        relations.append(
+            Relation(
+                "istio-ingress",
+                remote_app_data={
+                    "tls_enabled": "True",
+                    "external_host": "foo.com.org",
+                },
+            )
+        )
 
     result_state = update_relations_tls_and_verify(
         result_state,
         context,
-        has_ingress,
+        ingress_type,
         True,
         local_scheme,
         relations,
@@ -161,7 +199,7 @@ def test_tracing_endpoints_tls_added_then_removed(
     local_scheme = "http"
     remote_scheme = "http"
 
-    if has_ingress:
+    if ingress_type == "traefik":
         # as remote_scheme changed, we need to update the ingress relation
         relations.pop()
         relations.append(
@@ -173,11 +211,22 @@ def test_tracing_endpoints_tls_added_then_removed(
                 },
             )
         )
+    elif ingress_type == "istio":
+        relations.pop()
+        relations.append(
+            Relation(
+                "istio-ingress",
+                remote_app_data={
+                    "tls_enabled": "False",
+                    "external_host": "foo.com.org",
+                },
+            )
+        )
 
     update_relations_tls_and_verify(
         result_state,
         context,
-        has_ingress,
+        ingress_type,
         False,
         local_scheme,
         relations,

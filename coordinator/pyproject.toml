@@ -3,7 +3,7 @@
 [project]
 name = "tempo-coordinator-k8s"
 version = "0.1"  # this is in fact irrelevant
-requires-python = "~=3.12.0"
+requires-python = ">=3.12.0"
 
 dependencies = [
     "coordinated-workers",
@@ -27,6 +27,7 @@ dev = [
 #   INTEGRATION TESTS
     "jubilant",
     "pytest-jubilant",
+    "pytest-sugar",
     "requests",
     "minio",
     "tenacity",
@@ -56,19 +57,13 @@ branch = true
 
 [tool.coverage.report]
 show_missing = true
+fail_under = 90
 
 [tool.pytest.ini_options]
 minversion = "6.0"
 log_cli_level = "INFO"
 markers = ["setup", "teardown"]
-
-# Formatting tools configuration
-[tool.isort]
-profile = "black"
-
-[tool.black]
-line-length = 99
-target-version = ["py38"]
+filterwarnings = ["ignore"]
 
 # Linting tools configuration
 [lint]
@@ -94,7 +89,6 @@ extend-exclude = ["__pycache__", "*.egg_info", "*integration/tester*"]
 # enforce best practices for logging
 # cfr. https://docs.astral.sh/ruff/rules/#flake8-logging-format-g
 select = ["G001", "G002", "G003", "G004"]
-
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D100","D101","D102","D103","D104","G"]

@@ -6,6 +6,8 @@ requires-python = "~=3.12.0"
 
 dependencies = [
     "coordinated-workers",
+    "charmed-service-mesh-helpers>=0.2.0",
+    "lightkube-extensions",
 ]
 
 [project.optional-dependencies]
@@ -15,32 +17,30 @@ dev = [
     "ops[testing]",
     "pyright",
     "ruff",
-    #   INTEGRATION TESTS
+    # INTEGRATION TESTS
     "jubilant",
     "pytest-jubilant",
+    "pytest-sugar",
     "requests",
     "minio",
     "tenacity==9.1.2",
+    # INTERFACE TESTS
+    "pytest-interface-tester",
 ]
 
 [tool.coverage.run]
 branch = true
-parallel = true
 source = ["src"]
 omit = ["tests/**", "lib/**"]
 
 [tool.coverage.report]
 show_missing = true
+fail_under = 90
 
 [tool.pytest.ini_options]
 minversion = "6.0"
 log_cli_level = "INFO"
 asyncio_mode = "auto"
-testpaths = [
-    "tests/unit",
-    "tests/scenario"
-]
-addopts = "--tb=native --verbose --capture=no --log-cli-level=INFO"
 
 # Formatting tools configuration
 [tool.black]
