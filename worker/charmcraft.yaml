@@ -48,7 +48,7 @@ resources:
   tempo-image:
     type: oci-image
     description: OCI image for Grafana Tempo
-    upstream-source: ubuntu/tempo:2.8-24.04_stable
+    upstream-source: ubuntu/tempo:2.10-24.04_stable
 
 
 # config
