@@ -18,7 +18,7 @@ def _deploy_worker(juju: Juju, worker_charm, role: str, scale: int):
             "role-all": False,
             f"role-{role}": True,
         },
-        scale=scale,
+        num_units=scale,
     )
 
 
