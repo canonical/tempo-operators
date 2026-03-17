@@ -1,0 +1,17 @@
+name: Tempo - coordinated-workers deployment validator
+probes:
+  - name: Cluster consistency
+    type: scriptlet
+    url: https://github.com/canonical/cos-coordinated-workers//probes/cluster_consistency.py
+    with:
+      - worker_charm: tempo-worker-k8s
+        recommended_deployment:
+          querier: 1
+          query-frontend: 1
+          ingester: 3
+          distributor: 1
+          compactor: 1
+          metrics-generator: 1
+        meta_roles:
+          read: [querier, query-frontend, ingester]
+          write: [distributor]
