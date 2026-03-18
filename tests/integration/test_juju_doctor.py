@@ -88,4 +88,5 @@ def test_all_active_when_coordinator_and_s3_added(juju: Juju, coordinator_charm)
 
 def test_juju_doctor_probes(juju: Juju):
     # GIVEN the full model
-    sh.uvx("juju-doctor", probe="../probes/cluster-consistency.yaml", model=juju.model)
+    # THEN juju-doctor passes
+    sh.uvx("juju-doctor", "check", probe="../probes/cluster-consistency.yaml", model=juju.model)
