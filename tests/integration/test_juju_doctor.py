@@ -80,7 +80,6 @@ def test_all_active_when_coordinator_and_s3_added(juju: Juju, coordinator_charm)
             "ingester",
             "distributor",
             "compactor",
-            "metrics-generator",
         ),
         timeout=5000,
     )
