@@ -2,7 +2,7 @@ name: Tempo - coordinated-workers deployment validator
 probes:
   - name: Cluster consistency
     type: scriptlet
-    url: github://canonical/cos-coordinated-workers//probes/cluster_consistency.py?main
+    url: github://canonical/cos-coordinated-workers//probes/cluster_consistency.py
     with:
       - worker_charm: tempo-worker-k8s
         recommended_deployment:
