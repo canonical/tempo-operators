@@ -154,7 +154,7 @@ class TempoCoordinatorCharm(CharmBase):
         # set alert_rules_path="", as we don't want to populate alert rules into the relation databag
         # we only need `self._remote_write.endpoints`
         self._remote_write = PrometheusRemoteWriteConsumer(
-            self, alert_rules_path="", peer_relation_name="tempo_peers"
+            self, alert_rules_path="", peer_relation_name="peers"
         )
 
         self.tempo = Tempo(
