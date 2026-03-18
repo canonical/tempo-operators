@@ -89,6 +89,6 @@ def test_juju_doctor_probes(juju: Juju):
     # GIVEN the full model
     # THEN juju-doctor passes
     try:
-        sh.uvx("juju-doctor", "check", probe="../probes/cluster-consistency.yaml", model=juju.model)
+        sh.uvx("juju-doctor", "check", probe="file://../probes/cluster-consistency.yaml", model=juju.model)
     except sh.ErrorReturnCode as e:
         pytest.fail(f"juju-doctor failed:\n{e.stderr.decode()}")
