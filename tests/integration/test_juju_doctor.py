@@ -29,7 +29,7 @@ def test_deploy_workers(juju: Juju, worker_charm):
     # WHEN deploying the worker
     _deploy_worker(juju, worker_charm, "querier", 1)
     _deploy_worker(juju, worker_charm, "query-frontend", 1)
-    _deploy_worker(juju, worker_charm, "ingester", 1)
+    _deploy_worker(juju, worker_charm, "ingester", 3)
     _deploy_worker(juju, worker_charm, "distributor", 1)
     _deploy_worker(juju, worker_charm, "compactor", 1)
     _deploy_worker(juju, worker_charm, "metrics-generator", 1)
