@@ -145,6 +145,7 @@ requires:
     description: |
       Integration to help users discover Tempo's UI, providing visibility into Tempo's cluster members and their health status.
   service-mesh:
+    optional: true
     limit: 1
     interface: service_mesh
     description: |
@@ -152,6 +153,7 @@ requires:
       This relation is a pre-requisite for using the `provide-cmr-mesh` relation, unless the istio-beacon charm is
       set to `model-on-mesh=true`.
   require-cmr-mesh:
+    optional: true
     interface: cross_model_mesh
     description: |
       Allow a cross-model application access to Tempo via the service mesh.
