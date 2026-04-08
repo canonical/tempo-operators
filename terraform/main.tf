@@ -50,9 +50,27 @@ module "tempo_coordinator" {
   units              = var.coordinator_units
 }
 
+
+module "tempo_all" {
+  source             = "git::https://github.com/canonical/tempo-operators//worker/terraform"
+  depends_on         = [module.tempo_coordinator]
+  count              = var.monolithic ? 1 : 0
+  app_name           = var.all_name
+  channel            = var.channel
+  config             = merge({
+    role-all         = true
+  }, var.all_config)
+  constraints        = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.querier_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
+  model_uuid         = var.model_uuid
+  revision           = var.worker_revision
+  storage_directives = var.worker_storage_directives
+  units              = var.all_units
+}
+
 module "tempo_querier" {
   source     = "git::https://github.com/canonical/tempo-operators//worker/terraform"
   depends_on = [module.tempo_coordinator]
+  count      = var.monolithic ? 0 : 1
 
   app_name = var.querier_name
   channel  = var.channel
@@ -70,7 +88,8 @@ module "tempo_querier" {
 module "tempo_query_frontend" {
   source     = "git::https://github.com/canonical/tempo-operators//worker/terraform"
   depends_on = [module.tempo_coordinator]
-
+  count      = var.monolithic ? 0 : 1
+  
   app_name    = var.query_frontend_name
   model_uuid  = var.model_uuid
   channel     = var.channel
@@ -87,6 +106,7 @@ module "tempo_query_frontend" {
 module "tempo_ingester" {
   source     = "git::https://github.com/canonical/tempo-operators//worker/terraform"
   depends_on = [module.tempo_coordinator]
+  count      = var.monolithic ? 0 : 1
 
   app_name    = var.ingester_name
   model_uuid  = var.model_uuid
@@ -104,6 +124,7 @@ module "tempo_ingester" {
 module "tempo_distributor" {
   source     = "git::https://github.com/canonical/tempo-operators//worker/terraform"
   depends_on = [module.tempo_coordinator]
+  count      = var.monolithic ? 0 : 1
 
   app_name    = var.distributor_name
   model_uuid  = var.model_uuid
@@ -121,7 +142,8 @@ module "tempo_distributor" {
 module "tempo_compactor" {
   source     = "git::https://github.com/canonical/tempo-operators//worker/terraform"
   depends_on = [module.tempo_coordinator]
-
+  count      = var.monolithic ? 0 : 1
+  
   app_name    = var.compactor_name
   model_uuid  = var.model_uuid
   channel     = var.channel
@@ -138,6 +160,7 @@ module "tempo_compactor" {
 module "tempo_metrics_generator" {
   source     = "git::https://github.com/canonical/tempo-operators//worker/terraform"
   depends_on = [module.tempo_coordinator]
+  count      = var.monolithic ? 0 : 1
 
   app_name    = var.metrics_generator_name
   model_uuid  = var.model_uuid
@@ -170,20 +193,22 @@ resource "juju_integration" "coordinator_to_s3_integrator" {
 
 resource "juju_integration" "coordinator_to_querier" {
   model_uuid = var.model_uuid
-
+  count      = var.monolithic ? 0 : 1
+  
   application {
     name     = module.tempo_coordinator.app_name
     endpoint = "tempo-cluster"
   }
 
   application {
-    name     = module.tempo_querier.app_name
+    name     = module.tempo_querier[0].app_name
     endpoint = "tempo-cluster"
   }
 }
 
 resource "juju_integration" "coordinator_to_query_frontend" {
   model_uuid = var.model_uuid
+  count      = var.monolithic ? 0 : 1
 
   application {
     name     = module.tempo_coordinator.app_name
@@ -191,13 +216,14 @@ resource "juju_integration" "coordinator_to_query_frontend" {
   }
 
   application {
-    name     = module.tempo_query_frontend.app_name
+    name     = module.tempo_query_frontend[0].app_name
     endpoint = "tempo-cluster"
   }
 }
 
 resource "juju_integration" "coordinator_to_ingester" {
   model_uuid = var.model_uuid
+  count      = var.monolithic ? 0 : 1
 
   application {
     name     = module.tempo_coordinator.app_name
@@ -205,13 +231,14 @@ resource "juju_integration" "coordinator_to_ingester" {
   }
 
   application {
-    name     = module.tempo_ingester.app_name
+    name     = module.tempo_ingester[0].app_name
     endpoint = "tempo-cluster"
   }
 }
 
 resource "juju_integration" "coordinator_to_distributor" {
   model_uuid = var.model_uuid
+  count      = var.monolithic ? 0 : 1
 
   application {
     name     = module.tempo_coordinator.app_name
@@ -219,13 +246,14 @@ resource "juju_integration" "coordinator_to_distributor" {
   }
 
   application {
-    name     = module.tempo_distributor.app_name
+    name     = module.tempo_distributor[0].app_name
     endpoint = "tempo-cluster"
   }
 }
 
 resource "juju_integration" "coordinator_to_compactor" {
   model_uuid = var.model_uuid
+  count      = var.monolithic ? 0 : 1
 
   application {
     name     = module.tempo_coordinator.app_name
@@ -233,13 +261,14 @@ resource "juju_integration" "coordinator_to_compactor" {
   }
 
   application {
-    name     = module.tempo_compactor.app_name
+    name     = module.tempo_compactor[0].app_name
     endpoint = "tempo-cluster"
   }
 }
 
 resource "juju_integration" "coordinator_to_metrics_generator" {
   model_uuid = var.model_uuid
+  count      = var.monolithic ? 0 : 1
 
   application {
     name     = module.tempo_coordinator.app_name
@@ -247,7 +276,23 @@ resource "juju_integration" "coordinator_to_metrics_generator" {
   }
 
   application {
-    name     = module.tempo_metrics_generator.app_name
+    name     = module.tempo_metrics_generator[0].app_name
+    endpoint = "tempo-cluster"
+  }
+}
+
+
+resource "juju_integration" "coordinator_to_all" {
+  model_uuid = var.model_uuid
+  count      = var.monolithic ? 1 : 0
+
+  application {
+    name     = module.tempo_coordinator.app_name
+    endpoint = "tempo-cluster"
+  }
+
+  application {
+    name     = module.tempo_all[0].app_name
     endpoint = "tempo-cluster"
   }
 }
