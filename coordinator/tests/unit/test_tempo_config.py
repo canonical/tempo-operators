@@ -104,6 +104,59 @@ def test_tempo_memberlist_config(peers, expected_config):
 
 
 @pytest.mark.parametrize(
+    "addresses, expected_frontend_address",
+    (
+        # No query-frontend: use localhost
+        (
+            {},
+            f"localhost:{Tempo.tempo_grpc_server_port}",
+        ),
+        # All workers have role 'all' (querier == query-frontend addresses):
+        # use localhost so each querier connects to its own co-located query-frontend
+        (
+            {
+                "querier": {"worker-0.svc-a.ns.svc.cluster.local", "worker2-0.svc-b.ns.svc.cluster.local"},
+                "query-frontend": {"worker-0.svc-a.ns.svc.cluster.local", "worker2-0.svc-b.ns.svc.cluster.local"},
+            },
+            f"localhost:{Tempo.tempo_grpc_server_port}",
+        ),
+        # Single worker with role 'all': use localhost
+        (
+            {
+                "querier": {"worker-0.svc-a.ns.svc.cluster.local"},
+                "query-frontend": {"worker-0.svc-a.ns.svc.cluster.local"},
+            },
+            f"localhost:{Tempo.tempo_grpc_server_port}",
+        ),
+        # Dedicated query-frontend workers: use the service FQDN
+        (
+            {
+                "querier": {"worker-querier-0.svc-q.ns.svc.cluster.local"},
+                "query-frontend": {"worker-qf-0.svc-qf.ns.svc.cluster.local"},
+            },
+            f"svc-qf.ns.svc.cluster.local:{Tempo.tempo_grpc_server_port}",
+        ),
+        # Mixed: one 'all' worker and one dedicated querier - use service FQDN
+        # because not all queriers have a co-located query-frontend
+        (
+            {
+                "querier": {"worker-all-0.svc-a.ns.svc.cluster.local", "worker-q-0.svc-q.ns.svc.cluster.local"},
+                "query-frontend": {"worker-all-0.svc-a.ns.svc.cluster.local"},
+            },
+            f"svc-a.ns.svc.cluster.local:{Tempo.tempo_grpc_server_port}",
+        ),
+    ),
+)
+def test_tempo_querier_config(addresses, expected_frontend_address):
+    assert (
+        Tempo(720, lambda: [])
+        ._build_querier_config(addresses)
+        .frontend_worker.frontend_address
+        == expected_frontend_address
+    )
+
+
+@pytest.mark.parametrize(
     "addresses, expected_replication",
     (
         (
