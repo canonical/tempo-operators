@@ -230,7 +230,7 @@ class Tempo:
         """Build querier config.
 
         Use query-frontend workers' service fqdn to loadbalance across query-frontend worker instances if any.
-        If all queriers co-locate with a query-frontend (e.g. role 'all'), use localhost instead so that
+        If role is 'all', that means that all queriers are co-located with a query-frontend, which means we'll have to use localhost instead so that
         each querier connects to its own local query-frontend rather than all pointing to the same one.
         """
         query_frontend_addresses = roles_addresses.get(
