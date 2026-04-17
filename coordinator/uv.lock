@@ -1147,7 +1147,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "pytest-interface-tester", marker = "extra == 'dev'" },
-    { name = "pytest-jubilant", marker = "extra == 'dev'" },
+    { name = "pytest-jubilant", marker = "extra == 'dev'", specifier = ">=2,<3" },
     { name = "pytest-sugar", marker = "extra == 'dev'" },
     { name = "requests", specifier = ">=2.32.5" },
     { name = "requests", marker = "extra == 'dev'" },

@@ -22,7 +22,7 @@ def _deploy_worker(juju: Juju, worker_charm, role: str, scale: int):
     )
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_deploy_workers(juju: Juju, worker_charm):
     # GIVEN an empty model
 

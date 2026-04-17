@@ -71,12 +71,12 @@ def _tls_ctx(active: bool, juju: Juju, distributed: bool):
 
 @pytest.fixture
 def do_setup(pytestconfig):
-    return not pytestconfig.getoption("--no-setup")
+    return not pytestconfig.getoption("--no-juju-setup")
 
 
 @pytest.fixture
 def do_teardown(pytestconfig):
-    return not pytestconfig.getoption("--no-teardown")
+    return not pytestconfig.getoption("--no-juju-teardown")
 
 
 @contextmanager

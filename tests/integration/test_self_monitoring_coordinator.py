@@ -29,7 +29,7 @@ def wait_for_ready_prometheus(juju: Juju):
     assert "Prometheus Server is Ready." in result.decode("utf-8")
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_deploy(juju: Juju):
     """Build the charm-under-test and deploy it together with related charms."""
     # Deploy the charms and wait for active/idle status

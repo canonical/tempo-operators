@@ -33,7 +33,7 @@ from tests.integration.helpers import (
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_setup(juju: Juju):
     # deploy cluster
     juju.deploy("self-signed-certificates", app=SSC_APP)
@@ -186,7 +186,7 @@ def test_plain_request_redirect(juju: Juju, protocol):
     assert req.status_code == 301 or req.status_code == 308
 
 
-@pytest.mark.teardown
+@pytest.mark.juju_teardown
 @pytest.mark.skip(
     reason="TODO: https://github.com/canonical/tempo-operators/issues/169"
 )

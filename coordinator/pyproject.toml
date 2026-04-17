@@ -26,7 +26,7 @@ dev = [
 
 #   INTEGRATION TESTS
     "jubilant",
-    "pytest-jubilant",
+    "pytest-jubilant>=2,<3",
     "pytest-sugar",
     "requests",
     "minio",
@@ -63,7 +63,7 @@ fail_under = 90
 [tool.pytest.ini_options]
 minversion = "6.0"
 log_cli_level = "INFO"
-markers = ["setup", "teardown"]
+markers = ["juju_setup", "juju_teardown"]
 filterwarnings = ["ignore"]
 
 # Linting tools configuration

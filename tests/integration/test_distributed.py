@@ -17,7 +17,7 @@ from tests.integration.helpers import (
 )
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_deploy_tempo_distributed(juju: Juju):
     deploy_distributed_cluster(juju, ALL_ROLES)
 
@@ -52,7 +52,7 @@ def test_metrics_endpoints(juju):
         assert get_metrics(app_ip, port=Tempo.tempo_http_server_port)
 
 
-@pytest.mark.teardown
+@pytest.mark.juju_teardown
 def test_teardown(juju: Juju):
     for worker_name in ALL_WORKERS:
         juju.remove_application(worker_name)

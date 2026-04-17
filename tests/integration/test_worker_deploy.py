@@ -4,7 +4,7 @@ from jubilant import Juju, all_active, all_blocked
 from tests.integration.helpers import S3_APP, TEMPO_APP, WORKER_APP, deploy_s3
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_deploy_worker(juju: Juju, worker_charm):
     # GIVEN an empty model
 
@@ -42,7 +42,7 @@ def test_all_active_when_coordinator_and_s3_added(juju: Juju, coordinator_charm)
     juju.wait(lambda status: all_active(status, TEMPO_APP, WORKER_APP), timeout=5000)
 
 
-@pytest.mark.teardown
+@pytest.mark.juju_teardown
 def test_teardown(juju: Juju):
     # GIVEN the full model
 

@@ -103,7 +103,7 @@ def prometheus_datasource(datasources) -> str:
     raise ValueError(f"No prometheus datasource found in {repr(datasources)}")
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_setup(juju: Juju):
     # deploy tempo cluster
     deploy_monolithic_cluster(juju, wait_for_idle=False)
