@@ -26,6 +26,23 @@ from tests.integration.helpers import (
 logger = logging.getLogger(__name__)
 
 
+def pytest_addoption(parser):
+    group = parser.getgroup("jubilant-compat")
+    group.addoption(
+        "--keep-models",
+        action="store_true",
+        default=False,
+        help="Alias for --no-juju-teardown (kept for backward compatibility).",
+    )
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(config, items):
+    """Map --keep-models to --no-juju-teardown before the plugin's hook runs."""
+    if config.getoption("--keep-models"):
+        config.option.no_juju_teardown = True
+
+
 @fixture(scope="session")
 def coordinator_charm():
     """Tempo coordinator used for integration testing."""
@@ -71,12 +88,12 @@ def _tls_ctx(active: bool, juju: Juju, distributed: bool):
 
 @pytest.fixture
 def do_setup(pytestconfig):
-    return not pytestconfig.getoption("--no-setup")
+    return not pytestconfig.getoption("--no-juju-setup")
 
 
 @pytest.fixture
 def do_teardown(pytestconfig):
-    return not pytestconfig.getoption("--no-teardown")
+    return not pytestconfig.getoption("--no-juju-teardown")
 
 
 @contextmanager

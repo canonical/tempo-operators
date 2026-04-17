@@ -19,7 +19,7 @@ APP_REMOTE_WORKER_NAME = "tempo-remote-worker"
 APP_REMOTE_S3 = "tempo-remote-s3"
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_build_and_deploy(juju: Juju):
     # deploy cluster
     deploy_monolithic_cluster(juju)
@@ -46,7 +46,7 @@ def test_verify_self_traces_collected(juju: Juju):
     juju.cli("model-config", "update-status-hook-interval=5m")
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_deploy_second_tempo(juju: Juju):
     # deploy a second tempo stack
     deploy_monolithic_cluster(

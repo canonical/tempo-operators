@@ -17,7 +17,6 @@ pytestmark = [
 
 import jubilant
 import requests
-from pytest_jubilant import pack, get_resources
 import yaml
 from contextlib import nullcontext
 from jubilant import Juju, all_active
@@ -32,6 +31,8 @@ from tests.integration.helpers import (
     deploy_istio_beacon,
     deploy_monolithic_cluster,
     get_app_ip_address,
+    get_resources,
+    pack,
     query_traces_patiently_from_client_pod,
     service_mesh,
 )
@@ -47,7 +48,7 @@ TESTER_GRPC_METADATA = yaml.safe_load(
 TESTER_GRPC_APP_NAME = TESTER_GRPC_METADATA["name"]
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_deploy_istio(juju: Juju):
     # Deploy Istio components
     deploy_istio(juju)
@@ -58,7 +59,7 @@ def test_deploy_istio(juju: Juju):
     )
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_build_deploy_tester(juju: Juju):
     path = REPO_ROOT / "tests/integration/tester"
     charm = pack(path).absolute()
@@ -72,7 +73,7 @@ def test_build_deploy_tester(juju: Juju):
     )
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_build_deploy_tester_grpc(juju: Juju):
     path = REPO_ROOT / "tests/integration/tester-grpc"
     charm = pack(path).absolute()
@@ -86,7 +87,7 @@ def test_build_deploy_tester_grpc(juju: Juju):
     )
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_deploy_monolithic_cluster(juju: Juju):
     # Given a fresh build of the charm
     # When deploying it together with testers
@@ -94,7 +95,7 @@ def test_deploy_monolithic_cluster(juju: Juju):
     deploy_monolithic_cluster(juju)
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 # scaling the coordinator before ingesting traces to verify that scaling won't stop traces ingestion.
 def test_scale_up_tempo(juju: Juju):
     # GIVEN we scale up tempo
@@ -105,7 +106,7 @@ def test_scale_up_tempo(juju: Juju):
     )
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_relate(juju: Juju):
     # given a deployed charm
     # when relating it together with the tester
@@ -392,7 +393,7 @@ def test_verify_grafana_datasource_integration(juju: Juju, enable_service_mesh):
         juju.wait(all_active, delay=3, successes=5)
 
 
-@pytest.mark.teardown
+@pytest.mark.juju_teardown
 def test_remove_relation(juju: Juju):
     # given related charms
     # when relation is removed

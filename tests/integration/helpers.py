@@ -9,16 +9,62 @@ from typing import List, Literal, Optional, Sequence, Set, cast
 
 import jubilant
 import requests
+import yaml
 from coordinated_workers.nginx import CA_CERT_PATH
 from jubilant import Juju, all_active
 from lightkube import Client
 from lightkube.generic_resource import create_namespaced_resource
-from pytest_jubilant import get_resources, pack
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def pack(root: Path | str = "./", platform: str | None = None) -> Path:
+    """Pack a local charm and return the path to the packed .charm file."""
+    platform_arg = f" --platform {platform}" if platform else ""
+    cmd = f"charmcraft pack -p {root}{platform_arg}"
+    proc = subprocess.run(
+        shlex.split(cmd),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    # charmcraft prints "Packed <filename>" lines to stderr
+    packed_charms = [
+        line.split()[1]
+        for line in proc.stderr.strip().splitlines()
+        if line.startswith("Packed")
+    ]
+    if not packed_charms:
+        raise ValueError(
+            f"unable to get packed charm(s) ({cmd!r} completed with "
+            f"{proc.returncode=}, {proc.stdout=}, {proc.stderr=})"
+        )
+    if len(packed_charms) > 1:
+        raise ValueError(
+            "This charm supports multiple platforms. "
+            "Pass a `platform` argument to control which charm you're getting instead."
+        )
+    return Path(packed_charms[0]).resolve()
+
+
+def get_resources(root: Path | str = "./") -> dict[str, str] | None:
+    """Obtain charm resources from metadata.yaml or charmcraft.yaml upstream-source fields."""
+    for meta_name in ("metadata.yaml", "charmcraft.yaml"):
+        meta_path = Path(root) / meta_name
+        if meta_path.exists():
+            meta = yaml.safe_load(meta_path.read_text())
+            if meta_resources := meta.get("resources"):
+                return {
+                    resource: res_meta["upstream-source"]
+                    for resource, res_meta in meta_resources.items()
+                }
+            logger.info("resources not found in %s; proceeding without resources", meta_name)
+            return None
+    logger.error("metadata/charmcraft.yaml not found at %s; unable to load resources", root)
+    return None
 
 CI_TRUE_VALUES = {"1", "true", "yes"}
 COORDINATOR_CHARM_FILENAME = "tempo-coordinator-k8s_ubuntu@24.04-amd64.charm"

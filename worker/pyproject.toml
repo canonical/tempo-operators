@@ -19,7 +19,7 @@ dev = [
     "ruff",
     # INTEGRATION TESTS
     "jubilant",
-    "pytest-jubilant",
+    "pytest-jubilant>=2,<3",
     "pytest-sugar",
     "requests",
     "minio",

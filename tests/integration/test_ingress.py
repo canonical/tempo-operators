@@ -175,7 +175,7 @@ def ingress_setup(request, juju):
     logger.info(f"Tearing down {ingress_type} ingress.")
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_build_and_deploy(juju: Juju):
     # GIVEN an empty model
     # WHEN deploying the tempo cluster
@@ -188,7 +188,7 @@ def test_build_and_deploy(juju: Juju):
     )
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_force_enable_protocols(juju: Juju):
     # GIVEN a tempo cluster with only otlp_http protocol enabled
     # WHEN we force enable all other tracing protocols
@@ -256,7 +256,7 @@ def test_workload_traces(juju: Juju, ingress_setup):
     )
 
 
-@pytest.mark.teardown
+@pytest.mark.juju_teardown
 def test_teardown(juju: Juju):
     # GIVEN a model with the tempo cluster
     # WHEN we remove the coordinator and the worker

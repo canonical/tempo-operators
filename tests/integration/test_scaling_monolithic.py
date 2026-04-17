@@ -10,7 +10,7 @@ from tests.integration.helpers import (
 )
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_deploy_tempo(juju: Juju):
     deploy_tempo(juju)
 
@@ -23,12 +23,12 @@ def test_scale_tempo_up_stays_blocked(juju: Juju):
     juju.wait(lambda status: all_blocked(status, TEMPO_APP), timeout=1000)
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_tempo_active_when_deploy_s3_and_workers(juju: Juju):
     deploy_monolithic_cluster(juju)
 
 
-@pytest.mark.teardown
+@pytest.mark.juju_teardown
 def test_tempo_blocks_if_s3_goes_away(juju: Juju):
     juju.remove_relation(S3_APP, TEMPO_APP)
     # FIXME: s3 stubbornly refuses to die
