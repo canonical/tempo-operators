@@ -240,7 +240,7 @@ class Tempo:
         if not query_frontend_addresses:
             svc_addr = "localhost"
         elif querier_addresses and querier_addresses.issubset(query_frontend_addresses):
-            # Every querier also runs a query-frontend (e.g. role 'all').
+            # Every querier also runs a query-frontend (role = 'all').
             # Point each querier at its own co-located query-frontend to avoid
             # all queriers connecting to a single instance and leaving the others
             # without any querier connections.
