@@ -14,22 +14,25 @@ output "app_names" {
   description = "All application names which make up this product module"
 }
 
-output "endpoints" {
+output "provides" {
   value = {
-    # Requires
-    logging            = "logging",
-    ingress            = "ingress",
-    certificates       = "certificates",
-    send-remote-write  = "send-remote-write",
-    receive_datasource = "receive-datasource"
-    catalogue          = "catalogue",
-
-    # Provides
     tempo_cluster     = "tempo-cluster"
     grafana_dashboard = "grafana-dashboard",
     grafana_source    = "grafana-source",
     metrics_endpoint  = "metrics-endpoint",
     tracing           = "tracing",
   }
-  description = "All Juju integration endpoints which make up this product module"
+  description = "All Juju integration endpoints where the charm is the provider"
+}
+
+output "requires" {
+  value = {
+    logging            = "logging",
+    ingress            = "ingress",
+    certificates       = "certificates",
+    send-remote-write  = "send-remote-write",
+    receive_datasource = "receive-datasource"
+    catalogue          = "catalogue",
+  }
+  description = "All Juju integration endpoints where the charm is the requirer"
 }
