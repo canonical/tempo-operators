@@ -20,7 +20,7 @@ output "requires" {
     s3                    = "s3",
     self_charm_tracing    = "self-charm-tracing",
     self_workload_tracing = "self-workload-tracing",
-    send-remote-write     = "send-remote-write",
+    send_remote_write     = "send-remote-write",
     receive_datasource    = "receive-datasource"
     catalogue             = "catalogue",
   }
