@@ -9,8 +9,32 @@ assumes:
   - juju >= 3.6.0
 
 description: |
-  Tempo is a distributed tracing backend by Grafana, supporting Jaeger,
-  Zipkin, and OpenTelemetry protocols.
+  Tempo Coordinator K8s is a Juju charm that manages the configuration, routing, and external
+  integrations for a horizontally scalable Grafana Tempo deployment on Kubernetes. It works
+  together with the Tempo Worker charm, following the coordinated-workers pattern. It is a
+  component of the Canonical Observability Stack (COS):
+  https://documentation.ubuntu.com/observability
+
+  The coordinator handles all external relations — such as trace ingestion, Grafana datasources,
+  dashboards, and metrics — and distributes the generated Tempo configuration to the worker
+  units. An nginx reverse proxy routes incoming traffic to the appropriate workers based on
+  their assigned roles.
+
+  Key features:
+
+  - Centralized management of all external integrations, including trace ingestion, Grafana,
+    Prometheus, Loki, and Alertmanager.
+  - Multi-protocol trace ingestion supporting OpenTelemetry (OTLP gRPC/HTTP), Jaeger, and
+    Zipkin.
+  - Automatic configuration distribution to Tempo Worker units via the tempo-cluster relation.
+  - Built-in nginx reverse proxy for load balancing and traffic routing across workers.
+  - S3-compatible object storage integration for scalable trace data persistence.
+  - Built-in Grafana dashboards and Prometheus metrics endpoint for self-monitoring.
+  - Configurable trace retention period and per-protocol receiver toggles.
+  - TLS support via the certificates relation.
+  - Ingress support for cross-model trace collection through Traefik or Istio.
+  - Metrics generation from traces via the metrics-generator role, with Prometheus remote
+    write support.
 
 summary: |
   Tempo is a distributed tracing backend by Grafana.

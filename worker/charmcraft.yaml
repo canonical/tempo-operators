@@ -11,8 +11,23 @@ assumes:
 
 summary: Tempo is a distributed tracing backend by Grafana.
 description: |
-  Tempo is a distributed tracing backend by Grafana, supporting Jaeger,
-  Zipkin, and OpenTelemetry protocols.
+  Tempo Worker K8s is a Juju charm that runs Grafana Tempo components on Kubernetes as part of
+  a horizontally scalable deployment. It works together with the Tempo Coordinator charm,
+  following the coordinated-workers pattern. It is a component of the Canonical Observability
+  Stack (COS):
+  https://documentation.ubuntu.com/observability
+
+  Each worker unit receives its configuration from the coordinator and executes exactly one
+  Tempo role, enabling flexible scaling of individual components independently.
+
+  Key features:
+
+  - Configurable roles: querier, query-frontend, ingester, distributor, compactor,
+    metrics-generator, or the all meta-role (scalable-single-binary mode).
+  - Horizontal scaling by adding more worker units with the desired role.
+  - Automatic configuration received from the Tempo Coordinator via the tempo-cluster relation.
+  - Persistent WAL storage for trace data durability across container restarts.
+  - Configurable Kubernetes resource limits for CPU and memory.
 
 links:
   documentation: https://discourse.charmhub.io/t/tempo-worker-k8s-index/15420
