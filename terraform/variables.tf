@@ -6,6 +6,11 @@ variable "model_uuid" {
 variable "channel" {
   description = "Channel that the applications are deployed from"
   type        = string
+
+  validation {
+    condition     = startswith(var.channel, "dev/")
+    error_message = "The track of the channel must be 'dev/'. e.g. 'dev/edge'."
+  }
 }
 
 variable "anti_affinity" {

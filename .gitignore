@@ -16,3 +16,5 @@ consolidated_rules/
 /coordinator/tests/integration/tester-grpc/lib/
 /coordinator/tests/integration/tester/lib/
 **/.logs/
+# Terraform
+**/.terraform.lock.hcl
