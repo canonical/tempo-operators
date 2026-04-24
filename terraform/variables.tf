@@ -19,6 +19,12 @@ variable "anti_affinity" {
   default     = true
 }
 
+variable "monolithic" {
+  description = "Deploy a single worker with all roles instead of separate role workers"
+  type        = bool
+  default     = false
+}
+
 # -------------- # S3 object storage --------------
 
 variable "s3_integrator_channel" {
@@ -55,6 +61,12 @@ variable "coordinator_name" {
   description = "Name of the Tempo coordinator app"
   type        = string
   default     = "tempo"
+}
+
+variable "all_name" {
+  description = "Name of the Tempo all-in-one worker app"
+  type        = string
+  default     = "tempo-worker"
 }
 
 variable "querier_name" {
@@ -103,6 +115,12 @@ variable "s3_integrator_name" {
 
 variable "coordinator_config" {
   description = "Map of the coordinator configuration options"
+  type        = map(string)
+  default     = {}
+}
+
+variable "all_config" {
+  description = "Map of the all-in-one worker configuration options"
   type        = map(string)
   default     = {}
 }
@@ -219,6 +237,12 @@ variable "coordinator_storage_directives" {
   default     = {}
 }
 
+variable "all_worker_storage_directives" {
+  description = "Map of storage used by the all-in-one worker application, which defaults to 1 GB, allocated by Juju"
+  type        = map(string)
+  default     = {}
+}
+
 variable "compactor_worker_storage_directives" {
   description = "Map of storage used by the compactor worker application, which defaults to 1 GB, allocated by Juju"
   type        = map(string)
@@ -262,6 +286,16 @@ variable "s3_integrator_storage_directives" {
 }
 
 # -------------- # Units Per App --------------
+
+variable "all_units" {
+  description = "Number of Tempo worker units with all roles"
+  type        = number
+  default     = 1
+  validation {
+    condition     = var.all_units >= 1
+    error_message = "The number of units must be greater than or equal to 1."
+  }
+}
 
 variable "compactor_units" {
   description = "Number of Tempo worker units with compactor role"
