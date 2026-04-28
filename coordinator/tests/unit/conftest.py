@@ -46,8 +46,13 @@ def tempo_charm(tmp_path):
         stack.enter_context(
             patch("tempo.Tempo.tls_ca_path", str(tmp_path / "cert.tmp"))
         )
+        stack.enter_context(patch("charm.CA_CERT_PATH", str(tmp_path / "ca.tmp")))
         stack.enter_context(
-            patch("coordinated_workers.nginx.CA_CERT_PATH", str(tmp_path / "ca.tmp"))
+            patch.object(
+                __import__("charmlibs.nginx_k8s._nginx", fromlist=["Nginx"]).Nginx,
+                "CA_CERT_PATH",
+                str(tmp_path / "ca.tmp"),
+            )
         )
         stack.enter_context(
             patch.multiple(
@@ -131,7 +136,10 @@ def peer():
 def nginx_container():
     return Container(
         "nginx",
-        execs={Exec(["update-ca-certificates", "--fresh"])},
+        execs={
+            Exec(["update-ca-certificates", "--fresh"]),
+            Exec(["nginx", "-s", "reload"]),
+        },
         can_connect=True,
     )
 
