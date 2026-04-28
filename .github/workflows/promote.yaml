@@ -20,7 +20,7 @@ on:
 jobs:
   promote:
     name: Promote
-    uses: canonical/observability/.github/workflows/charm-promote.yaml@v1
+    uses: canonical/observability/.github/workflows/charm-promote.yaml@v2
     with:
       promotion: ${{ github.event.inputs.promotion }}
       charm-path: ${{ github.event.inputs.charm }}
