@@ -1,7 +1,0 @@
-charm
-grafana_dashboards
-loki_alert_rules
-nginx_config
-prometheus_alert_rules
-tempo
-tempo_config
