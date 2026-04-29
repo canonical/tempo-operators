@@ -1,4 +1,5 @@
 resource "juju_secret" "tempo_s3_credentials_secret" {
+  count      = var.deploy_s3_integrator ? 1 : 0
   model_uuid = var.model_uuid
   name       = "tempo_s3_credentials"
   value = {
@@ -9,19 +10,21 @@ resource "juju_secret" "tempo_s3_credentials_secret" {
 }
 
 resource "juju_access_secret" "tempo_s3_secret_access" {
+  count      = var.deploy_s3_integrator ? 1 : 0
   model_uuid = var.model_uuid
   applications = [
-    juju_application.s3_integrator.name
+    juju_application.s3_integrator[0].name
   ]
-  secret_id = juju_secret.tempo_s3_credentials_secret.secret_id
+  secret_id = juju_secret.tempo_s3_credentials_secret[0].secret_id
 }
 
 # TODO: Replace s3_integrator resource to use its remote terraform module once available
 resource "juju_application" "s3_integrator" {
+  count = var.deploy_s3_integrator ? 1 : 0
   config = merge({
     endpoint    = var.s3_endpoint
     bucket      = var.s3_bucket
-    credentials = "secret:${juju_secret.tempo_s3_credentials_secret.secret_id}"
+    credentials = "secret:${juju_secret.tempo_s3_credentials_secret[0].secret_id}"
   }, var.s3_integrator_config)
   constraints        = var.s3_integrator_constraints
   model_uuid         = var.model_uuid
@@ -177,9 +180,10 @@ module "tempo_metrics_generator" {
 
 resource "juju_integration" "coordinator_to_s3_integrator" {
   model_uuid = var.model_uuid
+  count      = var.deploy_s3_integrator ? 1 : 0
 
   application {
-    name     = juju_application.s3_integrator.name
+    name     = juju_application.s3_integrator[0].name
     endpoint = "s3-credentials"
   }
 

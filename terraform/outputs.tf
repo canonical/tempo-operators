@@ -1,7 +1,7 @@
 output "app_names" {
   value = merge(
     {
-      tempo_s3_integrator     = juju_application.s3_integrator.name,
+      tempo_s3_integrator     = var.deploy_s3_integrator ? juju_application.s3_integrator[0].name : null,
       tempo_coordinator       = module.tempo_coordinator.app_name,
       tempo_all               = var.monolithic ? module.tempo_all[0].app_name : null,
       tempo_querier           = var.monolithic ? null : module.tempo_querier[0].app_name,

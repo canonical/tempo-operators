@@ -25,6 +25,12 @@ variable "monolithic" {
   default     = false
 }
 
+variable "deploy_s3_integrator" {
+  description = "Deploy an s3-integrator to configure object storage. Set to false when using a charm that provides the s3 interface directly (e.g. seaweedfs-k8s)."
+  type        = bool
+  default     = true
+}
+
 # -------------- # S3 object storage --------------
 
 variable "s3_integrator_channel" {
@@ -40,19 +46,22 @@ variable "s3_bucket" {
 }
 
 variable "s3_access_key" {
-  description = "S3 access-key credential"
+  description = "S3 access-key credential. Required when deploy_s3_integrator is true."
   type        = string
+  default     = null
 }
 
 variable "s3_secret_key" {
-  description = "S3 secret-key credential"
+  description = "S3 secret-key credential. Required when deploy_s3_integrator is true."
   type        = string
   sensitive   = true
+  default     = null
 }
 
 variable "s3_endpoint" {
-  description = "S3 endpoint"
+  description = "S3 endpoint. Required when deploy_s3_integrator is true."
   type        = string
+  default     = null
 }
 
 # -------------- # App Names --------------
