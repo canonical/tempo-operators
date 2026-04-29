@@ -209,7 +209,54 @@ class Tempo:
 
         return server_config
 
+    @staticmethod
+    def _sanitize_s3_endpoint(endpoint: str) -> str:
+        """Strip default HTTP (80) and HTTPS (443) ports from an S3 endpoint.
+
+        When Tempo's Go S3 client receives an endpoint like '10.149.12.3:80',
+        it splits on the colon, then wraps the host in brackets (IPv6-style),
+        and omits the default port, producing 'http://[10.149.12.3]/...' which
+        is invalid. Stripping the default ports prevents this misparse.
+        """
+        from urllib.parse import urlparse, urlunparse
+
+        if "://" in endpoint:
+            # Endpoint has a scheme, e.g. "http://10.149.12.3:80"
+            parsed = urlparse(endpoint)
+            if (parsed.scheme == "http" and parsed.port == 80) or (
+                parsed.scheme == "https" and parsed.port == 443
+            ):
+                netloc = parsed.hostname or ""
+                if parsed.username:
+                    userinfo = parsed.username
+                    if parsed.password:
+                        userinfo = f"{userinfo}:{parsed.password}"
+                    netloc = f"{userinfo}@{netloc}"
+                return urlunparse(
+                    (
+                        parsed.scheme,
+                        netloc,
+                        parsed.path,
+                        parsed.params,
+                        parsed.query,
+                        parsed.fragment,
+                    )
+                )
+        else:
+            # Endpoint without scheme, e.g. "10.149.12.3:80" or "hostname:443"
+            if endpoint.endswith(":80"):
+                return endpoint[:-3]
+            if endpoint.endswith(":443"):
+                return endpoint[:-4]
+
+        return endpoint
+
     def _build_storage_config(self, s3_config: dict):
+        sanitized_config = {**s3_config}
+        if "endpoint" in sanitized_config:
+            sanitized_config["endpoint"] = self._sanitize_s3_endpoint(
+                sanitized_config["endpoint"]
+            )
         storage_config = tempo_config.TraceStorage(
             # where to store the wal locally
             wal=tempo_config.Wal(path=self.wal_path),  # type: ignore
@@ -219,7 +266,7 @@ class Tempo:
                 queue_depth=20000,
             ),
             backend="s3",
-            s3=tempo_config.S3(**s3_config),
+            s3=tempo_config.S3(**sanitized_config),
             # starting from Tempo 2.4, we need to use at least parquet v3 to have search capabilities (Grafana support)
             # https://grafana.com/docs/tempo/latest/release-notes/v2-4/#vparquet3-is-now-the-default-block-format
             block=tempo_config.Block(version="vParquet3"),
