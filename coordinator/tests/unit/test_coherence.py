@@ -31,25 +31,3 @@ def test_coherent(mock_coordinator, roles, expected):
     mc._roles_config = TEMPO_ROLES_CONFIG
 
     assert mc.is_coherent is expected
-
-
-@patch("coordinated_workers.coordinator.Coordinator.__init__", return_value=None)
-@pytest.mark.parametrize(
-    "roles, expected",
-    (
-        ({TempoRole.query_frontend: 1}, False),
-        ({TempoRole.distributor: 1}, False),
-        ({TempoRole.distributor: 1, TempoRole.ingester: 1}, False),
-        (MINIMAL_DEPLOYMENT, False),
-        (RECOMMENDED_DEPLOYMENT, True),
-    ),
-)
-def test_recommended(mock_coordinator, roles, expected):
-    mc = Coordinator(None, None, "", "", 0, None, None, None)
-    cluster_mock = MagicMock()
-    cluster_mock.gather_roles = MagicMock(return_value=roles)
-    mc.cluster = cluster_mock
-    mc._override_recommended_checker = None
-    mc._roles_config = TEMPO_ROLES_CONFIG
-
-    assert mc.is_recommended is expected

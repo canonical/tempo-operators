@@ -9,7 +9,7 @@ from charms.tempo_coordinator_k8s.v0.tracing import (
     TransportProtocolType,
     receiver_protocol_to_transport_protocol,
 )
-from coordinated_workers.nginx import NginxLocationConfig, NginxUpstream
+from charmlibs.nginx_k8s import NginxLocationConfig, NginxUpstream
 
 from tempo import Tempo
 from tempo_config import TempoRole

@@ -102,6 +102,7 @@ def test_pebble_ready_plan(ctx, workload_tracing_receivers, expected_env, role):
         "checks": {
             "ready": {
                 "http": {"url": f"http://{host}:3200/ready"},
+                "level": "ready",
                 "override": "replace",
                 "threshold": 3,
             }
