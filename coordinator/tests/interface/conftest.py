@@ -21,7 +21,10 @@ from charm import TempoCoordinatorCharm
 nginx_container = Container(
     name="nginx",
     can_connect=True,
-    execs={Exec(["update-ca-certificates", "--fresh"])},
+    execs={
+        Exec(["update-ca-certificates", "--fresh"]),
+        Exec(["nginx", "-s", "reload"]),
+    },
     layers={
         "foo": Layer(
             {
