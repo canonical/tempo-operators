@@ -7,7 +7,7 @@ on:
 jobs:
     tiobe-scan:
         name: TiCs-scan
-        uses: canonical/observability/.github/workflows/charm-tiobe-scan.yaml@v1
+        uses: canonical/observability/.github/workflows/charm-tiobe-scan.yaml@v2
         with:
             coverage-folder: .cover
             tiobe-project-name: tempo-operators
