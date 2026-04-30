@@ -272,7 +272,7 @@ wheels = [
 
 [[package]]
 name = "coordinated-workers"
-version = "4.0.0"
+version = "4.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "charmed-service-mesh-helpers" },
@@ -285,9 +285,9 @@ dependencies = [
     { name = "ops", extra = ["tracing"] },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/14/cd/384c9ef41e3712cc4cd461e227a058c640abc86572ce8fb328d3be609140/coordinated_workers-4.0.0.tar.gz", hash = "sha256:4d9c9f9a568924653a066a186b6785f6af69530690adb15acbc8fea83755eda5", size = 378758, upload-time = "2026-04-28T12:03:18.547Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/de/d0/6b6921e1fbb1e1a1539c37308683c6c1dea110419d3de45a945f3a7549c4/coordinated_workers-4.0.1.tar.gz", hash = "sha256:dc19d73285b6164e909bfad528ef18e5542fe0d092395101cc19189d6160b2fc", size = 379113, upload-time = "2026-04-30T16:11:40.949Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/39/5bc438860e05fe671036caef6a370411fa10e0e2374b0f0b3f621e373ec3/coordinated_workers-4.0.0-py3-none-any.whl", hash = "sha256:41e4f9de157ff0561669764dcedaf4fd318f60941a841daa861d4a394cdfedab", size = 48433, upload-time = "2026-04-28T12:03:16.659Z" },
+    { url = "https://files.pythonhosted.org/packages/5b/3e/5ed2f4a4b9abb995d49a03bee9eca92263240edddf4ec5554ca8a2bc0721/coordinated_workers-4.0.1-py3-none-any.whl", hash = "sha256:9f753274a65a31874ea2c4ece7fd547209406aafed5f8748ab96f197d751c03d", size = 48498, upload-time = "2026-04-30T16:11:39.215Z" },
 ]
 
 [[package]]
@@ -569,14 +569,14 @@ wheels = [
 
 [[package]]
 name = "jubilant"
-version = "1.8.0"
+version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/11/1b/32b5ab87c138066c80e34c8cd0f7d34760ce9d203d89ec88f979039e015d/jubilant-1.8.0.tar.gz", hash = "sha256:a7cea68299dca94fac3e121a8c8ed92021d20aa2f4461e16822abbcd134d0b8b", size = 33036, upload-time = "2026-03-30T07:42:23.939Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f6/5e/7d321fc4d34ccd3ab57312598b553dea54b8c0c1215e1f8670d05e90c898/jubilant-1.9.0.tar.gz", hash = "sha256:0a8116d4237dd60755935343d1dc7a61f48028495bd1d0b020dc57c96768c9a9", size = 33880, upload-time = "2026-04-29T23:21:08.374Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/87/6b/71ceb8de590d02eccf18cca60cb687838b12db0926a6a870c2d17a0d26b3/jubilant-1.8.0-py3-none-any.whl", hash = "sha256:e0495ee645de5f2df81d044a3b6e2827b5a6277de02c6d30935b9632bd868a98", size = 33929, upload-time = "2026-03-30T07:42:22.419Z" },
+    { url = "https://files.pythonhosted.org/packages/ec/30/9ad50955750ee21f9c005b5496c85edf3218678df419062b3fd355558537/jubilant-1.9.0-py3-none-any.whl", hash = "sha256:1cacd96361fe77d3ea124483bb7a7d4ff0f96412bcd0c0bf32698e685aa77c37", size = 34779, upload-time = "2026-04-29T23:21:06.88Z" },
 ]
 
 [[package]]
