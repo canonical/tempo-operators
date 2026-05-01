@@ -20,10 +20,10 @@ def base_state(nginx_container, nginx_prometheus_exporter_container):
             # secret used by certhandler's vault. We don't need it
             # if we're also simulating cert events before.
             Secret(
-                "secret:chpv-test",
+                {"foo": "bar"},
+                id="secret:chpv-test",
                 label="cert-handler-private-vault",
                 owner="app",
-                latest_content={"foo": "bar"},
             )
         ],
         containers=[nginx_container, nginx_prometheus_exporter_container],

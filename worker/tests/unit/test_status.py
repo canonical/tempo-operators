@@ -15,7 +15,9 @@ from tests.unit.conftest import UPDATE_CA_CERTS_EXEC_OUTPUT
 from tests.unit.helpers import set_role
 
 tempo_container = Container(
-    "tempo", can_connect=True, execs={UPDATE_CA_CERTS_EXEC_OUTPUT}
+    "tempo",
+    can_connect=True,
+    execs={UPDATE_CA_CERTS_EXEC_OUTPUT},
 )
 
 
@@ -30,8 +32,14 @@ def endpoint_starting(tls: bool = False):
 
 @contextmanager
 def endpoint_ready(tls: bool = False):
-    with patch(
-        "urllib.request.urlopen", new=partial(_urlopen_patch, tls=tls, resp="ready")
+    with (
+        patch(
+            "urllib.request.urlopen", new=partial(_urlopen_patch, tls=tls, resp="ready")
+        ),
+        patch(
+            "coordinated_workers.worker.Worker._is_readiness_check_failing",
+            return_value=False,
+        ),
     ):
         yield
 

@@ -54,12 +54,11 @@ from charms.istio_beacon_k8s.v0.service_mesh import (
     Method,
 )
 from coordinated_workers.coordinator import Coordinator
-from coordinated_workers.nginx import (
-    CA_CERT_PATH,
-    CERT_PATH,
-    KEY_PATH,
-    NginxConfig,
-)
+from charmlibs.nginx_k8s import NginxConfig, TLSConfigManager
+
+CA_CERT_PATH = TLSConfigManager.CA_CERT_PATH
+CERT_PATH = TLSConfigManager.CERT_PATH
+KEY_PATH = TLSConfigManager.KEY_PATH
 from coordinated_workers.worker_telemetry import WorkerTelemetryProxyConfig
 from coordinated_workers.telemetry_correlation import TelemetryCorrelation
 from cosl.interfaces.datasource_exchange import DatasourceDict

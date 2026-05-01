@@ -81,7 +81,6 @@ TEMPO_ROLES_CONFIG = ClusterRolesConfig(
     roles={role for role in TempoRole},
     meta_roles=META_ROLES,
     minimal_deployment=MINIMAL_DEPLOYMENT,
-    recommended_deployment=RECOMMENDED_DEPLOYMENT,
 )
 # Define the configuration for Tempo roles.
 

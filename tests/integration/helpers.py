@@ -10,7 +10,9 @@ from typing import List, Literal, Optional, Sequence, Set, cast
 import jubilant
 import requests
 import yaml
-from coordinated_workers.nginx import CA_CERT_PATH
+from charmlibs.nginx_k8s import TLSConfigManager
+
+CA_CERT_PATH = TLSConfigManager.CA_CERT_PATH
 from jubilant import Juju, all_active
 from lightkube import Client
 from lightkube.generic_resource import create_namespaced_resource
@@ -33,9 +35,7 @@ def pack(root: Path | str = "./", platform: str | None = None) -> Path:
     )
     # charmcraft prints "Packed <filename>" lines to stderr
     packed_charms = [
-        line.split()[1]
-        for line in proc.stderr.strip().splitlines()
-        if line.startswith("Packed")
+        line.split()[1] for line in proc.stderr.strip().splitlines() if line.startswith("Packed")
     ]
     if not packed_charms:
         raise ValueError(
@@ -65,6 +65,7 @@ def get_resources(root: Path | str = "./") -> dict[str, str] | None:
             return None
     logger.error("metadata/charmcraft.yaml not found at %s; unable to load resources", root)
     return None
+
 
 CI_TRUE_VALUES = {"1", "true", "yes"}
 COORDINATOR_CHARM_FILENAME = "tempo-coordinator-k8s_ubuntu@24.04-amd64.charm"
@@ -128,9 +129,7 @@ def _set_ci_charm_paths_if_unset() -> None:
 def run_command(model_name: str, app_name: str, unit_num: int, command: list) -> bytes:
     cmd = ["juju", "ssh", "--model", model_name, f"{app_name}/{unit_num}", *command]
     try:
-        res = subprocess.run(
-            cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-        )
+        res = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         logger.info(res)
     except subprocess.CalledProcessError as exc:
         logger.error(exc.stdout.decode())
@@ -464,9 +463,7 @@ def emit_trace(
     juju.cli(
         "ssh",
         f"{TEMPO_APP}/0",
-        f"apt update -y && "
-        f"apt install git -y && "
-        f"curl -LsSf https://astral.sh/uv/install.sh | sh",
+        f"apt update -y && apt install git -y && curl -LsSf https://astral.sh/uv/install.sh | sh",
     )
 
     tracegen_deps = (
@@ -505,9 +502,7 @@ def _get_endpoint(protocol: str, hostname: str, tls: bool):
 
     if "grpc" in protocol:
         return protocol_endpoint.format(hostname=hostname)
-    return protocol_endpoint.format(
-        hostname=hostname, scheme="https" if tls else "http"
-    )
+    return protocol_endpoint.format(hostname=hostname, scheme="https" if tls else "http")
 
 
 def get_tempo_ingressed_endpoint(hostname: str, protocol: str, tls: bool):
@@ -515,9 +510,7 @@ def get_tempo_ingressed_endpoint(hostname: str, protocol: str, tls: bool):
 
 
 def get_tempo_internal_endpoint(juju: Juju, protocol: str, tls: bool, unit: int = 0):
-    hostname = (
-        f"{TEMPO_APP}-{unit}.{TEMPO_APP}-endpoints.{juju.model}.svc.cluster.local"
-    )
+    hostname = f"{TEMPO_APP}-{unit}.{TEMPO_APP}-endpoints.{juju.model}.svc.cluster.local"
     return _get_endpoint(protocol, hostname, tls)
 
 
@@ -527,9 +520,7 @@ def get_tempo_application_endpoint(tempo_ip: str, protocol: str, tls: bool):
 
 def get_ingress_proxied_hostname(juju: Juju):
     return json.loads(
-        juju.run(TRAEFIK_APP + "/0", "show-proxied-endpoints").results[
-            "proxied-endpoints"
-        ]
+        juju.run(TRAEFIK_APP + "/0", "show-proxied-endpoints").results["proxied-endpoints"]
     )[TRAEFIK_APP]["url"].split("://")[1]
 
 
@@ -571,9 +562,7 @@ def service_mesh(
     juju.config(ISTIO_BEACON_APP, {"model-on-mesh": "false"})
 
     for app in apps_to_be_related_with_beacon:
-        juju.remove_relation(
-            beacon_app_name + ":service-mesh", app + ":service-mesh", force=True
-        )
+        juju.remove_relation(beacon_app_name + ":service-mesh", app + ":service-mesh", force=True)
     juju.wait(
         all_active,
         timeout=1000,
