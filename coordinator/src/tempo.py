@@ -211,43 +211,24 @@ class Tempo:
 
     @staticmethod
     def _sanitize_s3_endpoint(endpoint: str) -> str:
-        """Strip default HTTP (80) and HTTPS (443) ports from an S3 endpoint.
+        """Strip default ports (:80 for HTTP, :443 for HTTPS) from an S3 endpoint.
 
-        When Tempo's Go S3 client receives an endpoint like '10.149.12.3:80',
-        it splits on the colon, then wraps the host in brackets (IPv6-style),
-        and omits the default port, producing 'http://[10.149.12.3]/...' which
-        is invalid. Stripping the default ports prevents this misparse.
+        Tempo's Go S3 client misparses 'host:80' as IPv6, producing invalid URLs.
+        Stripping default ports prevents this.
         """
-        from urllib.parse import urlparse, urlunparse
+        _DEFAULT_PORTS = {"http": 80, "https": 443}
 
         if "://" in endpoint:
-            # Endpoint has a scheme, e.g. "http://10.149.12.3:80"
+            from urllib.parse import urlparse
+
             parsed = urlparse(endpoint)
-            if (parsed.scheme == "http" and parsed.port == 80) or (
-                parsed.scheme == "https" and parsed.port == 443
-            ):
-                netloc = parsed.hostname or ""
-                if parsed.username:
-                    userinfo = parsed.username
-                    if parsed.password:
-                        userinfo = f"{userinfo}:{parsed.password}"
-                    netloc = f"{userinfo}@{netloc}"
-                return urlunparse(
-                    (
-                        parsed.scheme,
-                        netloc,
-                        parsed.path,
-                        parsed.params,
-                        parsed.query,
-                        parsed.fragment,
-                    )
-                )
+            if parsed.port == _DEFAULT_PORTS.get(parsed.scheme):
+                clean_netloc = parsed.netloc.replace(f":{parsed.port}", "", 1)
+                return endpoint.replace(parsed.netloc, clean_netloc, 1)
         else:
-            # Endpoint without scheme, e.g. "10.149.12.3:80" or "hostname:443"
-            if endpoint.endswith(":80"):
-                return endpoint[:-3]
-            if endpoint.endswith(":443"):
-                return endpoint[:-4]
+            for port_suffix in (":80", ":443"):
+                if endpoint.endswith(port_suffix):
+                    return endpoint[: -len(port_suffix)]
 
         return endpoint
 
