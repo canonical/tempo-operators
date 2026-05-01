@@ -18,3 +18,6 @@ consolidated_rules/
 **/.logs/
 # Terraform
 **/.terraform.lock.hcl
+# Python build artifacts
+**/*.egg-info/
+.venv/

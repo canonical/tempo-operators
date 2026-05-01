@@ -209,7 +209,35 @@ class Tempo:
 
         return server_config
 
+    @staticmethod
+    def _sanitize_s3_endpoint(endpoint: str) -> str:
+        """Strip default ports (:80 for HTTP, :443 for HTTPS) from an S3 endpoint.
+
+        Tempo's Go S3 client misparses 'host:80' as IPv6, producing invalid URLs.
+        Stripping default ports prevents this.
+        """
+        _DEFAULT_PORTS = {"http": 80, "https": 443}
+
+        if "://" in endpoint:
+            from urllib.parse import urlparse
+
+            parsed = urlparse(endpoint)
+            if parsed.port == _DEFAULT_PORTS.get(parsed.scheme):
+                clean_netloc = parsed.netloc.replace(f":{parsed.port}", "", 1)
+                return endpoint.replace(parsed.netloc, clean_netloc, 1)
+        else:
+            for port_suffix in (":80", ":443"):
+                if endpoint.endswith(port_suffix):
+                    return endpoint[: -len(port_suffix)]
+
+        return endpoint
+
     def _build_storage_config(self, s3_config: dict):
+        sanitized_config = {**s3_config}
+        if "endpoint" in sanitized_config:
+            sanitized_config["endpoint"] = self._sanitize_s3_endpoint(
+                sanitized_config["endpoint"]
+            )
         storage_config = tempo_config.TraceStorage(
             # where to store the wal locally
             wal=tempo_config.Wal(path=self.wal_path),  # type: ignore
@@ -219,7 +247,7 @@ class Tempo:
                 queue_depth=20000,
             ),
             backend="s3",
-            s3=tempo_config.S3(**s3_config),
+            s3=tempo_config.S3(**sanitized_config),
             # starting from Tempo 2.4, we need to use at least parquet v3 to have search capabilities (Grafana support)
             # https://grafana.com/docs/tempo/latest/release-notes/v2-4/#vparquet3-is-now-the-default-block-format
             block=tempo_config.Block(version="vParquet3"),
