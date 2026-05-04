@@ -3,6 +3,45 @@ import pytest
 import tempo_config
 from tempo import Tempo
 
+# Sample values for required S3 fields (only endpoint varies in tests).
+_S3_DEFAULTS = {
+    "bucket": "test-bucket",
+    "access_key": "test-key",
+    "secret_key": "test-secret",
+}
+
+
+@pytest.mark.parametrize(
+    "endpoint, expected",
+    [
+        # No scheme, default HTTP port → strip :80
+        ("10.149.12.3:80", "10.149.12.3"),
+        # No scheme, default HTTPS port → strip :443
+        ("10.149.12.3:443", "10.149.12.3"),
+        # No scheme, non-default port → keep unchanged
+        ("10.149.12.3:9000", "10.149.12.3:9000"),
+        # No scheme, no port → keep unchanged
+        ("10.149.12.3", "10.149.12.3"),
+        # With scheme, default HTTP port → strip :80
+        ("http://10.149.12.3:80", "http://10.149.12.3"),
+        # With scheme, default HTTPS port → strip :443
+        ("https://10.149.12.3:443", "https://10.149.12.3"),
+        # With scheme, non-default port → keep unchanged
+        ("http://10.149.12.3:9000", "http://10.149.12.3:9000"),
+        # With scheme, no port → keep unchanged
+        ("http://10.149.12.3", "http://10.149.12.3"),
+        # Hostname without scheme, default HTTP port → strip :80
+        ("minio.example.com:80", "minio.example.com"),
+        # Hostname without scheme, default HTTPS port → strip :443
+        ("minio.example.com:443", "minio.example.com"),
+        # Port 8080 should not be stripped (resembles :80 but is not)
+        ("10.149.12.3:8080", "10.149.12.3:8080"),
+    ],
+)
+def test_s3_strips_default_port_from_endpoint(endpoint, expected):
+    s3 = tempo_config.S3(endpoint=endpoint, **_S3_DEFAULTS)
+    assert s3.endpoint == expected
+
 tls_config = {
     "tls": {
         "ca_file": "/usr/local/share/ca-certificates/ca.crt",

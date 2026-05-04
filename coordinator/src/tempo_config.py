@@ -10,7 +10,9 @@ from typing import Any, Dict, List, Optional
 
 import pydantic
 from coordinated_workers.coordinator import ClusterRolesConfig
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from urllib.parse import urlparse
 
 
 # TODO: inherit enum.StrEnum when jammy is no longer supported.
@@ -266,6 +268,29 @@ class S3(BaseModel):
     secret_access_key: str = Field(alias="secret_key")
     insecure: bool = False
     tls_ca_path: Optional[str] = None
+
+    @field_validator("endpoint", mode="before")
+    @classmethod
+    def _strip_default_port(cls, v: str) -> str:
+        """Strip default ports (:80 for HTTP, :443 for HTTPS) from an S3 endpoint.
+
+        Tempo's Go S3 client misparses 'host:80' as IPv6, producing invalid URLs.
+        Stripping default ports prevents this.
+        """
+
+        _DEFAULT_PORTS = {"http": 80, "https": 443}
+
+        if "://" in v:
+            parsed = urlparse(v)
+            if parsed.port == _DEFAULT_PORTS.get(parsed.scheme):
+                clean_netloc = parsed.netloc.replace(f":{parsed.port}", "", 1)
+                return v.replace(parsed.netloc, clean_netloc, 1)
+        else:
+            for port_suffix in (":80", ":443"):
+                if v.endswith(port_suffix):
+                    return v[: -len(port_suffix)]
+
+        return v
 
 
 class Block(BaseModel):
