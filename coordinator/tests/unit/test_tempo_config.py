@@ -3,7 +3,7 @@ import pytest
 import tempo_config
 from tempo import Tempo
 
-# Dummy values for required S3 fields (only endpoint varies in tests).
+# Sample values for required S3 fields (only endpoint varies in tests).
 _S3_DEFAULTS = {
     "bucket": "test-bucket",
     "access_key": "test-key",
