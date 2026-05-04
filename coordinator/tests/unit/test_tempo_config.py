@@ -3,6 +3,13 @@ import pytest
 import tempo_config
 from tempo import Tempo
 
+# Dummy values for required S3 fields (only endpoint varies in tests).
+_S3_DEFAULTS = {
+    "bucket": "test-bucket",
+    "access_key": "test-key",
+    "secret_key": "test-secret",
+}
+
 
 @pytest.mark.parametrize(
     "endpoint, expected",
@@ -31,8 +38,9 @@ from tempo import Tempo
         ("10.149.12.3:8080", "10.149.12.3:8080"),
     ],
 )
-def test_sanitize_s3_endpoint(endpoint, expected):
-    assert Tempo._sanitize_s3_endpoint(endpoint) == expected
+def test_s3_strips_default_port_from_endpoint(endpoint, expected):
+    s3 = tempo_config.S3(endpoint=endpoint, **_S3_DEFAULTS)
+    assert s3.endpoint == expected
 
 tls_config = {
     "tls": {
