@@ -2,9 +2,7 @@
 # See LICENSE file for licensing details.
 import logging
 import random
-import shutil
 from contextlib import contextmanager
-from pathlib import Path
 
 import jubilant
 import pytest
@@ -109,44 +107,6 @@ def deployment_factory(tls, distributed, juju, do_setup, do_teardown):
 
     with _tls_ctx(tls, juju=juju, distributed=distributed):
         yield juju
-
-
-@fixture(scope="module")
-def copy_charm_libs_into_tester_charm():
-    """Ensure the tester charm has the libraries it uses."""
-    libraries = [
-        "tls_certificates_interface/v4/tls_certificates.py",
-        "tempo_coordinator_k8s/v0/charm_tracing.py",
-        "tempo_coordinator_k8s/v0/tracing.py",
-        "istio_beacon_k8s/v0/service_mesh.py",
-    ]
-
-    for lib in libraries:
-        install_path = Path("tests/integration/tester/lib/charms") / lib
-        install_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(Path("lib/charms") / lib, install_path)
-
-    yield
-
-    shutil.rmtree(Path("tests/integration/tester/lib"), ignore_errors=True)
-
-
-@fixture(scope="module")
-def copy_charm_libs_into_tester_grpc_charm():
-    """Ensure the tester GRPC charm has the libraries it uses."""
-    libraries = [
-        "tempo_coordinator_k8s/v0/tracing.py",
-        "istio_beacon_k8s/v0/service_mesh.py",
-    ]
-
-    for lib in libraries:
-        install_path = Path("tests/integration/tester-grpc/lib/charms") / lib
-        install_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(Path("lib/charms") / lib, install_path)
-
-    yield
-
-    shutil.rmtree(Path("tests/integration/tester-grpc/lib"), ignore_errors=True)
 
 
 @fixture(scope="function")
