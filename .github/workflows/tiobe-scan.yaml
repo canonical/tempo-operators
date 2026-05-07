@@ -10,5 +10,6 @@ jobs:
         uses: canonical/observability/.github/workflows/charm-tiobe-scan.yaml@v2
         with:
             coverage-folder: .cover
+            lockfile-path: coordinator
             tiobe-project-name: tempo-operators
         secrets: inherit
