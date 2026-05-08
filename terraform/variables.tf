@@ -24,7 +24,7 @@ variable "anti_affinity" {
 variable "s3_integrator_channel" {
   description = "Channel that the s3-integrator application is deployed from"
   type        = string
-  default     = "2/edge"
+  default     = "2/stable"
 }
 
 variable "s3_bucket" {

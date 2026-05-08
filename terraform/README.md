@@ -71,7 +71,7 @@ This is a Terraform module facilitating the deployment of Tempo solution, using 
 | <a name="input_s3_access_key"></a> [s3\_access\_key](#input\_s3\_access\_key) | S3 access-key credential | `string` | n/a | yes |
 | <a name="input_s3_bucket"></a> [s3\_bucket](#input\_s3\_bucket) | Bucket name | `string` | `"tempo"` | no |
 | <a name="input_s3_endpoint"></a> [s3\_endpoint](#input\_s3\_endpoint) | S3 endpoint | `string` | n/a | yes |
-| <a name="input_s3_integrator_channel"></a> [s3\_integrator\_channel](#input\_s3\_integrator\_channel) | Channel that the s3-integrator application is deployed from | `string` | `"2/edge"` | no |
+| <a name="input_s3_integrator_channel"></a> [s3\_integrator\_channel](#input\_s3\_integrator\_channel) | Channel that the s3-integrator application is deployed from | `string` | `"2/stable"` | no |
 | <a name="input_s3_integrator_config"></a> [s3\_integrator\_config](#input\_s3\_integrator\_config) | Map of the s3-integrator configuration options | `map(string)` | `{}` | no |
 | <a name="input_s3_integrator_constraints"></a> [s3\_integrator\_constraints](#input\_s3\_integrator\_constraints) | String listing constraints for the s3-integrator application | `string` | `"arch=amd64"` | no |
 | <a name="input_s3_integrator_name"></a> [s3\_integrator\_name](#input\_s3\_integrator\_name) | Name of the s3-integrator app | `string` | `"tempo-s3-integrator"` | no |
