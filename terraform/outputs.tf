@@ -34,8 +34,8 @@ output "requires" {
     send-remote-write  = "send-remote-write",
     receive_datasource = "receive-datasource"
     catalogue          = "catalogue",
-    require_cmr_mesh   = module.mimir_coordinator.provides.require_cmr_mesh,
-    service_mesh       = module.mimir_coordinator.provides.service_mesh,
+    require_cmr_mesh   = module.mimir_coordinator.requires.require_cmr_mesh,
+    service_mesh       = module.mimir_coordinator.requires.service_mesh,
   }
   description = "All Juju integration endpoints where the charm is the requirer"
 }
