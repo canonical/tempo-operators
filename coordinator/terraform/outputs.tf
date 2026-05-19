@@ -7,6 +7,7 @@ output "provides" {
     grafana_dashboard = "grafana-dashboard",
     grafana_source    = "grafana-source",
     metrics_endpoint  = "metrics-endpoint",
+    provide_cmr_mesh  = "provide-cmr-mesh",
     tempo_cluster     = "tempo-cluster",
     tracing           = "tracing",
   }
@@ -21,7 +22,9 @@ output "requires" {
     self_charm_tracing    = "self-charm-tracing",
     self_workload_tracing = "self-workload-tracing",
     send_remote_write     = "send-remote-write",
-    receive_datasource    = "receive-datasource"
+    receive_datasource    = "receive-datasource",
+    require_cmr_mesh      = "require-cmr-mesh",
+    service_mesh          = "service-mesh",
     catalogue             = "catalogue",
   }
 }

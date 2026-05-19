@@ -20,6 +20,7 @@ output "provides" {
     grafana_dashboard = "grafana-dashboard",
     grafana_source    = "grafana-source",
     metrics_endpoint  = "metrics-endpoint",
+    provide_cmr_mesh  = module.mimir_coordinator.provides.provide_cmr_mesh,
     tracing           = "tracing",
   }
   description = "All Juju integration endpoints where the charm is the provider"
@@ -33,6 +34,8 @@ output "requires" {
     send-remote-write  = "send-remote-write",
     receive_datasource = "receive-datasource"
     catalogue          = "catalogue",
+    require_cmr_mesh   = module.mimir_coordinator.provides.require_cmr_mesh,
+    service_mesh       = module.mimir_coordinator.provides.service_mesh,
   }
   description = "All Juju integration endpoints where the charm is the requirer"
 }
