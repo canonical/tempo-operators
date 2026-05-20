@@ -29,7 +29,7 @@ def test_trace_ingestion(juju):
     tempo_ingestion_endpoint = get_tempo_application_endpoint(
         tempo_address, protocol="otlp_http", tls=False
     )
-    emit_trace(tempo_ingestion_endpoint, juju)
+    emit_trace(tempo_ingestion_endpoint)
 
     # THEN we can verify it's been ingested
     query_traces_patiently_from_client_localhost(

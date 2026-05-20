@@ -10,9 +10,6 @@ from typing import List, Literal, Optional, Sequence, Set, cast
 import jubilant
 import requests
 import yaml
-from charmlibs.nginx_k8s import TLSConfigManager
-
-CA_CERT_PATH = TLSConfigManager.CA_CERT_PATH
 from jubilant import Juju, all_active
 from lightkube import Client
 from lightkube.generic_resource import create_namespaced_resource
@@ -450,47 +447,33 @@ def get_ingested_traces_service_names(tempo_host: str, tls: bool) -> Set[str]:
 
 def emit_trace(
     endpoint: str,
-    juju: Juju,
     nonce: Optional[str] = None,
     proto: str = "otlp_http",
     service_name: Optional[str] = "tracegen",
     verbose: int = 0,
-    use_cert: bool = False,
+    ca_cert_path: Optional[str] = None,
 ):
-    """Use juju ssh to run tracegen from the tempo charm; to avoid any DNS issues."""
-    logger.info("pushing tracegen onto %s/0", TEMPO_APP)
-    juju.cli("scp", str(TRACEGEN_SCRIPT_PATH), f"{TEMPO_APP}/0:tracegen.py")
-    juju.cli(
-        "ssh",
-        f"{TEMPO_APP}/0",
-        f"apt update -y && apt install git -y && curl -LsSf https://astral.sh/uv/install.sh | sh",
-    )
+    """Run tracegen from the test host (outside the cluster).
 
-    tracegen_deps = (
-        "protobuf==3.20.*",
-        "opentelemetry-exporter-otlp-proto-http==1.21.0",
-        "opentelemetry-exporter-otlp-proto-grpc",
-        "opentelemetry-exporter-zipkin",
-        "opentelemetry-exporter-jaeger",
-        "protobuf==3.20.*",
-        "thrift@git+https://github.com/apache/thrift.git@6e380306ef48af4050a61f2f91b3c8380d8e78fb#subdirectory=lib/py",
+    Dependencies are declared inline in tracegen.py using PEP 723 script metadata, so uv
+    resolves and installs them automatically on first run with no extra --with flags needed.
+    This is analogous to how pyroscope-operators emits profiles in its integration tests.
+    For TLS scenarios pass the CA cert path obtained from the certificates provider charm.
+    """
+    cmd = f"uv run {TRACEGEN_SCRIPT_PATH}"
+    env = os.environ.copy()
+    env.update(
+        {
+            "TRACEGEN_SERVICE": service_name or "",
+            "TRACEGEN_ENDPOINT": endpoint,
+            "TRACEGEN_VERBOSE": str(verbose),
+            "TRACEGEN_PROTOCOL": proto,
+            "TRACEGEN_CERT": ca_cert_path or "",
+            "TRACEGEN_NONCE": nonce or "",
+        }
     )
-    with_deps = " ".join(f"--with '{dep}'" for dep in tracegen_deps)
-    cmd = (
-        f"juju ssh -m {juju.model} {TEMPO_APP}/0 "
-        f"TRACEGEN_SERVICE='{service_name or ''}' "
-        f"TRACEGEN_ENDPOINT='{endpoint}' "
-        f"TRACEGEN_VERBOSE='{verbose}' "
-        f"TRACEGEN_PROTOCOL='{proto}' "
-        f"TRACEGEN_CERT='{CA_CERT_PATH if use_cert else ''}' "
-        f"TRACEGEN_NONCE='{nonce or ''}' "
-        f"~/.local/bin/uv run {with_deps} tracegen.py"
-    )
-
-    logger.info("running tracegen with %r", cmd)
-
-    lexed_cmd = shlex.split(cmd)
-    out = subprocess.run(lexed_cmd, text=True, capture_output=True, check=True)
+    logger.info("running tracegen locally: endpoint=%r proto=%r", endpoint, proto)
+    out = subprocess.run(shlex.split(cmd), text=True, capture_output=True, check=True, env=env)
     logger.info("tracegen completed; stdout=%r", out.stdout)
     return out
 
@@ -557,15 +540,19 @@ def service_mesh(
         successes=5,
     )
 
-    yield
+    try:
+        yield
+    finally:
+        # Always tear down the mesh, even if the test body raised an exception.
+        # Without this, a failing mesh test would leave the mesh active and cause
+        # RBAC-related failures in all subsequent tests.
+        juju.config(ISTIO_BEACON_APP, {"model-on-mesh": "false"})
 
-    juju.config(ISTIO_BEACON_APP, {"model-on-mesh": "false"})
-
-    for app in apps_to_be_related_with_beacon:
-        juju.remove_relation(beacon_app_name + ":service-mesh", app + ":service-mesh", force=True)
-    juju.wait(
-        all_active,
-        timeout=1000,
-        delay=5,
-        successes=5,
-    )
+        for app in apps_to_be_related_with_beacon:
+            juju.remove_relation(beacon_app_name + ":service-mesh", app + ":service-mesh", force=True)
+        juju.wait(
+            all_active,
+            timeout=1000,
+            delay=5,
+            successes=5,
+        )

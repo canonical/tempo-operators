@@ -1,4 +1,15 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.8"
+# dependencies = [
+#   "protobuf==3.20.*",
+#   "opentelemetry-exporter-otlp-proto-http==1.21.0",
+#   "opentelemetry-exporter-otlp-proto-grpc",
+#   "opentelemetry-exporter-zipkin",
+#   "opentelemetry-exporter-jaeger",
+#   "thrift @ git+https://github.com/apache/thrift.git@6e380306ef48af4050a61f2f91b3c8380d8e78fb#subdirectory=lib/py",
+# ]
+# ///
 import os
 import time
 from pathlib import Path

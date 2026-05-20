@@ -11,7 +11,10 @@ pytestmark = [
 
 import requests
 import tenacity
+from charmlibs.nginx_k8s import TLSConfigManager
 from jubilant import Juju
+
+CA_CERT_PATH = TLSConfigManager.CA_CERT_PATH
 
 from tests.integration.helpers import (
     SSC_APP,
@@ -72,7 +75,7 @@ def test_verify_trace_http_no_tls_fails(juju: Juju, nonce, unit):
     tempo_endpoint = get_tempo_internal_endpoint(
         juju, tls=False, protocol="otlp_http", unit=unit
     )
-    emit_trace(tempo_endpoint, juju, nonce=nonce)  # this should fail
+    emit_trace(tempo_endpoint, nonce=nonce)  # this should fail
 
     # redecorate the original function with shorter retries for this negative test
     get_traces_patiently_short = tenacity.retry(
@@ -94,11 +97,10 @@ def test_verify_traces_otlp_http_tls(juju: Juju, nonce, unit):
     # WHEN we emit a trace secured with TLS
     emit_trace(
         tempo_endpoint,
-        juju,
         nonce=nonce,
         verbose=1,
         proto=protocol,
-        use_cert=True,
+        ca_cert_path=CA_CERT_PATH,
         service_name=service_name,
     )
     # THEN we can verify it's been ingested
@@ -141,11 +143,10 @@ def test_verify_traces_force_enabled_protocols_tls(juju: Juju, nonce, protocol):
     service_name = f"tracegen-tls-{protocol}"
     emit_trace(
         tempo_endpoint,
-        juju,
         nonce=nonce,
         verbose=1,
         proto=protocol,
-        use_cert=True,
+        ca_cert_path=CA_CERT_PATH,
         service_name=service_name,
     )
     # verify it's been ingested
