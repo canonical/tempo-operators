@@ -191,6 +191,20 @@ variable "s3_integrator_constraints" {
   }
 }
 
+# -------------- # Resources --------------
+
+variable "coordinator_resources" {
+  description = "The coordinator application's resources i.e., a resource revision number from CharmHub or a custom OCI image resource"
+  type        = map(string)
+  default     = {}
+}
+
+variable "worker_resources" {
+  description = "The worker application's resources i.e., a resource revision number from CharmHub or a custom OCI image resource"
+  type        = map(string)
+  default     = {}
+}
+
 # -------------- # Revisions --------------
 
 variable "coordinator_revision" {

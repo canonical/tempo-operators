@@ -1,3 +1,127 @@
+module "tempo_coordinator" {
+  source = "../coordinator/terraform"
+
+  app_name           = var.coordinator_name
+  channel            = var.channel
+  config             = var.coordinator_config
+  constraints        = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=tempo,anti-pod.topology-key=kubernetes.io/hostname" : var.coordinator_constraints
+  model_uuid         = var.model_uuid
+  resources          = var.coordinator_resources
+  revision           = var.coordinator_revision
+  storage_directives = var.coordinator_storage_directives
+  units              = var.coordinator_units
+}
+
+module "tempo_querier" {
+  source     = "../worker/terraform"
+  depends_on = [module.tempo_coordinator]
+
+  app_name = var.querier_name
+  channel  = var.channel
+  config = merge({
+    role-all     = false
+    role-querier = true
+  }, var.querier_config)
+  constraints        = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.querier_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
+  model_uuid         = var.model_uuid
+  resources          = var.worker_resources
+  revision           = var.worker_revision
+  storage_directives = var.querier_worker_storage_directives
+  units              = var.querier_units
+}
+
+module "tempo_query_frontend" {
+  source     = "../worker/terraform"
+  depends_on = [module.tempo_coordinator]
+
+  app_name    = var.query_frontend_name
+  model_uuid  = var.model_uuid
+  channel     = var.channel
+  constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.query_frontend_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
+  config = merge({
+    role-all            = false
+    role-query-frontend = true
+  }, var.query_frontend_config)
+  resources          = var.worker_resources
+  revision           = var.worker_revision
+  storage_directives = var.query_frontend_worker_storage_directives
+  units              = var.query_frontend_units
+}
+
+module "tempo_ingester" {
+  source     = "../worker/terraform"
+  depends_on = [module.tempo_coordinator]
+
+  app_name    = var.ingester_name
+  model_uuid  = var.model_uuid
+  channel     = var.channel
+  constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.ingester_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
+  config = merge({
+    role-all      = false
+    role-ingester = true
+  }, var.ingester_config)
+  resources          = var.worker_resources
+  revision           = var.worker_revision
+  storage_directives = var.ingester_worker_storage_directives
+  units              = var.ingester_units
+}
+
+module "tempo_distributor" {
+  source     = "../worker/terraform"
+  depends_on = [module.tempo_coordinator]
+
+  app_name    = var.distributor_name
+  model_uuid  = var.model_uuid
+  channel     = var.channel
+  constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.distributor_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
+  config = merge({
+    role-all         = false
+    role-distributor = true
+  }, var.distributor_config)
+  resources          = var.worker_resources
+  revision           = var.worker_revision
+  storage_directives = var.distributor_worker_storage_directives
+  units              = var.distributor_units
+}
+
+module "tempo_compactor" {
+  source     = "../worker/terraform"
+  depends_on = [module.tempo_coordinator]
+
+  app_name    = var.compactor_name
+  model_uuid  = var.model_uuid
+  channel     = var.channel
+  constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.compactor_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
+  config = merge({
+    role-all       = false
+    role-compactor = true
+  }, var.compactor_config)
+  resources          = var.worker_resources
+  revision           = var.worker_revision
+  storage_directives = var.compactor_worker_storage_directives
+  units              = var.compactor_units
+}
+
+module "tempo_metrics_generator" {
+  source     = "../worker/terraform"
+  depends_on = [module.tempo_coordinator]
+
+  app_name    = var.metrics_generator_name
+  model_uuid  = var.model_uuid
+  channel     = var.channel
+  constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.metrics_generator_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
+  config = merge({
+    role-all               = false
+    role-metrics-generator = true
+  }, var.metrics_generator_config)
+  resources          = var.worker_resources
+  revision           = var.worker_revision
+  storage_directives = var.metrics_generator_worker_storage_directives
+  units              = var.metrics_generator_units
+}
+
+# -------------- # S3-integrator --------------
+
 resource "juju_secret" "tempo_s3_credentials_secret" {
   model_uuid = var.model_uuid
   name       = "tempo_s3_credentials"
@@ -16,7 +140,6 @@ resource "juju_access_secret" "tempo_s3_secret_access" {
   secret_id = juju_secret.tempo_s3_credentials_secret.secret_id
 }
 
-# TODO: Replace s3_integrator resource to use its remote terraform module once available
 resource "juju_application" "s3_integrator" {
   config = merge({
     endpoint    = var.s3_endpoint
@@ -35,121 +158,6 @@ resource "juju_application" "s3_integrator" {
     channel  = var.s3_integrator_channel
     revision = var.s3_integrator_revision
   }
-}
-
-module "tempo_coordinator" {
-  source = "../coordinator/terraform"
-
-  app_name           = var.coordinator_name
-  channel            = var.channel
-  config             = var.coordinator_config
-  constraints        = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=tempo,anti-pod.topology-key=kubernetes.io/hostname" : var.coordinator_constraints
-  model_uuid         = var.model_uuid
-  revision           = var.coordinator_revision
-  storage_directives = var.coordinator_storage_directives
-  units              = var.coordinator_units
-}
-
-module "tempo_querier" {
-  source     = "../worker/terraform"
-  depends_on = [module.tempo_coordinator]
-
-  app_name = var.querier_name
-  channel  = var.channel
-  config = merge({
-    role-all     = false
-    role-querier = true
-  }, var.querier_config)
-  constraints        = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.querier_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
-  model_uuid         = var.model_uuid
-  revision           = var.worker_revision
-  storage_directives = var.querier_worker_storage_directives
-  units              = var.querier_units
-}
-
-module "tempo_query_frontend" {
-  source     = "../worker/terraform"
-  depends_on = [module.tempo_coordinator]
-
-  app_name    = var.query_frontend_name
-  model_uuid  = var.model_uuid
-  channel     = var.channel
-  constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.query_frontend_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
-  config = merge({
-    role-all            = false
-    role-query-frontend = true
-  }, var.query_frontend_config)
-  revision           = var.worker_revision
-  storage_directives = var.query_frontend_worker_storage_directives
-  units              = var.query_frontend_units
-}
-
-module "tempo_ingester" {
-  source     = "../worker/terraform"
-  depends_on = [module.tempo_coordinator]
-
-  app_name    = var.ingester_name
-  model_uuid  = var.model_uuid
-  channel     = var.channel
-  constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.ingester_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
-  config = merge({
-    role-all      = false
-    role-ingester = true
-  }, var.ingester_config)
-  revision           = var.worker_revision
-  storage_directives = var.ingester_worker_storage_directives
-  units              = var.ingester_units
-}
-
-module "tempo_distributor" {
-  source     = "../worker/terraform"
-  depends_on = [module.tempo_coordinator]
-
-  app_name    = var.distributor_name
-  model_uuid  = var.model_uuid
-  channel     = var.channel
-  constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.distributor_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
-  config = merge({
-    role-all         = false
-    role-distributor = true
-  }, var.distributor_config)
-  revision           = var.worker_revision
-  storage_directives = var.distributor_worker_storage_directives
-  units              = var.distributor_units
-}
-
-module "tempo_compactor" {
-  source     = "../worker/terraform"
-  depends_on = [module.tempo_coordinator]
-
-  app_name    = var.compactor_name
-  model_uuid  = var.model_uuid
-  channel     = var.channel
-  constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.compactor_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
-  config = merge({
-    role-all       = false
-    role-compactor = true
-  }, var.compactor_config)
-  revision           = var.worker_revision
-  storage_directives = var.compactor_worker_storage_directives
-  units              = var.compactor_units
-}
-
-module "tempo_metrics_generator" {
-  source     = "../worker/terraform"
-  depends_on = [module.tempo_coordinator]
-
-  app_name    = var.metrics_generator_name
-  model_uuid  = var.model_uuid
-  channel     = var.channel
-  constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.metrics_generator_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
-  config = merge({
-    role-all               = false
-    role-metrics-generator = true
-  }, var.metrics_generator_config)
-  revision           = var.worker_revision
-  storage_directives = var.metrics_generator_worker_storage_directives
-  units              = var.metrics_generator_units
 }
 
 # -------------- # Integrations --------------
