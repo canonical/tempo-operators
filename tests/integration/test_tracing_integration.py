@@ -23,6 +23,17 @@ from tests.integration.helpers import (
     service_mesh,
 )
 
+_MESH_XFAIL = pytest.mark.xfail(
+    reason=(
+        "Mesh tests: Istio RBAC only grants access to Tempo's receiver/API ports to sources "
+        "with an active consumer relation (tracing, tempo-api, grafana-source). The policy is "
+        "enforced by the ztunnel for all traffic (both in-mesh and external connections), so "
+        "tests cannot emit or query traces while the mesh is active without a dedicated consumer "
+        "charm. A dedicated in-mesh consumer charm is required to properly exercise these paths."
+    ),
+    run=False,
+)
+
 
 @pytest.mark.juju_setup
 def test_deploy_istio(juju: Juju):
@@ -65,17 +76,6 @@ def test_enable_otlp_grpc(juju: Juju):
     )
 
 
-_MESH_XFAIL = pytest.mark.xfail(
-    reason=(
-        "Mesh tests: Istio RBAC only grants access to Tempo's receiver/API ports to sources "
-        "with an active consumer relation (tracing, tempo-api, grafana-source). The policy is "
-        "enforced by the ztunnel for all traffic (both in-mesh and external connections), so "
-        "tests cannot emit or query traces while the mesh is active without a dedicated consumer "
-        "charm. A dedicated in-mesh consumer charm is required to properly exercise these paths."
-    ),
-    run=False,
-)
-
 @pytest.mark.parametrize(
     "enable_service_mesh",
     [pytest.param(True, marks=_MESH_XFAIL), False],
@@ -94,8 +94,12 @@ def test_verify_traces_http(juju: Juju, nonce, enable_service_mesh):
         else nullcontext()
     ):
         tempo_address = get_app_ip_address(juju, TEMPO_APP)
-        endpoint = get_tempo_application_endpoint(tempo_address, protocol="otlp_http", tls=False)
-        emit_trace(endpoint, nonce=nonce, proto="otlp_http", service_name="tracegen-http")
+        endpoint = get_tempo_application_endpoint(
+            tempo_address, protocol="otlp_http", tls=False
+        )
+        emit_trace(
+            endpoint, nonce=nonce, proto="otlp_http", service_name="tracegen-http"
+        )
         traces = query_traces_patiently_from_client_localhost(
             tempo_host=tempo_address,
             service_name="tracegen-http",
@@ -123,8 +127,12 @@ def test_verify_traces_grpc(juju: Juju, nonce, enable_service_mesh):
         else nullcontext()
     ):
         tempo_address = get_app_ip_address(juju, TEMPO_APP)
-        endpoint = get_tempo_application_endpoint(tempo_address, protocol="otlp_grpc", tls=False)
-        emit_trace(endpoint, nonce=nonce, proto="otlp_grpc", service_name="tracegen-grpc")
+        endpoint = get_tempo_application_endpoint(
+            tempo_address, protocol="otlp_grpc", tls=False
+        )
+        emit_trace(
+            endpoint, nonce=nonce, proto="otlp_grpc", service_name="tracegen-grpc"
+        )
         traces = query_traces_patiently_from_client_localhost(
             tempo_host=tempo_address,
             service_name="tracegen-grpc",
@@ -224,8 +232,12 @@ def test_verify_tempo_api_integration(juju: Juju, nonce, enable_service_mesh):
         else nullcontext()
     ):
         tempo_ip = get_app_ip_address(juju, TEMPO_APP)
-        endpoint = get_tempo_application_endpoint(tempo_ip, protocol="otlp_http", tls=False)
-        emit_trace(endpoint, nonce=nonce, proto="otlp_http", service_name="tracegen-http")
+        endpoint = get_tempo_application_endpoint(
+            tempo_ip, protocol="otlp_http", tls=False
+        )
+        emit_trace(
+            endpoint, nonce=nonce, proto="otlp_http", service_name="tracegen-http"
+        )
         traces = query_traces_patiently_from_client_localhost(
             tempo_host=tempo_ip,
             service_name="tracegen-http",
@@ -259,8 +271,12 @@ def test_verify_grafana_datasource_integration(juju: Juju, nonce, enable_service
         else nullcontext()
     ):
         tempo_ip = get_app_ip_address(juju, TEMPO_APP)
-        endpoint = get_tempo_application_endpoint(tempo_ip, protocol="otlp_grpc", tls=False)
-        emit_trace(endpoint, nonce=nonce, proto="otlp_grpc", service_name="tracegen-grpc")
+        endpoint = get_tempo_application_endpoint(
+            tempo_ip, protocol="otlp_grpc", tls=False
+        )
+        emit_trace(
+            endpoint, nonce=nonce, proto="otlp_grpc", service_name="tracegen-grpc"
+        )
         traces = query_traces_patiently_from_client_localhost(
             tempo_host=tempo_ip,
             service_name="tracegen-grpc",

@@ -14,8 +14,6 @@ import tenacity
 from charmlibs.nginx_k8s import TLSConfigManager
 from jubilant import Juju
 
-CA_CERT_PATH = TLSConfigManager.CA_CERT_PATH
-
 from tests.integration.helpers import (
     SSC_APP,
     TEMPO_APP,
@@ -34,6 +32,8 @@ from tests.integration.helpers import (
 
 
 logger = logging.getLogger(__name__)
+
+CA_CERT_PATH = TLSConfigManager.CA_CERT_PATH
 
 
 @pytest.mark.juju_setup

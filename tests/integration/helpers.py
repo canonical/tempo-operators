@@ -32,7 +32,9 @@ def pack(root: Path | str = "./", platform: str | None = None) -> Path:
     )
     # charmcraft prints "Packed <filename>" lines to stderr
     packed_charms = [
-        line.split()[1] for line in proc.stderr.strip().splitlines() if line.startswith("Packed")
+        line.split()[1]
+        for line in proc.stderr.strip().splitlines()
+        if line.startswith("Packed")
     ]
     if not packed_charms:
         raise ValueError(
@@ -58,9 +60,13 @@ def get_resources(root: Path | str = "./") -> dict[str, str] | None:
                     resource: res_meta["upstream-source"]
                     for resource, res_meta in meta_resources.items()
                 }
-            logger.info("resources not found in %s; proceeding without resources", meta_name)
+            logger.info(
+                "resources not found in %s; proceeding without resources", meta_name
+            )
             return None
-    logger.error("metadata/charmcraft.yaml not found at %s; unable to load resources", root)
+    logger.error(
+        "metadata/charmcraft.yaml not found at %s; unable to load resources", root
+    )
     return None
 
 
@@ -126,7 +132,9 @@ def _set_ci_charm_paths_if_unset() -> None:
 def run_command(model_name: str, app_name: str, unit_num: int, command: list) -> bytes:
     cmd = ["juju", "ssh", "--model", model_name, f"{app_name}/{unit_num}", *command]
     try:
-        res = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        res = subprocess.run(
+            cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        )
         logger.info(res)
     except subprocess.CalledProcessError as exc:
         logger.error(exc.stdout.decode())
@@ -473,7 +481,9 @@ def emit_trace(
         }
     )
     logger.info("running tracegen locally: endpoint=%r proto=%r", endpoint, proto)
-    out = subprocess.run(shlex.split(cmd), text=True, capture_output=True, check=True, env=env)
+    out = subprocess.run(
+        shlex.split(cmd), text=True, capture_output=True, check=True, env=env
+    )
     logger.info("tracegen completed; stdout=%r", out.stdout)
     return out
 
@@ -485,7 +495,9 @@ def _get_endpoint(protocol: str, hostname: str, tls: bool):
 
     if "grpc" in protocol:
         return protocol_endpoint.format(hostname=hostname)
-    return protocol_endpoint.format(hostname=hostname, scheme="https" if tls else "http")
+    return protocol_endpoint.format(
+        hostname=hostname, scheme="https" if tls else "http"
+    )
 
 
 def get_tempo_ingressed_endpoint(hostname: str, protocol: str, tls: bool):
@@ -493,7 +505,9 @@ def get_tempo_ingressed_endpoint(hostname: str, protocol: str, tls: bool):
 
 
 def get_tempo_internal_endpoint(juju: Juju, protocol: str, tls: bool, unit: int = 0):
-    hostname = f"{TEMPO_APP}-{unit}.{TEMPO_APP}-endpoints.{juju.model}.svc.cluster.local"
+    hostname = (
+        f"{TEMPO_APP}-{unit}.{TEMPO_APP}-endpoints.{juju.model}.svc.cluster.local"
+    )
     return _get_endpoint(protocol, hostname, tls)
 
 
@@ -503,7 +517,9 @@ def get_tempo_application_endpoint(tempo_ip: str, protocol: str, tls: bool):
 
 def get_ingress_proxied_hostname(juju: Juju):
     return json.loads(
-        juju.run(TRAEFIK_APP + "/0", "show-proxied-endpoints").results["proxied-endpoints"]
+        juju.run(TRAEFIK_APP + "/0", "show-proxied-endpoints").results[
+            "proxied-endpoints"
+        ]
     )[TRAEFIK_APP]["url"].split("://")[1]
 
 
@@ -549,7 +565,9 @@ def service_mesh(
         juju.config(ISTIO_BEACON_APP, {"model-on-mesh": "false"})
 
         for app in apps_to_be_related_with_beacon:
-            juju.remove_relation(beacon_app_name + ":service-mesh", app + ":service-mesh", force=True)
+            juju.remove_relation(
+                beacon_app_name + ":service-mesh", app + ":service-mesh", force=True
+            )
         juju.wait(
             all_active,
             timeout=1000,
