@@ -7,7 +7,7 @@
 #   "opentelemetry-exporter-otlp-proto-grpc",
 #   "opentelemetry-exporter-zipkin",
 #   "opentelemetry-exporter-jaeger",
-#   "thrift @ git+https://github.com/apache/thrift.git@6e380306ef48af4050a61f2f91b3c8380d8e78fb#subdirectory=lib/py",
+#   "thrift>=0.20.0",
 # ]
 # ///
 import os
