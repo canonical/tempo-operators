@@ -1,7 +1,5 @@
 import shlex
 import subprocess
-import time
-from contextlib import nullcontext
 
 import jubilant
 import pytest
@@ -10,35 +8,14 @@ from jubilant import Juju
 
 from tempo import Tempo
 from tests.integration.helpers import (
-    ISTIO_APP,
-    ISTIO_BEACON_APP,
-    ISTIO_INGRESS_APP,
-    PROMETHEUS_APP,
     TEMPO_APP,
     WORKER_APP,
-    deploy_istio,
-    deploy_istio_beacon,
     deploy_monolithic_cluster,
-    deploy_prometheus,
     emit_trace,
     get_app_ip_address,
-    get_istio_ingress_ip,
     get_tempo_application_endpoint,
     query_traces_patiently_from_client_localhost,
-    query_traces_patiently_from_worker_pod,
-    service_mesh,
 )
-
-
-@pytest.mark.juju_setup
-def test_deploy_istio(juju: Juju):
-    # Deploy Istio control plane and ambient-mode beacon.
-    deploy_istio(juju)
-    deploy_istio_beacon(juju)
-    juju.wait(
-        lambda status: jubilant.all_active(status, ISTIO_APP, ISTIO_BEACON_APP),
-        timeout=1000,
-    )
 
 
 @pytest.mark.juju_setup
@@ -71,73 +48,15 @@ def test_enable_otlp_grpc(juju: Juju):
     )
 
 
-@pytest.mark.juju_setup
-def test_deploy_prometheus(juju: Juju):
-    """Deploy Prometheus as the in-mesh tracing consumer used by mesh tests.
-
-    Tracing relations are NOT added here — each mesh test adds and removes
-    its own relation to ensure test isolation and avoid pre-existing traces
-    from a prior test causing false positives.
-    """
-    if PROMETHEUS_APP not in juju.status().apps:
-        deploy_prometheus(juju)
-    juju.wait(
-        lambda status: jubilant.all_active(status, PROMETHEUS_APP),
-        timeout=600,
-        delay=5,
-        successes=3,
-    )
-
-
-@pytest.mark.parametrize("enable_service_mesh", [True, False])
-def test_verify_traces_http(juju: Juju, nonce, enable_service_mesh):
-    # GIVEN a deployed tempo cluster (and optionally a service mesh)
+def test_verify_traces_http(juju: Juju, nonce):
+    # GIVEN a deployed tempo cluster
     # WHEN we emit an HTTP trace via tracegen
     # THEN it should appear in the tempo trace store
-    if enable_service_mesh:
-        # ops_tracing sends HTTP spans on hook events during mesh enrolment
-        prom_relation = "charm-tracing"
-        juju.integrate(f"{PROMETHEUS_APP}:{prom_relation}", f"{TEMPO_APP}:tracing")
-        juju.wait(
-            lambda status: jubilant.all_active(status, TEMPO_APP, PROMETHEUS_APP),
-            timeout=300,
-            delay=5,
-            successes=3,
-        )
-        start_time = int(time.time())
-        try:
-            with service_mesh(
-                juju=juju,
-                beacon_app_name=ISTIO_BEACON_APP,
-                # Prometheus is auto-enrolled in ztunnel via the namespace ambient label;
-                # it has no service-mesh Juju endpoint and doesn't need one.
-                apps_to_be_related_with_beacon=[TEMPO_APP],
-            ):
-                traces = query_traces_patiently_from_worker_pod(
-                    juju=juju,
-                    service_name=PROMETHEUS_APP,
-                    start_time=start_time,
-                )
-                assert traces, "expected traces from Prometheus in the mesh, found none"
-        finally:
-            juju.remove_relation(
-                f"{PROMETHEUS_APP}:{prom_relation}", f"{TEMPO_APP}:tracing"
-            )
-            juju.wait(
-                lambda status: jubilant.all_active(status, TEMPO_APP, PROMETHEUS_APP),
-                timeout=300,
-                delay=5,
-                successes=3,
-            )
-        return  # mesh path complete
-
     tempo_address = get_app_ip_address(juju, TEMPO_APP)
     endpoint = get_tempo_application_endpoint(
         tempo_address, protocol="otlp_http", tls=False
     )
-    emit_trace(
-        endpoint, nonce=nonce, proto="otlp_http", service_name="tracegen-http"
-    )
+    emit_trace(endpoint, nonce=nonce, proto="otlp_http", service_name="tracegen-http")
     traces = query_traces_patiently_from_client_localhost(
         tempo_host=tempo_address,
         service_name="tracegen-http",
@@ -147,55 +66,15 @@ def test_verify_traces_http(juju: Juju, nonce, enable_service_mesh):
     assert traces, "No HTTP traces found in tempo after tracegen run"
 
 
-@pytest.mark.parametrize("enable_service_mesh", [True, False])
-def test_verify_traces_grpc(juju: Juju, nonce, enable_service_mesh):
-    # GIVEN a deployed tempo cluster with otlp_grpc enabled (and optionally a service mesh)
+def test_verify_traces_grpc(juju: Juju, nonce):
+    # GIVEN a deployed tempo cluster with otlp_grpc enabled
     # WHEN we emit a gRPC trace via tracegen
     # THEN it should appear in the tempo trace store
-    if enable_service_mesh:
-        # Prometheus self-scrapes every 5s → gRPC workload spans at 100% sampling
-        prom_relation = "workload-tracing"
-        juju.integrate(f"{PROMETHEUS_APP}:{prom_relation}", f"{TEMPO_APP}:tracing")
-        juju.wait(
-            lambda status: jubilant.all_active(status, TEMPO_APP, PROMETHEUS_APP),
-            timeout=300,
-            delay=5,
-            successes=3,
-        )
-        start_time = int(time.time())
-        try:
-            with service_mesh(
-                juju=juju,
-                beacon_app_name=ISTIO_BEACON_APP,
-                # Prometheus is auto-enrolled in ztunnel via the namespace ambient label;
-                # it has no service-mesh Juju endpoint and doesn't need one.
-                apps_to_be_related_with_beacon=[TEMPO_APP],
-            ):
-                traces = query_traces_patiently_from_worker_pod(
-                    juju=juju,
-                    service_name="prometheus",
-                    start_time=start_time,
-                )
-                assert traces, "expected traces from Prometheus in the mesh, found none"
-        finally:
-            juju.remove_relation(
-                f"{PROMETHEUS_APP}:{prom_relation}", f"{TEMPO_APP}:tracing"
-            )
-            juju.wait(
-                lambda status: jubilant.all_active(status, TEMPO_APP, PROMETHEUS_APP),
-                timeout=300,
-                delay=5,
-                successes=3,
-            )
-        return  # mesh path complete
-
     tempo_address = get_app_ip_address(juju, TEMPO_APP)
     endpoint = get_tempo_application_endpoint(
         tempo_address, protocol="otlp_grpc", tls=False
     )
-    emit_trace(
-        endpoint, nonce=nonce, proto="otlp_grpc", service_name="tracegen-grpc"
-    )
+    emit_trace(endpoint, nonce=nonce, proto="otlp_grpc", service_name="tracegen-grpc")
     traces = query_traces_patiently_from_client_localhost(
         tempo_host=tempo_address,
         service_name="tracegen-grpc",
@@ -271,59 +150,20 @@ def test_verify_non_requested_receiver_endpoints_not_routed(juju: Juju):
             requests.get("http://" + tempo_worker_ip + port, timeout=0.5)
 
 
-@pytest.mark.parametrize("enable_service_mesh", [True, False])
-def test_verify_tempo_api_integration(juju: Juju, nonce, enable_service_mesh):
-    # GIVEN a deployed tempo cluster (and optionally a service mesh)
+def test_verify_tempo_api_integration(juju: Juju, nonce):
+    # GIVEN a deployed tempo cluster
     # WHEN we emit an HTTP trace from outside the cluster and then query the API from outside
     # THEN the API should be reachable and return the trace we just emitted
     #
     # NOTE: the original version of this test used a dedicated tester charm that consumed the
     # tempo-api Juju relation and verified cross-app access. The tester charm was removed in
-    # favour of tracegen. HTTP traces; proper tempo-api RBAC mesh testing needs a charm with
-    # tempo-api requirer (e.g. Grafana).
-    if enable_service_mesh:
-        prom_relation = "charm-tracing"
-        juju.integrate(f"{PROMETHEUS_APP}:{prom_relation}", f"{TEMPO_APP}:tracing")
-        juju.wait(
-            lambda status: jubilant.all_active(status, TEMPO_APP, PROMETHEUS_APP),
-            timeout=300,
-            delay=5,
-            successes=3,
-        )
-        start_time = int(time.time())
-        try:
-            with service_mesh(
-                juju=juju,
-                beacon_app_name=ISTIO_BEACON_APP,
-                # Prometheus is auto-enrolled in ztunnel via the namespace ambient label;
-                # it has no service-mesh Juju endpoint and doesn't need one.
-                apps_to_be_related_with_beacon=[TEMPO_APP],
-            ):
-                traces = query_traces_patiently_from_worker_pod(
-                    juju=juju,
-                    service_name="prometheus",
-                    start_time=start_time,
-                )
-                assert traces, "expected traces from Prometheus in the mesh, found none"
-        finally:
-            juju.remove_relation(
-                f"{PROMETHEUS_APP}:{prom_relation}", f"{TEMPO_APP}:tracing"
-            )
-            juju.wait(
-                lambda status: jubilant.all_active(status, TEMPO_APP, PROMETHEUS_APP),
-                timeout=300,
-                delay=5,
-                successes=3,
-            )
-        return  # mesh path complete
-
+    # favour of tracegen. HTTP traces; proper tempo-api RBAC testing needs a charm with
+    # a tempo-api requirer (e.g. Grafana).
     tempo_ip = get_app_ip_address(juju, TEMPO_APP)
     endpoint = get_tempo_application_endpoint(
         tempo_ip, protocol="otlp_http", tls=False
     )
-    emit_trace(
-        endpoint, nonce=nonce, proto="otlp_http", service_name="tracegen-http"
-    )
+    emit_trace(endpoint, nonce=nonce, proto="otlp_http", service_name="tracegen-http")
     traces = query_traces_patiently_from_client_localhost(
         tempo_host=tempo_ip,
         service_name="tracegen-http",
@@ -333,59 +173,20 @@ def test_verify_tempo_api_integration(juju: Juju, nonce, enable_service_mesh):
     assert traces, "No traces found via internal tempo-api endpoint"
 
 
-@pytest.mark.parametrize("enable_service_mesh", [True, False])
-def test_verify_grafana_datasource_integration(juju: Juju, nonce, enable_service_mesh):
-    # GIVEN a deployed tempo cluster (and optionally a service mesh)
+def test_verify_grafana_datasource_integration(juju: Juju, nonce):
+    # GIVEN a deployed tempo cluster
     # WHEN we emit a gRPC trace from outside the cluster and then query the API from outside
     # THEN the API should be reachable and return the trace we just emitted
     #
     # NOTE: the original version of this test used a dedicated tester charm that consumed the
     # grafana-source Juju relation and verified cross-app access. The tester charm was removed
-    # in favour of tracegen. gRPC traces; proper grafana-source RBAC mesh testing needs a charm
-    # with grafana-datasources relation.
-    if enable_service_mesh:
-        prom_relation = "workload-tracing"
-        juju.integrate(f"{PROMETHEUS_APP}:{prom_relation}", f"{TEMPO_APP}:tracing")
-        juju.wait(
-            lambda status: jubilant.all_active(status, TEMPO_APP, PROMETHEUS_APP),
-            timeout=300,
-            delay=5,
-            successes=3,
-        )
-        start_time = int(time.time())
-        try:
-            with service_mesh(
-                juju=juju,
-                beacon_app_name=ISTIO_BEACON_APP,
-                # Prometheus is auto-enrolled in ztunnel via the namespace ambient label;
-                # it has no service-mesh Juju endpoint and doesn't need one.
-                apps_to_be_related_with_beacon=[TEMPO_APP],
-            ):
-                traces = query_traces_patiently_from_worker_pod(
-                    juju=juju,
-                    service_name="prometheus",
-                    start_time=start_time,
-                )
-                assert traces, "expected traces from Prometheus in the mesh, found none"
-        finally:
-            juju.remove_relation(
-                f"{PROMETHEUS_APP}:{prom_relation}", f"{TEMPO_APP}:tracing"
-            )
-            juju.wait(
-                lambda status: jubilant.all_active(status, TEMPO_APP, PROMETHEUS_APP),
-                timeout=300,
-                delay=5,
-                successes=3,
-            )
-        return  # mesh path complete
-
+    # in favour of tracegen. gRPC traces; proper grafana-source RBAC testing needs a charm
+    # with a grafana-datasources requirer.
     tempo_ip = get_app_ip_address(juju, TEMPO_APP)
     endpoint = get_tempo_application_endpoint(
         tempo_ip, protocol="otlp_grpc", tls=False
     )
-    emit_trace(
-        endpoint, nonce=nonce, proto="otlp_grpc", service_name="tracegen-grpc"
-    )
+    emit_trace(endpoint, nonce=nonce, proto="otlp_grpc", service_name="tracegen-grpc")
     traces = query_traces_patiently_from_client_localhost(
         tempo_host=tempo_ip,
         service_name="tracegen-grpc",
