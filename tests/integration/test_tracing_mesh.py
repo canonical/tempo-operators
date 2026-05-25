@@ -92,6 +92,23 @@ def test_relate_prometheus(juju: Juju):
     )
 
 
+@pytest.mark.juju_setup
+def test_configure_prometheus_eval_interval(juju: Juju):
+    """Shorten Prometheus evaluation interval to generate workload-tracing spans more often.
+
+    At the default 1-minute evaluation interval only ~6 gRPC workload-tracing cycles fit inside
+    the ~400 s retry window of query_traces_patiently_from_worker_pod.  15 s gives ~26 cycles,
+    making test_verify_traces_grpc reliably fast without changing the retry window.
+    """
+    juju.config(PROMETHEUS_APP, {"evaluation_interval": "15s"})
+    juju.wait(
+        lambda status: jubilant.all_active(status, PROMETHEUS_APP),
+        timeout=300,
+        delay=5,
+        successes=3,
+    )
+
+
 def test_verify_traces_http(juju: Juju):
     # GIVEN a deployed tempo cluster enrolled in a service mesh
     # WHEN Prometheus emits HTTP spans via charm-tracing during mesh enrolment
@@ -104,43 +121,34 @@ def test_verify_traces_http(juju: Juju):
         # it has no service-mesh Juju endpoint and doesn't need one.
         apps_to_be_related_with_beacon=[TEMPO_APP],
     ):
+        # Trigger a config-changed hook on Prometheus so that charm-tracing emits an HTTP span.
+        # Without an explicit hook, no Prometheus Juju events fire during mesh enrolment, so no
+        # charm-tracing spans are generated after start_time.
+        juju.config(PROMETHEUS_APP, {"log_level": "debug"})
+        juju.wait(
+            lambda status: jubilant.all_active(status, PROMETHEUS_APP),
+            timeout=300,
+            delay=5,
+            successes=3,
+        )
+        juju.config(PROMETHEUS_APP, {"log_level": ""})  # reset to charm default
         traces = query_traces_patiently_from_worker_pod(
             juju=juju,
             service_name=PROMETHEUS_APP,
             start_time=start_time,
         )
-        assert traces, "expected traces from Prometheus in the mesh, found none"
+        assert traces, "expected HTTP charm-tracing spans from Prometheus in the mesh, found none"
 
 
 def test_verify_traces_grpc(juju: Juju):
     # GIVEN a deployed tempo cluster enrolled in a service mesh with otlp_grpc enabled
     # WHEN Prometheus emits gRPC spans via workload-tracing during mesh enrolment
     # THEN they should appear in the tempo trace store
-    start_time = int(time.time())
-    with service_mesh(
-        juju=juju,
-        beacon_app_name=ISTIO_BEACON_APP,
-        # Prometheus is auto-enrolled in ztunnel via the namespace ambient label;
-        # it has no service-mesh Juju endpoint and doesn't need one.
-        apps_to_be_related_with_beacon=[TEMPO_APP],
-    ):
-        traces = query_traces_patiently_from_worker_pod(
-            juju=juju,
-            service_name=PROMETHEUS_APP,
-            start_time=start_time,
-        )
-        assert traces, "expected traces from Prometheus in the mesh, found none"
-
-
-def test_verify_tempo_api_integration(juju: Juju):
-    # GIVEN a deployed tempo cluster enrolled in a service mesh
-    # WHEN Prometheus emits HTTP spans via charm-tracing during mesh enrolment
-    # THEN they should be accessible via the internal tempo API from within the cluster
     #
-    # NOTE: the original version of this test used a dedicated tester charm that consumed the
-    # tempo-api Juju relation and verified cross-app access. The tester charm was removed in
-    # favour of Prometheus-generated traces. Proper tempo-api RBAC mesh testing needs a charm
-    # with a tempo-api requirer (e.g. Grafana).
+    # The Prometheus binary sends OTLP gRPC spans every evaluation-interval (set to 15 s in
+    # test_configure_prometheus_eval_interval).  No explicit hook trigger is needed:
+    # query_traces_patiently_from_worker_pod retries for ~400 s, during which Prometheus
+    # produces ~26 evaluation cycles worth of workload-tracing spans.
     start_time = int(time.time())
     with service_mesh(
         juju=juju,
@@ -154,29 +162,5 @@ def test_verify_tempo_api_integration(juju: Juju):
             service_name=PROMETHEUS_APP,
             start_time=start_time,
         )
-        assert traces, "expected traces from Prometheus via the tempo API in the mesh, found none"
+        assert traces, "expected gRPC workload-tracing spans from Prometheus in the mesh, found none"
 
-
-def test_verify_grafana_datasource_integration(juju: Juju):
-    # GIVEN a deployed tempo cluster enrolled in a service mesh
-    # WHEN Prometheus emits gRPC spans via workload-tracing during mesh enrolment
-    # THEN they should be accessible via the grafana-datasource endpoint from within the cluster
-    #
-    # NOTE: the original version of this test used a dedicated tester charm that consumed the
-    # grafana-source Juju relation and verified cross-app access. The tester charm was removed
-    # in favour of Prometheus-generated traces. Proper grafana-source RBAC mesh testing needs
-    # a charm with a grafana-datasources requirer.
-    start_time = int(time.time())
-    with service_mesh(
-        juju=juju,
-        beacon_app_name=ISTIO_BEACON_APP,
-        # Prometheus is auto-enrolled in ztunnel via the namespace ambient label;
-        # it has no service-mesh Juju endpoint and doesn't need one.
-        apps_to_be_related_with_beacon=[TEMPO_APP],
-    ):
-        traces = query_traces_patiently_from_worker_pod(
-            juju=juju,
-            service_name=PROMETHEUS_APP,
-            start_time=start_time,
-        )
-        assert traces, "expected traces from Prometheus via the grafana-datasource endpoint in the mesh, found none"
