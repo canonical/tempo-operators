@@ -72,9 +72,12 @@ def test_verify_traces(juju: Juju):
         # it has no service-mesh Juju endpoint and doesn't need one.
         apps_to_be_related_with_beacon=[TEMPO_APP],
     ):
-        # Record start time after the mesh is fully set up so we only look for
-        # spans emitted while the mesh is active.
-        start_time = int(time.time())
+        # Record start time after the mesh is fully set up.  Subtract a small
+        # safety margin so that spans whose pod-side clock is slightly behind
+        # the test-host clock are not filtered out by Tempo's time-range query.
+        # NTP-synchronised K8s nodes are typically within a few seconds of each
+        # other, so 30 s is a generous but safe buffer.
+        start_time = int(time.time()) - 30
 
         # Trigger a config-changed hook on Prometheus so that charm-tracing
         # emits an HTTP span.  Without an explicit hook, no Prometheus Juju
@@ -90,6 +93,16 @@ def test_verify_traces(juju: Juju):
             successes=3,
         )
         juju.config(PROMETHEUS_APP, {"log_level": ""})  # reset to charm default
+        # Wait for the reset hook to complete as well.  This produces a second
+        # charm-tracing HTTP span, lets at least one more gRPC evaluation cycle
+        # fire (evaluation_interval = 15 s), and gives Tempo additional time to
+        # ingest everything before the query loop starts.
+        juju.wait(
+            lambda status: jubilant.all_active(status, PROMETHEUS_APP),
+            timeout=300,
+            delay=5,
+            successes=3,
+        )
 
         traces = query_traces_patiently_from_worker_pod(
             juju=juju,
