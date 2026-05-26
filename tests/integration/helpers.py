@@ -76,9 +76,11 @@ WORKER_CHARM_FILENAME = "tempo-worker-k8s_ubuntu@24.04-amd64.charm"
 
 TRACEGEN_SCRIPT_PATH = REPO_ROOT / "coordinator" / "scripts" / "tracegen.py"
 INTEGRATION_TESTERS_CHANNEL = "2/edge"
+DEV_EDGE_CHANNEL = "dev/edge"
 
 # Application names used uniformly across the tests
 PROMETHEUS_APP = "prometheus"
+GRAFANA_APP = "grafana"
 S3_APP = "seaweedfs"
 WORKER_APP = "tempo-worker"
 TEMPO_APP = "tempo"
@@ -285,6 +287,16 @@ def deploy_prometheus(juju: Juju):
         trust=True,
     )
 
+def deploy_grafana(juju: Juju):
+    """Deploy a pinned revision of grafana that we know to work."""
+    juju.deploy(
+        "grafana-k8s",
+        app=GRAFANA_APP,
+        revision=187,  # what's on dev/edge at May 26, 2026.
+        channel=DEV_EDGE_CHANNEL,
+        trust=True,
+    )
+
 
 def deploy_istio(juju: Juju):
     """Deploy Istio service mesh."""
@@ -444,7 +456,7 @@ def query_traces_from_worker_pod(
     service_name: str = "tracegen",
     tls: bool = False,
     nonce: Optional[str] = None,
-    start_time: Optional[int] = None,
+    start_time: Optional[float] = None,
     worker_unit: str = f"{WORKER_APP}/0",
 ) -> List[dict]:
     """Query Tempo traces from inside the worker pod (bypasses ztunnel RBAC).
@@ -456,8 +468,10 @@ def query_traces_from_worker_pod(
     nonce_param = f"%20tracegen.nonce={nonce}" if nonce else ""
     if start_time is not None:
         # Tempo requires both start and end; use a generous 2-hour window.
-        end_time = start_time + 7200
-        time_params = f"&start={start_time}&end={end_time}"
+        # Cast to int: Tempo's API rejects float timestamps with HTTP 400.
+        start_time_int = int(start_time)
+        end_time = start_time_int + 7200
+        time_params = f"&start={start_time_int}&end={end_time}"
     else:
         time_params = ""
     url = (
@@ -480,7 +494,7 @@ def query_traces_patiently_from_worker_pod(
     service_name: str = "tracegen",
     tls: bool = False,
     nonce: Optional[str] = None,
-    start_time: Optional[int] = None,
+    start_time: Optional[float] = None,
     worker_unit: str = f"{WORKER_APP}/0",
 ) -> List[dict]:
     """Query traces from the worker pod with retries until traces are found."""
