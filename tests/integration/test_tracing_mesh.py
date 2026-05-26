@@ -68,7 +68,10 @@ def test_verify_traces(juju: Juju):
     ):
         start_time = time.time()
 
-        juju.run(GRAFANA_APP + "/0", "get-admin-password")  # run an action in grafana to trigger a charm trace
+        # do a few actions with Grafana to generate some traces
+        juju.integrate(f"{GRAFANA_APP}:grafana-source", f"{TEMPO_APP}:grafana-source")
+        juju.integrate(f"{GRAFANA_APP}:grafana-dashboard", f"{TEMPO_APP}:grafana-dashboard")
+        juju.run(GRAFANA_APP + "/0", "get-admin-password")
 
         time.sleep(10)  # give the trace some time to be emitted and ingested before we start polling
 
