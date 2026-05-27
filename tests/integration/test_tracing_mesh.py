@@ -6,6 +6,12 @@ import pytest
 from jubilant import Juju
 from tenacity import retry, stop_after_attempt, wait_fixed
 
+pytestmark = [
+    pytest.mark.skip(
+        reason="Skipped due to https://github.com/canonical/tempo-operators/issues/331"
+    ),
+]
+
 from tests.integration.helpers import (
     ISTIO_APP,
     ISTIO_BEACON_APP,
