@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 @retry(stop=stop_after_attempt(20), wait=wait_fixed(20))
-def _generate_traces_and_query(juju: Juju, start_time: float) -> list:
+def _generate_traces_and_query(juju: Juju) -> list:
     # Run an action on Grafana to trigger a charm hook.  charm-tracing
     # flushes buffered spans at the end of every hook, so each attempt
     # gives the charm a fresh chance to push traces through the mesh.
@@ -40,7 +40,6 @@ def _generate_traces_and_query(juju: Juju, start_time: float) -> list:
     traces = query_traces_from_worker_pod(
         juju=juju,
         service_name=GRAFANA_APP,
-        start_time=start_time,
     )
 
     if not traces:
@@ -81,13 +80,11 @@ def test_setup(juju: Juju):
     # without a requirer charm on the tracing relation requesting it.
     juju.config(TEMPO_APP, {"always_enable_otlp_grpc": "True"})
 
-    # Integrate Prometheus with Tempo via both tracing endpoints.
-    # charm-tracing (HTTP) and workload-tracing (gRPC) are added once here and
-    # kept active for the duration of all mesh tests.
-    juju.integrate(f"{GRAFANA_APP}:charm-tracing", f"{TEMPO_APP}:tracing")
-    juju.integrate(f"{GRAFANA_APP}:workload-tracing", f"{TEMPO_APP}:tracing")
-
     # Single wait for the entire model to settle.
+    # NOTE: the Grafana ↔ Tempo *tracing* integrations are deliberately
+    # deferred to test_verify_traces so that they are established only after
+    # the service mesh is active.  This guarantees that every Grafana trace
+    # found in Tempo must have traversed the mesh.
     juju.wait(
         lambda status: jubilant.all_active(
             status, ISTIO_APP, ISTIO_BEACON_APP, TEMPO_APP, WORKER_APP, S3_APP, GRAFANA_APP
@@ -111,11 +108,15 @@ def test_verify_traces(juju: Juju):
         # it has no service-mesh Juju endpoint and doesn't need one.
         apps_to_be_related_with_beacon=[TEMPO_APP, GRAFANA_APP],
     ):
-        start_time = time.time()
+        # Establish the tracing relations only now that the mesh is active.
+        # This ensures every Grafana trace in Tempo must have gone through
+        # the mesh (ztunnel + waypoint).
+        juju.integrate(f"{GRAFANA_APP}:charm-tracing", f"{TEMPO_APP}:tracing")
+        juju.integrate(f"{GRAFANA_APP}:workload-tracing", f"{TEMPO_APP}:tracing")
 
-        # Integrate Grafana datasource/dashboard to trigger some initial charm hooks.
+        # Integrate Grafana datasource/dashboard to trigger additional charm hooks.
         juju.integrate(f"{GRAFANA_APP}:grafana-source", f"{TEMPO_APP}:grafana-source")
         juju.integrate(f"{GRAFANA_APP}:grafana-dashboard", f"{TEMPO_APP}:grafana-dashboard")
 
-        traces = _generate_traces_and_query(juju, start_time)
+        traces = _generate_traces_and_query(juju)
         assert traces, "expected traces from Grafana in the mesh, found none"
