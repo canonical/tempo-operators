@@ -488,23 +488,6 @@ def query_traces_from_worker_pod(
     return json.loads(result.stdout)["traces"]
 
 
-@retry(stop=stop_after_attempt(20), wait=wait_fixed(20))
-def query_traces_patiently_from_worker_pod(
-    juju: Juju,
-    service_name: str = "tracegen",
-    tls: bool = False,
-    nonce: Optional[str] = None,
-    start_time: Optional[float] = None,
-    worker_unit: str = f"{WORKER_APP}/0",
-) -> List[dict]:
-    """Query traces from the worker pod with retries until traces are found."""
-    traces = query_traces_from_worker_pod(
-        juju, service_name, tls, nonce, start_time, worker_unit
-    )
-    assert len(traces) > 0, "no traces found"
-    return traces
-
-
 def get_ingested_traces_service_names(tempo_host: str, tls: bool) -> Set[str]:
     """Fetch all ingested traces tags."""
     logger.info("querying %s for tags...", tempo_host)

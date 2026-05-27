@@ -1,8 +1,10 @@
+import logging
 import time
 
 import jubilant
 import pytest
 from jubilant import Juju
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 from tests.integration.helpers import (
     ISTIO_APP,
@@ -15,9 +17,52 @@ from tests.integration.helpers import (
     deploy_istio_beacon,
     deploy_monolithic_cluster,
     deploy_grafana,
-    query_traces_patiently_from_worker_pod,
+    query_traces_from_worker_pod,
     service_mesh,
 )
+
+logger = logging.getLogger(__name__)
+
+
+@retry(stop=stop_after_attempt(20), wait=wait_fixed(20))
+def _generate_traces_and_query(juju: Juju, start_time: float) -> list:
+    # Run an action on Grafana to trigger a charm hook.  charm-tracing
+    # flushes buffered spans at the end of every hook, so each attempt
+    # gives the charm a fresh chance to push traces through the mesh.
+    # This is essential because the Istio waypoint/ztunnel data plane
+    # may not be fully converged when the first hooks fire, causing
+    # those early flushes to fail (traces are preserved in a buffer on
+    # the unit and retried on the next hook).
+    juju.run(f"{GRAFANA_APP}/0", "get-admin-password")
+
+    time.sleep(5)  # give the trace a moment to be ingested
+
+    traces = query_traces_from_worker_pod(
+        juju=juju,
+        service_name=GRAFANA_APP,
+        start_time=start_time,
+    )
+
+    if not traces:
+        # Log available service names for diagnostics.
+        try:
+            result = juju.exec(
+                'python3 -c "'
+                "import urllib.request, json; "
+                "r = urllib.request.urlopen('http://localhost:3200/api/search/tag/service.name/values'); "
+                'print(r.read().decode())"',
+                unit=f"{WORKER_APP}/0",
+            )
+            logger.warning(
+                "no traces for service=%r; available service names: %s",
+                GRAFANA_APP,
+                result.stdout.strip(),
+            )
+        except Exception:
+            pass  # best-effort diagnostics
+
+    assert traces, "no traces found for Grafana in the mesh"
+    return traces
 
 
 @pytest.mark.juju_setup
@@ -68,16 +113,9 @@ def test_verify_traces(juju: Juju):
     ):
         start_time = time.time()
 
-        # do a few actions with Grafana to generate some traces
+        # Integrate Grafana datasource/dashboard to trigger some initial charm hooks.
         juju.integrate(f"{GRAFANA_APP}:grafana-source", f"{TEMPO_APP}:grafana-source")
         juju.integrate(f"{GRAFANA_APP}:grafana-dashboard", f"{TEMPO_APP}:grafana-dashboard")
-        juju.run(GRAFANA_APP + "/0", "get-admin-password")
 
-        time.sleep(10)  # give the trace some time to be emitted and ingested before we start polling
-
-        traces = query_traces_patiently_from_worker_pod(
-            juju=juju,
-            service_name=GRAFANA_APP,
-            start_time=start_time,
-        )
+        traces = _generate_traces_and_query(juju, start_time)
         assert traces, "expected traces from Grafana in the mesh, found none"
