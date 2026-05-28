@@ -324,7 +324,7 @@ class TempoCoordinatorCharm(CharmBase):
                 ],
             ),
             # Allow access to tempo api http port over the coordinator's service url for charms related over the grafana-source relation.
-            # No path or method restriction is applied. When ingressed, this policy will be handles by the service mesh ingress.
+            # No path or method restriction is applied. When ingressed, this policy will be handled by the service mesh ingress.
             AppPolicy(
                 relation="grafana-source",
                 endpoints=[

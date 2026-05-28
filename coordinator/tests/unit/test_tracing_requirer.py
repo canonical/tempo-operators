@@ -10,6 +10,7 @@ from charms.tempo_coordinator_k8s.v0.tracing import (
     EndpointRemovedEvent,
     ProtocolNotRequestedError,
     TracingEndpointRequirer,
+    TracingRequirerAppData,
     DataAccessPermissionError,
 )
 from tempo import Tempo
@@ -202,6 +203,19 @@ def test_requested_not_yet_replied(context, leader):
         ctx = pytest.raises(ProtocolNotRequestedError) if not leader else nullcontext()
         with ctx:
             assert not charm.tracing.get_endpoint("otlp_http")
+
+
+def test_requirer_writes_requested_protocols_to_databag(context):
+    # GIVEN an empty tracing relation and a leader unit
+    tracing = Relation("tracing")
+    state = State(leader=True, relations=[tracing])
+
+    # WHEN a relation-created event fires (MyCharm requests otlp_grpc in __init__)
+    state_out = context.run(context.on.relation_created(tracing), state)
+
+    # THEN the requirer has written the requested protocols to its app databag
+    relation_out = state_out.get_relation(tracing.id)
+    assert relation_out.local_app_data == TracingRequirerAppData(receivers=["otlp_grpc"]).dump()
 
 
 @pytest.mark.parametrize("leader", (True, False))

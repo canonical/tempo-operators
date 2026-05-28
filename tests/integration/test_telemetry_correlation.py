@@ -3,15 +3,16 @@
 import pytest
 from jubilant import Juju, all_active
 from tests.integration.helpers import (
+    GRAFANA_APP,
     INTEGRATION_TESTERS_CHANNEL,
     TEMPO_APP,
+    deploy_grafana,
     deploy_monolithic_cluster,
     get_unit_ip_address,
 )
 import requests
 
 LOKI_APP = "loki"
-GRAFANA_APP = "grafana"
 MIMIR_APP = "mimir"
 MIMIR_WORKER_APP = "mimir-worker"
 MIMIR_S3_APP = "mimir-s3"
@@ -49,6 +50,7 @@ def _deploy_loki_cluster(juju: Juju):
     juju.deploy(
         "loki-worker-k8s",
         LOKI_WORKER_APP,
+        revision=50,  # pin due to https://github.com/canonical/loki-operators/issues/84
         channel=INTEGRATION_TESTERS_CHANNEL,
         trust=True,
         config={"role-all": True},
@@ -111,12 +113,7 @@ def test_setup(juju: Juju):
     _deploy_mimir_cluster(juju)
     # for traces-to-logs
     _deploy_loki_cluster(juju)
-    juju.deploy(
-        "grafana-k8s",
-        app=GRAFANA_APP,
-        channel=INTEGRATION_TESTERS_CHANNEL,
-        trust=True,
-    )
+    deploy_grafana(juju)
     juju.integrate(f"{TEMPO_APP}:grafana-source", GRAFANA_APP)
     juju.integrate(f"{LOKI_APP}:grafana-source", GRAFANA_APP)
     juju.integrate(f"{MIMIR_APP}:grafana-source", GRAFANA_APP)

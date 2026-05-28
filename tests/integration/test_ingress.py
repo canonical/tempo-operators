@@ -228,7 +228,6 @@ def test_verify_traces_force_enabled_protocols(
     service_name = f"tracegen-{protocol}-{ingress_type}"
     emit_trace(
         tempo_endpoint,
-        juju,
         nonce=nonce,
         verbose=1,
         proto=protocol,

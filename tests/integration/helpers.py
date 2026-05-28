@@ -10,10 +10,7 @@ from typing import List, Literal, Optional, Sequence, Set, cast
 import jubilant
 import requests
 import yaml
-from charmlibs.nginx_k8s import TLSConfigManager
-
-CA_CERT_PATH = TLSConfigManager.CA_CERT_PATH
-from jubilant import Juju, all_active
+from jubilant import Juju, all_active, all_agents_idle
 from lightkube import Client
 from lightkube.generic_resource import create_namespaced_resource
 from tenacity import retry, stop_after_attempt, wait_fixed
@@ -35,7 +32,9 @@ def pack(root: Path | str = "./", platform: str | None = None) -> Path:
     )
     # charmcraft prints "Packed <filename>" lines to stderr
     packed_charms = [
-        line.split()[1] for line in proc.stderr.strip().splitlines() if line.startswith("Packed")
+        line.split()[1]
+        for line in proc.stderr.strip().splitlines()
+        if line.startswith("Packed")
     ]
     if not packed_charms:
         raise ValueError(
@@ -61,9 +60,13 @@ def get_resources(root: Path | str = "./") -> dict[str, str] | None:
                     resource: res_meta["upstream-source"]
                     for resource, res_meta in meta_resources.items()
                 }
-            logger.info("resources not found in %s; proceeding without resources", meta_name)
+            logger.info(
+                "resources not found in %s; proceeding without resources", meta_name
+            )
             return None
-    logger.error("metadata/charmcraft.yaml not found at %s; unable to load resources", root)
+    logger.error(
+        "metadata/charmcraft.yaml not found at %s; unable to load resources", root
+    )
     return None
 
 
@@ -73,9 +76,11 @@ WORKER_CHARM_FILENAME = "tempo-worker-k8s_ubuntu@24.04-amd64.charm"
 
 TRACEGEN_SCRIPT_PATH = REPO_ROOT / "coordinator" / "scripts" / "tracegen.py"
 INTEGRATION_TESTERS_CHANNEL = "2/edge"
+DEV_EDGE_CHANNEL = "dev/edge"
 
 # Application names used uniformly across the tests
 PROMETHEUS_APP = "prometheus"
+GRAFANA_APP = "grafana"
 S3_APP = "seaweedfs"
 WORKER_APP = "tempo-worker"
 TEMPO_APP = "tempo"
@@ -129,7 +134,9 @@ def _set_ci_charm_paths_if_unset() -> None:
 def run_command(model_name: str, app_name: str, unit_num: int, command: list) -> bytes:
     cmd = ["juju", "ssh", "--model", model_name, f"{app_name}/{unit_num}", *command]
     try:
-        res = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        res = subprocess.run(
+            cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        )
         logger.info(res)
     except subprocess.CalledProcessError as exc:
         logger.error(exc.stdout.decode())
@@ -277,6 +284,16 @@ def deploy_prometheus(juju: Juju):
         app=PROMETHEUS_APP,
         revision=254,  # what's on 2/edge at July 17, 2025.
         channel=INTEGRATION_TESTERS_CHANNEL,
+        trust=True,
+    )
+
+def deploy_grafana(juju: Juju):
+    """Deploy a pinned revision of grafana that we know to work."""
+    juju.deploy(
+        "grafana-k8s",
+        app=GRAFANA_APP,
+        revision=187,  # what's on dev/edge at May 26, 2026.
+        channel=DEV_EDGE_CHANNEL,
         trust=True,
     )
 
@@ -434,6 +451,43 @@ def query_traces_patiently_from_client_pod(
     return traces
 
 
+def query_traces_from_worker_pod(
+    juju: Juju,
+    service_name: str = "tracegen",
+    tls: bool = False,
+    nonce: Optional[str] = None,
+    start_time: Optional[float] = None,
+    worker_unit: str = f"{WORKER_APP}/0",
+) -> List[dict]:
+    """Query Tempo traces from inside the worker pod (bypasses ztunnel RBAC).
+
+    Uses Python urllib (always available in Juju charm rocks) to call localhost:3200,
+    which reaches the Tempo binary via the shared pod network namespace.
+    Localhost connections are not intercepted by ztunnel.
+    """
+    nonce_param = f"%20tracegen.nonce={nonce}" if nonce else ""
+    if start_time is not None:
+        # Tempo requires both start and end; use a generous 2-hour window.
+        # Cast to int: Tempo's API rejects float timestamps with HTTP 400.
+        start_time_int = int(start_time)
+        end_time = start_time_int + 7200
+        time_params = f"&start={start_time_int}&end={end_time}"
+    else:
+        time_params = ""
+    url = (
+        f"http://localhost:3200/api/search"
+        f"?tags=service.name%3D{service_name}{nonce_param}{time_params}"
+    )
+    result = juju.exec(
+        f'python3 -c "'
+        f"import urllib.request, json; "
+        f"r = urllib.request.urlopen('{url}'); "
+        f'print(r.read().decode())"',
+        unit=worker_unit,
+    )
+    return json.loads(result.stdout)["traces"]
+
+
 def get_ingested_traces_service_names(tempo_host: str, tls: bool) -> Set[str]:
     """Fetch all ingested traces tags."""
     logger.info("querying %s for tags...", tempo_host)
@@ -450,47 +504,33 @@ def get_ingested_traces_service_names(tempo_host: str, tls: bool) -> Set[str]:
 
 def emit_trace(
     endpoint: str,
-    juju: Juju,
     nonce: Optional[str] = None,
     proto: str = "otlp_http",
     service_name: Optional[str] = "tracegen",
     verbose: int = 0,
-    use_cert: bool = False,
+    ca_cert_path: Optional[str] = None,
 ):
-    """Use juju ssh to run tracegen from the tempo charm; to avoid any DNS issues."""
-    logger.info("pushing tracegen onto %s/0", TEMPO_APP)
-    juju.cli("scp", str(TRACEGEN_SCRIPT_PATH), f"{TEMPO_APP}/0:tracegen.py")
-    juju.cli(
-        "ssh",
-        f"{TEMPO_APP}/0",
-        f"apt update -y && apt install git -y && curl -LsSf https://astral.sh/uv/install.sh | sh",
-    )
+    """Run tracegen from the test host (outside the cluster).
 
-    tracegen_deps = (
-        "protobuf==3.20.*",
-        "opentelemetry-exporter-otlp-proto-http==1.21.0",
-        "opentelemetry-exporter-otlp-proto-grpc",
-        "opentelemetry-exporter-zipkin",
-        "opentelemetry-exporter-jaeger",
-        "protobuf==3.20.*",
-        "thrift@git+https://github.com/apache/thrift.git@6e380306ef48af4050a61f2f91b3c8380d8e78fb#subdirectory=lib/py",
+    For TLS scenarios pass the CA cert path obtained from the certificates provider charm.
+    """
+    # tracegen.py using PEP 723 script metadata, so we use uv
+    cmd = f"uv run {TRACEGEN_SCRIPT_PATH}"
+    env = os.environ.copy()
+    env.update(
+        {
+            "TRACEGEN_SERVICE": service_name or "",
+            "TRACEGEN_ENDPOINT": endpoint,
+            "TRACEGEN_VERBOSE": str(verbose),
+            "TRACEGEN_PROTOCOL": proto,
+            "TRACEGEN_CERT": ca_cert_path or "",
+            "TRACEGEN_NONCE": nonce or "",
+        }
     )
-    with_deps = " ".join(f"--with '{dep}'" for dep in tracegen_deps)
-    cmd = (
-        f"juju ssh -m {juju.model} {TEMPO_APP}/0 "
-        f"TRACEGEN_SERVICE='{service_name or ''}' "
-        f"TRACEGEN_ENDPOINT='{endpoint}' "
-        f"TRACEGEN_VERBOSE='{verbose}' "
-        f"TRACEGEN_PROTOCOL='{proto}' "
-        f"TRACEGEN_CERT='{CA_CERT_PATH if use_cert else ''}' "
-        f"TRACEGEN_NONCE='{nonce or ''}' "
-        f"~/.local/bin/uv run {with_deps} tracegen.py"
+    logger.info("running tracegen locally: endpoint=%r proto=%r", endpoint, proto)
+    out = subprocess.run(
+        shlex.split(cmd), text=True, capture_output=True, check=True, env=env, timeout=300
     )
-
-    logger.info("running tracegen with %r", cmd)
-
-    lexed_cmd = shlex.split(cmd)
-    out = subprocess.run(lexed_cmd, text=True, capture_output=True, check=True)
     logger.info("tracegen completed; stdout=%r", out.stdout)
     return out
 
@@ -502,7 +542,9 @@ def _get_endpoint(protocol: str, hostname: str, tls: bool):
 
     if "grpc" in protocol:
         return protocol_endpoint.format(hostname=hostname)
-    return protocol_endpoint.format(hostname=hostname, scheme="https" if tls else "http")
+    return protocol_endpoint.format(
+        hostname=hostname, scheme="https" if tls else "http"
+    )
 
 
 def get_tempo_ingressed_endpoint(hostname: str, protocol: str, tls: bool):
@@ -510,7 +552,9 @@ def get_tempo_ingressed_endpoint(hostname: str, protocol: str, tls: bool):
 
 
 def get_tempo_internal_endpoint(juju: Juju, protocol: str, tls: bool, unit: int = 0):
-    hostname = f"{TEMPO_APP}-{unit}.{TEMPO_APP}-endpoints.{juju.model}.svc.cluster.local"
+    hostname = (
+        f"{TEMPO_APP}-{unit}.{TEMPO_APP}-endpoints.{juju.model}.svc.cluster.local"
+    )
     return _get_endpoint(protocol, hostname, tls)
 
 
@@ -520,7 +564,9 @@ def get_tempo_application_endpoint(tempo_ip: str, protocol: str, tls: bool):
 
 def get_ingress_proxied_hostname(juju: Juju):
     return json.loads(
-        juju.run(TRAEFIK_APP + "/0", "show-proxied-endpoints").results["proxied-endpoints"]
+        juju.run(TRAEFIK_APP + "/0", "show-proxied-endpoints").results[
+            "proxied-endpoints"
+        ]
     )[TRAEFIK_APP]["url"].split("://")[1]
 
 
@@ -546,26 +592,41 @@ def service_mesh(
     apps_to_be_related_with_beacon: List[str],
 ):
     """Temporarily enable service mesh in the model."""
-    juju.config(ISTIO_BEACON_APP, {"model-on-mesh": "true"})
-
-    for app in apps_to_be_related_with_beacon:
-        juju.integrate(beacon_app_name + ":service-mesh", app + ":service-mesh")
-    juju.wait(
-        all_active,
-        timeout=1000,
-        delay=5,
-        successes=5,
-    )
-
-    yield
-
-    juju.config(ISTIO_BEACON_APP, {"model-on-mesh": "false"})
-
-    for app in apps_to_be_related_with_beacon:
-        juju.remove_relation(beacon_app_name + ":service-mesh", app + ":service-mesh", force=True)
-    juju.wait(
-        all_active,
-        timeout=1000,
-        delay=5,
-        successes=5,
-    )
+    # Track which relations were actually added so partial setup failures
+    # are cleaned up correctly (if setup raises before yield, __exit__ is
+    # never called, so the try/finally must wrap setup too).
+    successfully_related: List[str] = []
+    try:
+        juju.config(ISTIO_BEACON_APP, {"model-on-mesh": "true"})
+        for app in apps_to_be_related_with_beacon:
+            juju.integrate(beacon_app_name + ":service-mesh", app + ":service-mesh")
+            successfully_related.append(app)
+        juju.wait(
+            all_active,
+            timeout=1000,
+            delay=5,
+            successes=5,
+        )
+        yield
+    finally:
+        # Always tear down the mesh, even if setup or the test body raised an exception.
+        # Without this, a failing mesh test would leave the mesh active and cause
+        # RBAC-related failures in all subsequent tests.
+        juju.config(ISTIO_BEACON_APP, {"model-on-mesh": "false"})
+        for app in successfully_related:
+            try:
+                juju.remove_relation(
+                    beacon_app_name + ":service-mesh", app + ":service-mesh", force=True
+                )
+            except Exception:
+                pass  # best-effort: don't mask the original exception
+        # Wait for workload to be active AND agents to be idle (all departure hooks done).
+        # Using all_agents_idle prevents the next test from starting while service-mesh
+        # teardown hooks are still running (which could cause port-temporarily-unreachable
+        # failures in subsequent tests).
+        juju.wait(
+            lambda status: all_active(status) and all_agents_idle(status),
+            timeout=1000,
+            delay=5,
+            successes=5,
+        )
