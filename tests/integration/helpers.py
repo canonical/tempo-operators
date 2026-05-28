@@ -512,11 +512,9 @@ def emit_trace(
 ):
     """Run tracegen from the test host (outside the cluster).
 
-    Dependencies are declared inline in tracegen.py using PEP 723 script metadata, so uv
-    resolves and installs them automatically on first run with no extra --with flags needed.
-    This is analogous to how pyroscope-operators emits profiles in its integration tests.
     For TLS scenarios pass the CA cert path obtained from the certificates provider charm.
     """
+    # tracegen.py using PEP 723 script metadata, so we use uv
     cmd = f"uv run {TRACEGEN_SCRIPT_PATH}"
     env = os.environ.copy()
     env.update(
