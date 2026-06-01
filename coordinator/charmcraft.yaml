@@ -56,7 +56,7 @@ resources:
     upstream-source: nginx/nginx-prometheus-exporter:1.1.0
 
 links:
-  documentation: https://discourse.charmhub.io/t/tempo-coordinator-k8s-docs-index/15419
+  documentation: https://documentation.ubuntu.com/observability/latest/
   website: https://charmhub.io/tempo-coordinator-k8s
   source: https://github.com/canonical/tempo-operators
   issues: https://github.com/canonical/tempo-operators/issues

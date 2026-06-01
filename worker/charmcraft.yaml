@@ -30,7 +30,7 @@ description: |
   - Configurable Kubernetes resource limits for CPU and memory.
 
 links:
-  documentation: https://discourse.charmhub.io/t/tempo-worker-k8s-index/15420
+  documentation: https://documentation.ubuntu.com/observability/latest/
   website: https://charmhub.io/tempo-worker-k8s
   source: https://github.com/canonical/tempo-operators
   issues: https://github.com/canonical/tempo-operators/issues
