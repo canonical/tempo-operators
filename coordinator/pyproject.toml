@@ -45,7 +45,6 @@ dev = [
 extraPaths = ["lib"]
 pythonVersion = "3.8"
 pythonPlatform = "All"
-exclude = ["lib/charms/tempo_coordinator_k8s/v0/charm_tracing.py"]
 
 [build]
 build-base = "/tmp/build"
