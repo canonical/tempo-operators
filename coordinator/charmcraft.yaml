@@ -49,11 +49,11 @@ resources:
   nginx-image:
     type: oci-image
     description: OCI image for nginx
-    upstream-source: ghcr.io/canonical/nginx@sha256:6415a2c5f25f1d313c87315a681bdc84be80f3c79c304c6744737f9b34207993 # 1.27.5 rock
+    upstream-source: ghcr.io/canonical/nginx:1.27.5
   nginx-prometheus-exporter-image:
     type: oci-image
     description: OCI image for nginx-prometheus-exporter
-    upstream-source: nginx/nginx-prometheus-exporter:1.1.0
+    upstream-source: ubuntu/nginx-prometheus-exporter@sha256:28fc4e2e0a8e32d08f213889ac5eb613d52f64da47ae5007930adfc688fbbe5c  # renovate: oci-image tag: 1.5-26.04
 
 links:
   documentation: https://documentation.ubuntu.com/observability/latest/
@@ -195,7 +195,7 @@ peers:
       peer relation for internal coordination
 
 platforms:
-  ubuntu@24.04:amd64:
+  ubuntu@26.04:amd64:
 
 parts:
   charm:

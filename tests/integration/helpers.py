@@ -287,6 +287,7 @@ def deploy_prometheus(juju: Juju):
         trust=True,
     )
 
+
 def deploy_grafana(juju: Juju):
     """Deploy a pinned revision of grafana that we know to work."""
     juju.deploy(
@@ -529,7 +530,12 @@ def emit_trace(
     )
     logger.info("running tracegen locally: endpoint=%r proto=%r", endpoint, proto)
     out = subprocess.run(
-        shlex.split(cmd), text=True, capture_output=True, check=True, env=env, timeout=300
+        shlex.split(cmd),
+        text=True,
+        capture_output=True,
+        check=True,
+        env=env,
+        timeout=300,
     )
     logger.info("tracegen completed; stdout=%r", out.stdout)
     return out

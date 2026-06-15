@@ -63,7 +63,7 @@ resources:
   tempo-image:
     type: oci-image
     description: OCI image for Grafana Tempo
-    upstream-source: ubuntu/tempo:2.10-24.04_stable
+    upstream-source: ubuntu/tempo@sha256:9b5a35e8ca15dd2c69c52d5ca6dd1ede293660599bee369e4ca8111221cd8ec7  # renovate: oci-image-tag: 2.10-26.04
 
 
 # config
@@ -173,7 +173,7 @@ config:
 # build info
 
 platforms:
-  ubuntu@24.04:amd64:
+  ubuntu@26.04:amd64:
 
 
 parts:

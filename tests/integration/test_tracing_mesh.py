@@ -93,7 +93,13 @@ def test_setup(juju: Juju):
     # found in Tempo must have traversed the mesh.
     juju.wait(
         lambda status: jubilant.all_active(
-            status, ISTIO_APP, ISTIO_BEACON_APP, TEMPO_APP, WORKER_APP, S3_APP, GRAFANA_APP
+            status,
+            ISTIO_APP,
+            ISTIO_BEACON_APP,
+            TEMPO_APP,
+            WORKER_APP,
+            S3_APP,
+            GRAFANA_APP,
         ),
         timeout=2000,
         delay=5,
@@ -122,7 +128,9 @@ def test_verify_traces(juju: Juju):
 
         # Integrate Grafana datasource/dashboard to trigger additional charm hooks.
         juju.integrate(f"{GRAFANA_APP}:grafana-source", f"{TEMPO_APP}:grafana-source")
-        juju.integrate(f"{GRAFANA_APP}:grafana-dashboard", f"{TEMPO_APP}:grafana-dashboard")
+        juju.integrate(
+            f"{GRAFANA_APP}:grafana-dashboard", f"{TEMPO_APP}:grafana-dashboard"
+        )
 
         traces = _generate_traces_and_query(juju)
         assert traces, "expected traces from Grafana in the mesh, found none"

@@ -160,9 +160,7 @@ def test_verify_tempo_api_integration(juju: Juju, nonce):
     # favour of tracegen. HTTP traces; proper tempo-api RBAC testing needs a charm with
     # a tempo-api requirer (e.g. Grafana).
     tempo_ip = get_app_ip_address(juju, TEMPO_APP)
-    endpoint = get_tempo_application_endpoint(
-        tempo_ip, protocol="otlp_http", tls=False
-    )
+    endpoint = get_tempo_application_endpoint(tempo_ip, protocol="otlp_http", tls=False)
     emit_trace(endpoint, nonce=nonce, proto="otlp_http", service_name="tracegen-http")
     traces = query_traces_patiently_from_client_localhost(
         tempo_host=tempo_ip,
@@ -183,9 +181,7 @@ def test_verify_grafana_datasource_integration(juju: Juju, nonce):
     # in favour of tracegen. gRPC traces; proper grafana-source RBAC testing needs a charm
     # with a grafana-datasources requirer.
     tempo_ip = get_app_ip_address(juju, TEMPO_APP)
-    endpoint = get_tempo_application_endpoint(
-        tempo_ip, protocol="otlp_grpc", tls=False
-    )
+    endpoint = get_tempo_application_endpoint(tempo_ip, protocol="otlp_grpc", tls=False)
     emit_trace(endpoint, nonce=nonce, proto="otlp_grpc", service_name="tracegen-grpc")
     traces = query_traces_patiently_from_client_localhost(
         tempo_host=tempo_ip,
