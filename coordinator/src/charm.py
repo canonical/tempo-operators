@@ -808,7 +808,7 @@ class TempoCoordinatorCharm(CharmBase):
 
         try:
             out = getoutput(cmd).split("\n")[-1]
-        except (CalledProcessError, IndexError):
+        except CalledProcessError, IndexError:
             return False
         return out == "ready"
 
