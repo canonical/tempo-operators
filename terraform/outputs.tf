@@ -16,24 +16,24 @@ output "app_names" {
 
 output "provides" {
   value = {
-    tempo_cluster     = "tempo-cluster"
-    grafana_dashboard = "grafana-dashboard",
-    grafana_source    = "grafana-source",
-    metrics_endpoint  = "metrics-endpoint",
+    tempo_cluster     = module.tempo_coordinator.provides.tempo_cluster,
+    grafana_dashboard = module.tempo_coordinator.provides.grafana_dashboard,
+    grafana_source    = module.tempo_coordinator.provides.grafana_source,
+    metrics_endpoint  = module.tempo_coordinator.provides.metrics_endpoint,
     provide_cmr_mesh  = module.tempo_coordinator.provides.provide_cmr_mesh,
-    tracing           = "tracing",
+    tracing           = module.tempo_coordinator.provides.tracing,
   }
   description = "All Juju integration endpoints where the charm is the provider"
 }
 
 output "requires" {
   value = {
-    logging            = "logging",
-    ingress            = "ingress",
-    certificates       = "certificates",
-    send-remote-write  = "send-remote-write",
-    receive_datasource = "receive-datasource"
-    catalogue          = "catalogue",
+    logging            = module.tempo_coordinator.requires.logging,
+    ingress            = module.tempo_coordinator.requires.ingress,
+    certificates       = module.tempo_coordinator.requires.certificates,
+    send-remote-write  = module.tempo_coordinator.requires.send_remote_write,
+    receive_datasource = module.tempo_coordinator.requires.receive_datasource,
+    catalogue          = module.tempo_coordinator.requires.catalogue,
     require_cmr_mesh   = module.tempo_coordinator.requires.require_cmr_mesh,
     service_mesh       = module.tempo_coordinator.requires.service_mesh,
   }
