@@ -24,7 +24,7 @@
           "uid": "$logsds"
         },
         "enable": true,
-        "expr": "{diff_{}container='kube-diff-logger'}",
+        "expr": "{cluster=\"$cluster\", diff_namespace=\"$namespace\", container=\"kube-diff-logger\"}",
         "hide": true,
         "iconColor": "rgba(255, 96, 96, 1)",
         "name": "diffs",
