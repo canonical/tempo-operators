@@ -37,8 +37,8 @@ def _remove_stale_otel_sdk_packages():
     from importlib.metadata import distributions
 
     def _normalize_name(name: str) -> str:
-        """Normalize package name per PEP 503."""
-        return re.sub(r"[-_.]+", "-", name).lower()
+        """Normalize package name to underscore format (matching importlib_metadata behavior)."""
+        return re.sub(r"[-_.]+", "_", name).lower()
 
     otel_logger = logging.getLogger("charm_tracing_otel_patcher")
     otel_logger.debug("Applying _remove_stale_otel_sdk_packages patch on charm upgrade")
@@ -46,7 +46,7 @@ def _remove_stale_otel_sdk_packages():
     otel_distributions = defaultdict(list)
     for distribution in distributions():
         name = _normalize_name(distribution.name)
-        if name.startswith("opentelemetry-"):
+        if name.startswith("opentelemetry_"):
             otel_distributions[name].append(distribution)
 
     otel_logger.debug("Found %d opentelemetry distributions", len(otel_distributions))
