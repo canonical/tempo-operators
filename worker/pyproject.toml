@@ -5,7 +5,7 @@ version = "0.1.0"
 requires-python = "~=3.14.0"
 
 dependencies = [
-    "coordinated-workers>=4.0.0",
+    "coordinated-workers>=4.1.2",
     "charmed-service-mesh-helpers>=0.2.0",
     "lightkube-extensions",
 ]
