@@ -21,7 +21,7 @@ from charms.blackbox_exporter_k8s.v0.blackbox_probes import (
     BlackboxProbesProvider,  # wokeignore:rule=blackbox
 )
 from charms.catalogue_k8s.v1.catalogue import CatalogueItem
-from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
+from charms.grafana_k8s.v1.grafana_source import GrafanaSourceProvider
 from charms.prometheus_k8s.v1.prometheus_remote_write import (
     PrometheusRemoteWriteConsumer,
 )
@@ -224,9 +224,8 @@ class TempoCoordinatorCharm(CharmBase):
         self.grafana_source_provider = GrafanaSourceProvider(
             self,
             source_type="tempo",
-            source_url=self._external_http_server_url,
             extra_fields=self._build_grafana_source_extra_fields(),
-            is_ingress_per_app=self._is_ingress_ready or self._is_istio_ingress_ready,
+            app_datasource_url=self._external_http_server_url,
         )
 
         # wokeignore:rule=blackbox
@@ -869,8 +868,8 @@ class TempoCoordinatorCharm(CharmBase):
 
     def _update_grafana_source(self) -> None:
         """Update grafana-source relations."""
-        self.grafana_source_provider.update_source(
-            source_url=self._external_http_server_url
+        self.grafana_source_provider.update_app_source(
+            app_datasource_url=self._external_http_server_url
         )
 
     def _reconcile(self):
