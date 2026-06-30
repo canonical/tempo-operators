@@ -11,7 +11,6 @@ import requests
 import yaml
 from coordinated_workers.nginx import CA_CERT_PATH
 from jubilant import Juju
-from minio import Minio
 from pytest_jubilant import pack
 from tenacity import retry, stop_after_attempt, wait_fixed
 
@@ -26,7 +25,6 @@ S3_CREDENTIALS = {
 TRACEGEN_SCRIPT_PATH = Path() / "scripts" / "tracegen.py"
 
 # Application names used uniformly across the tests
-MINIO_APP = "minio"
 S3_APP = "seaweedfs"
 PROMETHEUS_APP = "prometheus"
 WORKER_APP = "tempo-worker"
