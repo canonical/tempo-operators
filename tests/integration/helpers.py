@@ -293,7 +293,7 @@ def deploy_grafana(juju: Juju):
     juju.deploy(
         "grafana-k8s",
         app=GRAFANA_APP,
-        revision=187,  # what's on dev/edge at May 26, 2026.
+        revision=190,  # what's on dev/edge at May 26, 2026.
         channel=DEV_EDGE_CHANNEL,
         trust=True,
     )
