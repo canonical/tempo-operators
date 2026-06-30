@@ -22,12 +22,13 @@ TESTER_GRPC_METADATA = yaml.safe_load(
     Path("./tests/integration/tester-grpc/metadata.yaml").read_text()
 )
 TESTER_GRPC_APP_NAME = TESTER_GRPC_METADATA["name"]
+TESTER_CHARMS_PLATFORM = "ubuntu-22.04-amd64"
 
 
 @pytest.mark.setup
 def test_build_deploy_tester(juju: Juju):
     path = "./tests/integration/tester/"
-    charm = pack(path).absolute()
+    charm = pack(path, platform=TESTER_CHARMS_PLATFORM).absolute()
     resources = get_resources(path)
     juju.deploy(
         charm,
@@ -40,7 +41,7 @@ def test_build_deploy_tester(juju: Juju):
 @pytest.mark.setup
 def test_build_deploy_tester_grpc(juju: Juju):
     path = "./tests/integration/tester-grpc/"
-    charm = pack(path).absolute()
+    charm = pack(path, platform=TESTER_CHARMS_PLATFORM).absolute()
     resources = get_resources(path)
     juju.deploy(
         charm,
