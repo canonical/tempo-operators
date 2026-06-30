@@ -40,9 +40,7 @@ CA_CERT_PATH = TLSConfigManager.CA_CERT_PATH
 def test_setup(juju: Juju):
     # deploy cluster
     juju.deploy("self-signed-certificates", app=SSC_APP)
-    juju.deploy(
-        "traefik-k8s", app=TRAEFIK_APP, channel="edge", base="ubuntu@26.04", trust=True
-    )
+    juju.deploy("traefik-k8s", app=TRAEFIK_APP, channel="edge", trust=True)
 
     juju.integrate(SSC_APP + ":certificates", TRAEFIK_APP + ":certificates")
 
