@@ -22,12 +22,6 @@ This module requires a `juju` model to be available. Refer to the [usage section
 
 No modules.
 
-## Resources
-
-| Name | Type |
-|------|------|
-| [juju_application.tempo_coordinator](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/application) | resource |
-
 ## Inputs
 
 | Name | Description | Type | Default | Required |
