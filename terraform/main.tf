@@ -162,6 +162,7 @@ resource "juju_application" "s3_integrator" {
 
   charm {
     name     = "s3-integrator"
+    base     = var.s3_integrator_base
     channel  = var.s3_integrator_channel
     revision = var.s3_integrator_revision
   }

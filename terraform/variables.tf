@@ -27,6 +27,12 @@ variable "anti_affinity" {
 
 # -------------- # S3 object storage --------------
 
+variable "s3_integrator_base" {
+  description = "The operating system on which to deploy. E.g. ubuntu@26.04. Check Charmhub for per-charm base support."
+  type        = string
+  default     = "ubuntu@24.04"
+}
+
 variable "s3_integrator_channel" {
   description = "Channel that the s3-integrator application is deployed from"
   type        = string
