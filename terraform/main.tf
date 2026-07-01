@@ -44,7 +44,7 @@ module "tempo_query_frontend" {
     role-all            = false
     role-query-frontend = true
   }, var.query_frontend_config)
-  model_uuid  = var.model_uuid
+  model_uuid         = var.model_uuid
   resources          = var.worker_resources
   revision           = var.worker_revision
   storage_directives = var.query_frontend_worker_storage_directives
@@ -63,7 +63,7 @@ module "tempo_ingester" {
     role-all      = false
     role-ingester = true
   }, var.ingester_config)
-  model_uuid  = var.model_uuid
+  model_uuid         = var.model_uuid
   resources          = var.worker_resources
   revision           = var.worker_revision
   storage_directives = var.ingester_worker_storage_directives
@@ -82,7 +82,7 @@ module "tempo_distributor" {
     role-all         = false
     role-distributor = true
   }, var.distributor_config)
-  model_uuid  = var.model_uuid
+  model_uuid         = var.model_uuid
   resources          = var.worker_resources
   revision           = var.worker_revision
   storage_directives = var.distributor_worker_storage_directives
@@ -101,7 +101,7 @@ module "tempo_compactor" {
     role-all       = false
     role-compactor = true
   }, var.compactor_config)
-  model_uuid  = var.model_uuid
+  model_uuid         = var.model_uuid
   resources          = var.worker_resources
   revision           = var.worker_revision
   storage_directives = var.compactor_worker_storage_directives
@@ -120,7 +120,7 @@ module "tempo_metrics_generator" {
     role-all               = false
     role-metrics-generator = true
   }, var.metrics_generator_config)
-  model_uuid  = var.model_uuid
+  model_uuid         = var.model_uuid
   resources          = var.worker_resources
   revision           = var.worker_revision
   storage_directives = var.metrics_generator_worker_storage_directives
