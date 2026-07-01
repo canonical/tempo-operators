@@ -4,6 +4,12 @@ variable "app_name" {
   default     = "tempo"
 }
 
+variable "base" {
+  description = "The operating system on which to deploy. E.g. ubuntu@26.04. Check Charmhub for per-charm base support."
+  type        = string
+  default     = "ubuntu@26.04"
+}
+
 variable "channel" {
   description = "Channel that the charm is deployed from"
   type        = string

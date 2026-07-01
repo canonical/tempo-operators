@@ -2,6 +2,7 @@ module "tempo_coordinator" {
   source = "../coordinator/terraform"
 
   app_name           = var.coordinator_name
+  base               = var.base
   channel            = var.channel
   config             = var.coordinator_config
   constraints        = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=tempo,anti-pod.topology-key=kubernetes.io/hostname" : var.coordinator_constraints
@@ -17,6 +18,7 @@ module "tempo_querier" {
   depends_on = [module.tempo_coordinator]
 
   app_name = var.querier_name
+  base     = var.base
   channel  = var.channel
   config = merge({
     role-all     = false
@@ -35,13 +37,14 @@ module "tempo_query_frontend" {
   depends_on = [module.tempo_coordinator]
 
   app_name    = var.query_frontend_name
-  model_uuid  = var.model_uuid
+  base        = var.base
   channel     = var.channel
   constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.query_frontend_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
   config = merge({
     role-all            = false
     role-query-frontend = true
   }, var.query_frontend_config)
+  model_uuid         = var.model_uuid
   resources          = var.worker_resources
   revision           = var.worker_revision
   storage_directives = var.query_frontend_worker_storage_directives
@@ -53,13 +56,14 @@ module "tempo_ingester" {
   depends_on = [module.tempo_coordinator]
 
   app_name    = var.ingester_name
-  model_uuid  = var.model_uuid
+  base        = var.base
   channel     = var.channel
   constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.ingester_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
   config = merge({
     role-all      = false
     role-ingester = true
   }, var.ingester_config)
+  model_uuid         = var.model_uuid
   resources          = var.worker_resources
   revision           = var.worker_revision
   storage_directives = var.ingester_worker_storage_directives
@@ -71,13 +75,14 @@ module "tempo_distributor" {
   depends_on = [module.tempo_coordinator]
 
   app_name    = var.distributor_name
-  model_uuid  = var.model_uuid
+  base        = var.base
   channel     = var.channel
   constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.distributor_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
   config = merge({
     role-all         = false
     role-distributor = true
   }, var.distributor_config)
+  model_uuid         = var.model_uuid
   resources          = var.worker_resources
   revision           = var.worker_revision
   storage_directives = var.distributor_worker_storage_directives
@@ -89,13 +94,14 @@ module "tempo_compactor" {
   depends_on = [module.tempo_coordinator]
 
   app_name    = var.compactor_name
-  model_uuid  = var.model_uuid
+  base        = var.base
   channel     = var.channel
   constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.compactor_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
   config = merge({
     role-all       = false
     role-compactor = true
   }, var.compactor_config)
+  model_uuid         = var.model_uuid
   resources          = var.worker_resources
   revision           = var.worker_revision
   storage_directives = var.compactor_worker_storage_directives
@@ -107,13 +113,14 @@ module "tempo_metrics_generator" {
   depends_on = [module.tempo_coordinator]
 
   app_name    = var.metrics_generator_name
-  model_uuid  = var.model_uuid
+  base        = var.base
   channel     = var.channel
   constraints = var.anti_affinity ? "arch=amd64 tags=anti-pod.app.kubernetes.io/name=${var.metrics_generator_name},anti-pod.topology-key=kubernetes.io/hostname" : var.worker_constraints
   config = merge({
     role-all               = false
     role-metrics-generator = true
   }, var.metrics_generator_config)
+  model_uuid         = var.model_uuid
   resources          = var.worker_resources
   revision           = var.worker_revision
   storage_directives = var.metrics_generator_worker_storage_directives
@@ -155,6 +162,7 @@ resource "juju_application" "s3_integrator" {
 
   charm {
     name     = "s3-integrator"
+    base     = var.s3_integrator_base
     channel  = var.s3_integrator_channel
     revision = var.s3_integrator_revision
   }

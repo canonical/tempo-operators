@@ -9,6 +9,7 @@ resource "juju_application" "tempo_coordinator" {
   units              = var.units
 
   charm {
+    base     = var.base
     name     = "tempo-coordinator-k8s"
     channel  = var.channel
     revision = var.revision
