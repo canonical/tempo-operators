@@ -9,6 +9,7 @@ resource "juju_application" "tempo_worker" {
   units              = var.units
 
   charm {
+    base     = var.base
     name     = "tempo-worker-k8s"
     channel  = var.channel
     revision = var.revision
