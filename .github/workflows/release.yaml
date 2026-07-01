@@ -1,6 +1,8 @@
 name: Release Charm to Edge and Publish Libraries
 
 on:
+  # Manual trigger
+  workflow_dispatch:
   push:
     branches:
       - main
