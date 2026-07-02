@@ -15,13 +15,13 @@ groups:
       severity: critical
   - alert: "TempoBlockListRisingQuickly"
     expr: |
-      avg by (job, instance)(tempodb_blocklist_length) / avg by (job, instance)(tempodb_blocklist_length offset 7d) > 1.4
+      avg by (job, instance)(predict_linear(tempodb_blocklist_length[1w], 7*24*3600)) / avg by (job, instance)(tempodb_blocklist_length) > 1.4
     for: "15m"
     labels:
       severity: "critical"
     annotations:
       summary: "Tempo block list rising quickly (instance {{ $labels.instance }})"
-      description: "The {{ $labels.job }} is experiencing a 40% rise in tempo blocklist length over the last 7 days.  Consider scaling compactors."
+      description: "The {{ $labels.job }} is predicted to experience a 40% rise in tempo blocklist length over the next 7 days based on current trend.  Consider scaling compactors."
   - alert: TempoCompactionsFailing
     expr: sum by (job, instance)(increase(tempodb_compaction_errors_total{}[1h])) > 2 and sum by (job, instance)(increase(tempodb_compaction_errors_total{}[5m])) > 0
     for: 5m
