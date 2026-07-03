@@ -149,6 +149,7 @@ class Tempo:
                     processors=[
                         tempo_config.MetricsGeneratorProcessorLabel.SPAN_METRICS,
                         tempo_config.MetricsGeneratorProcessorLabel.SERVICE_GRAPHS,
+                        tempo_config.MetricsGeneratorProcessorLabel.LOCAL_BLOCKS,
                     ],
                 )
             )
@@ -185,8 +186,11 @@ class Tempo:
             processor=tempo_config.MetricsGeneratorProcessor(
                 span_metrics=tempo_config.MetricsGeneratorSpanMetricsProcessor(),
                 service_graphs=tempo_config.MetricsGeneratorServiceGraphsProcessor(),
+                # TODO: This is Tempo 2.x configuration. When Tempo 3.x support is added, switch this to the live-store processor/path.
+                local_blocks=tempo_config.MetricsGeneratorLocalBlocksProcessor(
+                    filter_server_spans=False,
+                ),
             ),
-            # per-processor configuration should go in here
         )
         return config
 

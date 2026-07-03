@@ -82,4 +82,12 @@ def test_metrics_generator(
         assert config["metrics_generator"]["storage"]["remote_write"] == [
             json.loads(remote_write.remote_units_data[0]["remote_write"])
         ]
+        assert config["metrics_generator"]["processor"]["local_blocks"] == {
+            "filter_server_spans": False
+        }
         assert "overrides" in config
+        assert config["overrides"]["defaults"]["metrics_generator"]["processors"] == [
+            "span-metrics",
+            "service-graphs",
+            "local-blocks",
+        ]
