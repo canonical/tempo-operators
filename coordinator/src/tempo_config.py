@@ -343,13 +343,21 @@ class MetricsGeneratorServiceGraphsProcessor(BaseModel):
     # for a full list of config options
 
 
+class MetricsGeneratorLocalBlocksProcessor(BaseModel):
+    """Metrics Generator local_blocks processor configuration schema."""
+
+    filter_server_spans: bool = False
+    # see https://grafana.com/docs/tempo/v2.6.x/configuration/#metrics-generator
+    # and https://grafana.com/docs/tempo/v2.6.x/operations/traceql-metrics/#activate-and-configure-the-local-blocks-processor
+    # for a full list of config options
+
+
 class MetricsGeneratorProcessor(BaseModel):
     """Metrics Generator processor schema."""
 
     span_metrics: MetricsGeneratorSpanMetricsProcessor
     service_graphs: MetricsGeneratorServiceGraphsProcessor
-    # see https://grafana.com/docs/tempo/v2.6.x/configuration/#metrics-generator
-    # for a full list of config options; could add local_blocks here
+    local_blocks: MetricsGeneratorLocalBlocksProcessor
 
 
 class MetricsGeneratorStorage(BaseModel):
