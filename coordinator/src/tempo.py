@@ -28,6 +28,7 @@ class Tempo:
 
     wal_path = "/etc/tempo/tempo_wal"
     metrics_generator_wal_path = "/etc/tempo/metrics_generator_wal"
+    metrics_generator_traces_path = "/etc/tempo/generator_traces"
 
     # this is the single source of truth for which ports are opened and configured
     # in the distributed Tempo deployment
@@ -180,6 +181,9 @@ class Tempo:
             storage=tempo_config.MetricsGeneratorStorage(
                 path=self.metrics_generator_wal_path,
                 remote_write=remote_write_instances,
+            ),
+            traces_storage=tempo_config.MetricsGeneratorTracesStorage(
+                path=self.metrics_generator_traces_path,
             ),
             # Adding juju topology will be done on the worker's side
             # to populate the correct unit label.

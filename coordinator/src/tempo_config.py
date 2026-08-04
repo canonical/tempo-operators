@@ -352,6 +352,18 @@ class MetricsGeneratorLocalBlocksProcessor(BaseModel):
     # for a full list of config options
 
 
+class MetricsGeneratorTracesStorage(BaseModel):
+    """Metrics Generator traces_storage configuration schema.
+
+    Required in Tempo >= 2.10 for the local_blocks processor. Provides the
+    path where the metrics-generator stores its own trace WAL, independently
+    of the ingester WAL.
+    See https://grafana.com/docs/tempo/latest/configuration/#metrics-generator
+    """
+
+    path: str
+
+
 class MetricsGeneratorProcessor(BaseModel):
     """Metrics Generator processor schema."""
 
@@ -372,6 +384,7 @@ class MetricsGenerator(BaseModel):
 
     ring: Ring
     storage: MetricsGeneratorStorage
+    traces_storage: MetricsGeneratorTracesStorage
 
     # processor-specific config depends on the processor type
     processor: MetricsGeneratorProcessor

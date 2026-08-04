@@ -636,3 +636,33 @@ def service_mesh(
             delay=5,
             successes=5,
         )
+
+
+def scrape_metrics(juju: Juju, app: str) -> str:
+    """Scrape the Prometheus /metrics endpoint of *app* and return the raw text."""
+    app_ip = get_app_ip_address(juju, app)
+    resp = requests.get(f"http://{app_ip}:3200/metrics", timeout=15)
+    resp.raise_for_status()
+    return resp.text
+
+
+def metric_value(metrics_text: str, metric_name: str) -> float:
+    """Return the sum of all label combinations for *metric_name*.
+
+    Raises ``KeyError`` if the metric is not present at all.
+    """
+    total = 0.0
+    found = False
+    for line in metrics_text.splitlines():
+        if line.startswith("#") or not line.strip():
+            continue
+        bare = line.split("{")[0].split()[0]
+        if bare == metric_name:
+            try:
+                total += float(line.split()[-1])
+                found = True
+            except ValueError:
+                pass
+    if not found:
+        raise KeyError(f"metric not found: {metric_name!r}")
+    return total
