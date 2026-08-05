@@ -40,20 +40,25 @@ def test_deploy(juju: Juju):
         delay=5,
         successes=3,
     )
+    # speed up update-status hooks to generate self-traces faster
+    juju.cli("model-config", "update-status-hook-interval=10s")
 
 
 def test_local_blocks_processor_active(juju: Juju):
-    # local_blocks_spans_total is only emitted when the processor exists in
-    # the processor config and in the overrides list (both added by PR #418).
-    metrics = scrape_metrics(juju, WORKER_APP)
-    spans = metric_value(metrics, "tempo_metrics_generator_processor_local_blocks_spans_total")
-    assert spans > 0
+    # retry: metrics-generator pipeline is async
+    @retry(stop=stop_after_attempt(12), wait=wait_fixed(10))
+    def _check() -> None:
+        metrics = scrape_metrics(juju, WORKER_APP)
+        spans = metric_value(
+            metrics, "tempo_metrics_generator_processor_local_blocks_spans_total"
+        )
+        assert spans > 0
+
+    _check()
 
 
 def test_local_blocks_wal_operational(juju: Juju):
-    # live_trace_bytes > 0 proves traces_storage.path is set and the WAL head
-    # block is accepting writes. Retry covers the brief window between a flush
-    # and the next incoming span.
+    # live_trace_bytes > 0 proves traces_storage.path is set
     @retry(stop=stop_after_attempt(6), wait=wait_fixed(10))
     def _check() -> None:
         metrics = scrape_metrics(juju, WORKER_APP)
