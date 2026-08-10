@@ -4,13 +4,14 @@
 # dependencies = [
 #   "protobuf==3.20.*",
 #   "opentelemetry-exporter-otlp-proto-http==1.21.0",
-#   "opentelemetry-exporter-otlp-proto-grpc",
+#   "opentelemetry-exporter-otlp-proto-grpc==1.21.0",
 #   "opentelemetry-exporter-zipkin",
-#   "opentelemetry-exporter-jaeger",
+#   "opentelemetry-exporter-jaeger==1.21.0",
 #   "thrift>=0.20.0",
 # ]
 # ///
 import os
+import ssl
 import time
 from pathlib import Path
 from typing import Any, Literal, get_args
@@ -75,9 +76,17 @@ def initialize_exporter(protocol: str, endpoint: str, cert: Path = None):
         )
     # scheme://ip:14268/api/traces?format=jaeger.thrift
     elif protocol == "jaeger_thrift_http":
-        return JaegerThriftHttpExporter(
+        exporter = JaegerThriftHttpExporter(
             collector_endpoint=endpoint,
         )
+        if cert:
+            # JaegerThriftHttpExporter/Collector do not expose an SSL context
+            # parameter; THttpClient does, so we patch the transport directly.
+            ssl_ctx = ssl.create_default_context(cafile=str(Path(cert).absolute()))
+            collector = exporter._collector_http_client  # triggers lazy Collector init
+            if collector is not None:
+                collector.http_transport.context = ssl_ctx
+        return exporter
     # ip:14250
     elif protocol == "jaeger_grpc":
         return JaegerGRPCExporter(

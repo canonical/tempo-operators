@@ -42,6 +42,7 @@ def test_s3_strips_default_port_from_endpoint(endpoint, expected):
     s3 = tempo_config.S3(endpoint=endpoint, **_S3_DEFAULTS)
     assert s3.endpoint == expected
 
+
 tls_config = {
     "tls": {
         "ca_file": "/usr/local/share/ca-certificates/ca.crt",
@@ -154,8 +155,14 @@ def test_tempo_memberlist_config(peers, expected_config):
         # use localhost so each querier connects to its own co-located query-frontend
         (
             {
-                "querier": {"worker-0.svc-a.ns.svc.cluster.local", "worker2-0.svc-b.ns.svc.cluster.local"},
-                "query-frontend": {"worker-0.svc-a.ns.svc.cluster.local", "worker2-0.svc-b.ns.svc.cluster.local"},
+                "querier": {
+                    "worker-0.svc-a.ns.svc.cluster.local",
+                    "worker2-0.svc-b.ns.svc.cluster.local",
+                },
+                "query-frontend": {
+                    "worker-0.svc-a.ns.svc.cluster.local",
+                    "worker2-0.svc-b.ns.svc.cluster.local",
+                },
             },
             f"localhost:{Tempo.tempo_grpc_server_port}",
         ),
@@ -179,7 +186,10 @@ def test_tempo_memberlist_config(peers, expected_config):
         # because not all queriers have a co-located query-frontend
         (
             {
-                "querier": {"worker-all-0.svc-a.ns.svc.cluster.local", "worker-q-0.svc-q.ns.svc.cluster.local"},
+                "querier": {
+                    "worker-all-0.svc-a.ns.svc.cluster.local",
+                    "worker-q-0.svc-q.ns.svc.cluster.local",
+                },
                 "query-frontend": {"worker-all-0.svc-a.ns.svc.cluster.local"},
             },
             f"svc-a.ns.svc.cluster.local:{Tempo.tempo_grpc_server_port}",

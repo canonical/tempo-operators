@@ -215,7 +215,10 @@ def test_requirer_writes_requested_protocols_to_databag(context):
 
     # THEN the requirer has written the requested protocols to its app databag
     relation_out = state_out.get_relation(tracing.id)
-    assert relation_out.local_app_data == TracingRequirerAppData(receivers=["otlp_grpc"]).dump()
+    assert (
+        relation_out.local_app_data
+        == TracingRequirerAppData(receivers=["otlp_grpc"]).dump()
+    )
 
 
 @pytest.mark.parametrize("leader", (True, False))
