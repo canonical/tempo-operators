@@ -10,7 +10,7 @@ from collections import defaultdict
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 import yaml
-from charms.tempo_coordinator_k8s.v0.tracing import ReceiverProtocol
+from charmlibs.interfaces.tracing import ReceiverProtocol
 from coordinated_workers.coordinator import Coordinator
 
 import tempo_config
