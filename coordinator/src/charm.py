@@ -159,6 +159,7 @@ class TempoCoordinatorCharm(CharmBase):
         self.tempo = Tempo(
             retention_period_hours=self._trace_retention_period_hours,
             remote_write_endpoints=self._remote_write_endpoints,
+            reporting_enabled=bool(self.config["reporting_enabled"]),
         )
 
         # keep this above the coordinator definition
