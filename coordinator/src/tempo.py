@@ -69,9 +69,11 @@ class Tempo:
         self,
         retention_period_hours: int,
         remote_write_endpoints: Callable[[], List[Dict[str, Any]]],
+        reporting_enabled: bool = True,
     ):
         self._retention_period_hours = retention_period_hours
         self._remote_write_endpoints_getter = remote_write_endpoints
+        self._reporting_enabled = reporting_enabled
 
     def config(
         self,
@@ -121,9 +123,12 @@ class Tempo:
 
             config.memberlist = config.memberlist.model_copy(update=tls_config)
 
-        return yaml.dump(
-            config.model_dump(mode="json", by_alias=True, exclude_none=True)
-        )
+        config_dict = config.model_dump(mode="json", by_alias=True, exclude_none=True)
+
+        if not self._reporting_enabled:
+            config_dict["usage_report"] = {"reporting_enabled": False}
+
+        return yaml.dump(config_dict)
 
     def _build_tls_config(self, workers_addrs: Tuple[str, ...]):
         """Build TLS config to be used by Tempo's internal clients to communicate with each other."""

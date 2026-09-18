@@ -91,3 +91,42 @@ def test_metrics_generator(
             "service-graphs",
             "local-blocks",
         ]
+
+
+def test_reporting_enabled_by_default(
+    context,
+    all_worker,
+    s3,
+    nginx_container,
+    nginx_prometheus_exporter_container,
+):
+    """When reporting_enabled is True (default), no usage_report section should appear."""
+    state = State(
+        leader=True,
+        relations=[all_worker, s3],
+        containers=[nginx_container, nginx_prometheus_exporter_container],
+    )
+    with context(context.on.relation_changed(all_worker), state) as mgr:
+        charm: TempoCoordinatorCharm = mgr.charm
+        config = yaml.safe_load(charm.tempo.config(charm.coordinator))
+        assert "usage_report" not in config
+
+
+def test_reporting_disabled(
+    context,
+    all_worker,
+    s3,
+    nginx_container,
+    nginx_prometheus_exporter_container,
+):
+    """When reporting_enabled is False, usage_report.reporting_enabled should be False."""
+    state = State(
+        leader=True,
+        relations=[all_worker, s3],
+        containers=[nginx_container, nginx_prometheus_exporter_container],
+        config={"reporting_enabled": False},
+    )
+    with context(context.on.relation_changed(all_worker), state) as mgr:
+        charm: TempoCoordinatorCharm = mgr.charm
+        config = yaml.safe_load(charm.tempo.config(charm.coordinator))
+        assert config["usage_report"] == {"reporting_enabled": False}
