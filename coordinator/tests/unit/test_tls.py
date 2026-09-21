@@ -3,7 +3,7 @@ from dataclasses import replace
 from unittest.mock import patch
 
 import pytest
-from charms.tempo_coordinator_k8s.v0.tracing import (
+from charmlibs.interfaces.tracing import (
     TracingProviderAppData,
     TracingRequirerAppData,
 )

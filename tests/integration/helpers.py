@@ -188,9 +188,25 @@ def charm_and_channel_and_resources(
         except subprocess.CalledProcessError:
             logger.warning("Failed to build Tempo %s. Trying again!", role)
             continue
+        pth = _resolve_packed_charm(pth, REPO_ROOT / role)
         os.environ[charm_path_key] = str(pth)
         return pth, None, get_resources(REPO_ROOT / role)
     raise subprocess.CalledProcessError(1, f"pack {role}")
+
+
+def _resolve_packed_charm(packed: Path, project_dir: Path) -> Path:
+    # charmcraft 4.4.1 and 4.4.2 ignore the output directory passed to
+    # `charmcraft pack` and leave the .charm file inside the project
+    # directory instead: https://github.com/canonical/charmcraft/issues/2854
+    # Same workaround as Juju's test helpers: https://github.com/juju/juju/pull/23174
+    if packed.is_file():
+        return packed
+    in_project_dir = project_dir / packed.name
+    if in_project_dir.is_file():
+        return in_project_dir
+    raise FileNotFoundError(
+        f"packed charm {packed.name} not found in {packed.parent} or {project_dir}"
+    )
 
 
 def deploy_tempo(juju: Juju, name: str = TEMPO_APP):

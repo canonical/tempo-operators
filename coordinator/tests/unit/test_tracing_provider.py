@@ -2,7 +2,7 @@ from unittest.mock import PropertyMock, patch
 import pytest
 from scenario import Relation, State
 
-from charms.tempo_coordinator_k8s.v0.tracing import TracingProviderAppData
+from charmlibs.interfaces.tracing import TracingProviderAppData
 
 
 @pytest.mark.parametrize("leader", (True, False))

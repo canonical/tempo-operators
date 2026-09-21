@@ -31,7 +31,7 @@ from charms.tempo_coordinator_k8s.v0.tempo_api import (
 from charms.tempo_coordinator_k8s.v0.tempo_api import (
     TempoApiProvider,
 )
-from charms.tempo_coordinator_k8s.v0.tracing import (
+from charmlibs.interfaces.tracing import (
     ReceiverProtocol,
     TracingEndpointProvider,
     TransportProtocolType,

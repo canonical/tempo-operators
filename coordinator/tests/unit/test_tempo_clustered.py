@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import scenario
-from charms.tempo_coordinator_k8s.v0.tracing import TracingRequirerAppData
+from charmlibs.interfaces.tracing import TracingRequirerAppData
 from coordinated_workers.interfaces.cluster import (
     ClusterProvider,
     ClusterProviderAppData,
