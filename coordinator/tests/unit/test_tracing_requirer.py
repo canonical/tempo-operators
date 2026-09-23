@@ -5,6 +5,10 @@ import pytest
 from ops import CharmBase, Framework, RelationBrokenEvent, RelationChangedEvent
 from scenario import Context, Relation, State
 
+# These tests are for the charm-hosted tracing library, which has been migrated to
+# charmlibs-interfaces-tracing on PyPI. The new home for these tests is:
+# https://github.com/canonical/charmlibs/blob/main/interfaces/tracing/tests/unit/test_tracing_requirer.py
+
 from charms.tempo_coordinator_k8s.v0.tracing import (
     EndpointChangedEvent,
     EndpointRemovedEvent,

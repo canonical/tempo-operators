@@ -4,7 +4,7 @@
 
 from typing import Dict, List, cast, Iterable, Tuple
 
-from charms.tempo_coordinator_k8s.v0.tracing import (
+from charmlibs.interfaces.tracing import (
     ReceiverProtocol,
     TransportProtocolType,
     receiver_protocol_to_transport_protocol,
