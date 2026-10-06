@@ -30,6 +30,7 @@ output "requires" {
   value = {
     logging            = module.tempo_coordinator.requires.logging,
     ingress            = module.tempo_coordinator.requires.ingress,
+    istio_ingress      = module.tempo_coordinator.requires.istio_ingress,
     certificates       = module.tempo_coordinator.requires.certificates,
     send-remote-write  = module.tempo_coordinator.requires.send_remote_write,
     receive_datasource = module.tempo_coordinator.requires.receive_datasource,
