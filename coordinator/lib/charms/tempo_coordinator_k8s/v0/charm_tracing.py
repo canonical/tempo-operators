@@ -45,7 +45,11 @@ def _remove_stale_otel_sdk_packages():
     # group by name all distributions starting with "opentelemetry_"
     otel_distributions = defaultdict(list)
     for distribution in distributions():
-        name = _normalize_name(distribution.name)
+        # `distribution.name` only exists on python>=3.10, so read the name from the metadata
+        raw_name = (distribution.metadata or {}).get("Name")
+        if not raw_name:
+            continue
+        name = _normalize_name(raw_name)
         if name.startswith("opentelemetry_"):
             otel_distributions[name].append(distribution)
 
@@ -150,7 +154,7 @@ LIBAPI = 0
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
 
-LIBPATCH = 14
+LIBPATCH = 15
 
 PYDEPS = ["opentelemetry-exporter-otlp-proto-http==1.21.0"]
 
