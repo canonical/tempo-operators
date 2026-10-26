@@ -17,6 +17,7 @@ output "requires" {
   value = {
     certificates          = "certificates",
     ingress               = "ingress",
+    istio_ingress         = "istio-ingress",
     logging               = "logging",
     s3                    = "s3",
     self_charm_tracing    = "self-charm-tracing",
