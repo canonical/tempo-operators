@@ -22,8 +22,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 def pack(root: Path | str = "./", platform: str | None = None) -> Path:
     """Pack a local charm and return the path to the packed .charm file."""
+    root = Path(root).resolve()
     platform_arg = f" --platform {platform}" if platform else ""
-    cmd = f"charmcraft pack -p {root}{platform_arg}"
+    # Pass --output explicitly: charmcraft prints only the bare filename, so we must
+    # know which directory it was written to.
+    cmd = f"charmcraft pack -p {shlex.quote(str(root))} -o {shlex.quote(str(root))}{platform_arg}"
     proc = subprocess.run(
         shlex.split(cmd),
         check=True,
@@ -46,7 +49,7 @@ def pack(root: Path | str = "./", platform: str | None = None) -> Path:
             "This charm supports multiple platforms. "
             "Pass a `platform` argument to control which charm you're getting instead."
         )
-    return Path(packed_charms[0]).resolve()
+    return (root / packed_charms[0]).resolve()
 
 
 def get_resources(root: Path | str = "./") -> dict[str, str] | None:
@@ -71,8 +74,8 @@ def get_resources(root: Path | str = "./") -> dict[str, str] | None:
 
 
 CI_TRUE_VALUES = {"1", "true", "yes"}
-COORDINATOR_CHARM_FILENAME = "tempo-coordinator-k8s_ubuntu@24.04-amd64.charm"
-WORKER_CHARM_FILENAME = "tempo-worker-k8s_ubuntu@24.04-amd64.charm"
+COORDINATOR_CHARM_FILENAME = "tempo-coordinator-k8s_ubuntu@26.04-amd64.charm"
+WORKER_CHARM_FILENAME = "tempo-worker-k8s_ubuntu@26.04-amd64.charm"
 
 TRACEGEN_SCRIPT_PATH = REPO_ROOT / "coordinator" / "scripts" / "tracegen.py"
 INTEGRATION_TESTERS_CHANNEL = "2/edge"
