@@ -5,7 +5,6 @@ from shutil import rmtree
 from unittest.mock import MagicMock, patch
 
 import pytest
-from ops import ActiveStatus
 from scenario import Container, Context, PeerRelation, Relation, Exec
 
 from charm import PEERS_RELATION_ENDPOINT_NAME, TempoCoordinatorCharm
@@ -52,15 +51,6 @@ def tempo_charm(tmp_path):
                 __import__("charmlibs.nginx_k8s._nginx", fromlist=["Nginx"]).Nginx,
                 "CA_CERT_PATH",
                 str(tmp_path / "ca.tmp"),
-            )
-        )
-        stack.enter_context(
-            patch.multiple(
-                "coordinated_workers.coordinator.KubernetesComputeResourcesPatch",
-                _namespace="test-namespace",
-                _patch=lambda _: None,
-                get_status=lambda _: ActiveStatus(""),
-                is_ready=lambda _: True,
             )
         )
         stack.enter_context(patch("socket.getfqdn", return_value="localhost"))

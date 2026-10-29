@@ -47,13 +47,14 @@ from charms.istio_ingress_k8s.v0.istio_ingress_route import (
     Listener,
     ProtocolType,
 )
-from charms.istio_beacon_k8s.v0.service_mesh import (
+from charmlibs.interfaces.service_mesh import (
     AppPolicy,
     UnitPolicy,
     Endpoint,
     Method,
 )
 from coordinated_workers.coordinator import Coordinator
+from coordinated_workers.helpers import NON_RECONCILABLE_EVENTS
 from charmlibs.nginx_k8s import NginxConfig, TLSConfigManager
 
 CA_CERT_PATH = TLSConfigManager.CA_CERT_PATH
@@ -203,9 +204,6 @@ class TempoCoordinatorCharm(CharmBase):
                 ),
             ),
             workers_config=self.tempo.config,
-            # set the resource request for the nginx container
-            resources_requests=self.get_resources_requests,
-            container_name="nginx",
             remote_write_endpoints=self._remote_write_endpoints,  # type: ignore
             worker_ports=self._get_worker_ports,
             workload_tracing_protocols=["otlp_http"],
@@ -265,8 +263,12 @@ class TempoCoordinatorCharm(CharmBase):
             self.on.list_receivers_action, self._on_list_receivers_action
         )
 
-        # do this regardless of what event we are processing
-        observe_events(self, all_events, self._reconcile)
+        # Register (rather than directly call) our own reconcile. Observers run in
+        # registration order, and Coordinator's reconcile was registered first (it publishes
+        # the worker config and reconciles nginx), so it always runs before ours.
+        observe_events(
+            self, all_events.difference(NON_RECONCILABLE_EVENTS), self._reconcile
+        )
 
     ######################
     # UTILITY PROPERTIES #
@@ -811,10 +813,6 @@ class TempoCoordinatorCharm(CharmBase):
         except (CalledProcessError, IndexError):
             return False
         return out == "ready"
-
-    def get_resources_requests(self, _) -> Dict[str, str]:
-        """Returns a dictionary for the "requests" portion of the resources requirements."""
-        return {"cpu": "50m", "memory": "100Mi"}
 
     def _remote_write_endpoints(self) -> List[Dict[str, str]]:
         """Return a sorted list of remote-write endpoints."""

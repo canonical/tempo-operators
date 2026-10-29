@@ -5,7 +5,6 @@ import socket
 import pytest
 from coordinated_workers.worker import ROOT_CA_CERT
 from scenario import Context, Exec
-from ops import ActiveStatus
 from unittest.mock import patch
 
 from charm import TempoWorkerK8SOperatorCharm
@@ -29,15 +28,6 @@ class NonWriteablePath(PosixPath):
 @pytest.fixture(autouse=True)
 def patch_all():
     with ExitStack() as stack:
-        stack.enter_context(
-            patch.multiple(
-                "coordinated_workers.worker.KubernetesComputeResourcesPatch",
-                _namespace="test-namespace",
-                _patch=lambda _: None,
-                get_status=lambda _: ActiveStatus(""),
-                is_ready=lambda _: True,
-            )
-        )
         stack.enter_context(patch("lightkube.core.client.GenericSyncClient"))
         stack.enter_context(
             patch("coordinated_workers.worker.Worker._reconcile_charm_labels")
