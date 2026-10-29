@@ -67,6 +67,21 @@ wheels = [
 ]
 
 [[package]]
+name = "canonical-service-mesh"
+version = "0.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "lightkube" },
+    { name = "ops" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/11/90/f984c848e65397b5ed9460cc44e26d391994b1f6cd41d6f038e9fada266e/canonical_service_mesh-0.3.1.tar.gz", hash = "sha256:d41e09cfa7ab3be6aac8f6a72830414deb1c1430c940f9d01d1ea6ab363ce712", size = 81161, upload-time = "2026-10-01T15:58:30.715Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/72/60/184d231560ffc22bf0a93a75907318523887bc161778df944d5153a0dcd3/canonical_service_mesh-0.3.1-py3-none-any.whl", hash = "sha256:6ae1bfaa54f157ba0880a33cd5711b9a0dd532b1245a453278caab04a51fd3e0", size = 43576, upload-time = "2026-10-01T15:58:29.503Z" },
+]
+
+[[package]]
 name = "certifi"
 version = "2026.5.20"
 source = { registry = "https://pypi.org/simple" }
@@ -118,6 +133,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e5/4f/c1f866c0483e6c19f733dc9d8946453c41c2ed63177a8716490ac37d7ce1/charmed_service_mesh_helpers-0.2.0.tar.gz", hash = "sha256:4e62fe6f917d4933610c2f8cfb30a90d46ea026fa302988cffb879abd423ca5a", size = 15348, upload-time = "2025-09-05T13:12:34.329Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ef/df/dc7086366b212da07ef027e3cc48824dc6a7b1193badc3879d231f6a4ef3/charmed_service_mesh_helpers-0.2.0-py3-none-any.whl", hash = "sha256:913e2a5bfb2db445e4b95085f8c2a8b4dea1036beedd229efca9217877c1da15", size = 13967, upload-time = "2025-09-05T13:12:33.237Z" },
+]
+
+[[package]]
+name = "charmlibs-interfaces-service-mesh"
+version = "1.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "canonical-service-mesh" },
+    { name = "ops" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d3/63/29ce18fbb3335e0a670c326c8e03e8b76d5a52980b3d1c2b6d871ef0f4b1/charmlibs_interfaces_service_mesh-1.0.2.tar.gz", hash = "sha256:30eebe3456f95afaff3cc7efb3c731da065d3c4e9bfde3d135523cd684ac61ac", size = 34652, upload-time = "2026-06-17T10:22:19.326Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f9/1f/718a7ea2bcb78366b309f13cea296e41eecadd0f7ffe26115f9a8958c77f/charmlibs_interfaces_service_mesh-1.0.2-py3-none-any.whl", hash = "sha256:d4b07fadad0e229b27a101ff9eea484eb6073ef4f5efd249ba0fe434582da55f", size = 8389, upload-time = "2026-06-17T10:22:18.159Z" },
 ]
 
 [[package]]
@@ -211,10 +240,12 @@ wheels = [
 
 [[package]]
 name = "coordinated-workers"
-version = "4.1.2"
+version = "5.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "canonical-service-mesh" },
     { name = "charmed-service-mesh-helpers" },
+    { name = "charmlibs-interfaces-service-mesh" },
     { name = "charmlibs-interfaces-tls-certificates" },
     { name = "charmlibs-nginx-k8s" },
     { name = "cosl" },
@@ -224,9 +255,9 @@ dependencies = [
     { name = "ops", extra = ["tracing"] },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ed/bb/0fc82becde41211ddd80b93d8b1cc82e8f96208424a56919c99700eda690/coordinated_workers-4.1.2.tar.gz", hash = "sha256:3bb63f98aa66ab0c18d4a1108b7ce1bcd55c4aa55d2c7691fb3ab69dc20569f6", size = 380034, upload-time = "2026-06-24T18:51:38.999Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/59/de/dcdf31a759fa15da10bf919b34f2df036d3fb6dcc6e881b3acda3f19f464/coordinated_workers-5.0.0.tar.gz", hash = "sha256:3a29cbbf0c20a69f9862c288b622550fa2732e85b1b0aba598fcd03a2d1ddd84", size = 410297, upload-time = "2026-10-29T20:25:32.608Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/29/51/d808f61235edfb750d3d8a4f6549d372967c33213f92a021d061e0c9e28a/coordinated_workers-4.1.2-py3-none-any.whl", hash = "sha256:2e2593d478cd2ffb8c3bf3c415df146e47e006c5914b36e435289841e6db4496", size = 49120, upload-time = "2026-06-24T18:51:37.728Z" },
+    { url = "https://files.pythonhosted.org/packages/06/ea/ac751780d1423f5c70bcbbc8928f66cab8bf35d3a220003348adc3fc4364/coordinated_workers-5.0.0-py3-none-any.whl", hash = "sha256:1b9eb9a104bb05c4e0555f9064ed332707e66ef7f4561091ae4fae8c477847e7", size = 47387, upload-time = "2026-10-29T20:25:31.09Z" },
 ]
 
 [[package]]
@@ -610,16 +641,16 @@ wheels = [
 
 [[package]]
 name = "ops"
-version = "3.7.1"
+version = "3.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "opentelemetry-api" },
     { name = "pyyaml" },
     { name = "websocket-client" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/42/60/ad398d889fd03b1b4f950fad54ad4d0cf7a81fde21f9866a8139c8f03684/ops-3.7.1.tar.gz", hash = "sha256:1765bf6d1cff376ea27608542e183b055c89f2c5f54bca602072bcc817195abc", size = 582424, upload-time = "2026-05-28T04:13:43.906Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0f/03/d87306f7e704a0f75f461d40d6141bfbd1ea38ba329ca0e88f6c3a20cfd5/ops-3.9.0.tar.gz", hash = "sha256:f8fd7fa05359e9fc057663b1a652602f5803db0b37e1bbfe9b63971c54e4b3b3", size = 420379, upload-time = "2026-10-08T05:36:18.184Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ca/20/742e720af65f9ad23ae0cfe140502a10b2e74da6c63773f3999dad793661/ops-3.7.1-py3-none-any.whl", hash = "sha256:559dc6770e551da5f4b9686a5605ed927c140182eb38bcc31c1c531c2f98923a", size = 212723, upload-time = "2026-05-28T04:13:39.845Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/2f/faf83b14fd88c0e5ae26a4f5eb66f06f708fe322223823acfd45f8d32594/ops-3.9.0-py3-none-any.whl", hash = "sha256:2dc7a77edae408886ccd348be590df0e03589dfe5e3e115e238d5746850eed0c", size = 219271, upload-time = "2026-10-08T05:36:14.03Z" },
 ]
 
 [package.optional-dependencies]
@@ -632,21 +663,21 @@ tracing = [
 
 [[package]]
 name = "ops-scenario"
-version = "8.7.1"
+version = "8.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ops" },
     { name = "pyyaml" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4f/06/705b452b9145107978eb0400a1e751839ed1ec59dc152fa45a2e5fba0ea3/ops_scenario-8.7.1.tar.gz", hash = "sha256:25b24c7c612b8e089ad05f24a47c138999d1cc0a2683e0f7c74e0520c7bb6043", size = 78576, upload-time = "2026-05-28T04:13:45.292Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2c/c7/51b9878f732ffb5363ec34c9a078db3f8fbb691c1fc3d225d959d1f9c6c0/ops_scenario-8.9.0.tar.gz", hash = "sha256:08e4aae5d6306f0a0b772c806d6f72d8238e106459303d2fb9288b72cbcc348f", size = 132424, upload-time = "2026-10-08T05:36:19.545Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/15/45/c78501e1b8203207b7c43f62233b9fea3be5015f5230ce53d7deceb5d7a3/ops_scenario-8.7.1-py3-none-any.whl", hash = "sha256:01a8cee03c57a826b2dd9692571731d6307327cace7ac7865d9420e1136e7860", size = 69401, upload-time = "2026-05-28T04:13:41.39Z" },
+    { url = "https://files.pythonhosted.org/packages/2b/f8/2c2d655af358c708e49f8bffa0f40b4fa81e84ad9c234372543f143bc737/ops_scenario-8.9.0-py3-none-any.whl", hash = "sha256:a6ff1ed5d0f71b419cf9aa36c85094afbd4fb44bae0567a151634f8d0dde2351", size = 75885, upload-time = "2026-10-08T05:36:15.641Z" },
 ]
 
 [[package]]
 name = "ops-tracing"
-version = "3.7.1"
+version = "3.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "opentelemetry-api" },
@@ -654,9 +685,9 @@ dependencies = [
     { name = "ops" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b3/a4/f56c5f146cb38a1092b68fe8f29b945b982c3daebfee6854785b60641437/ops_tracing-3.7.1.tar.gz", hash = "sha256:fc433a58c868d36a64fe708ef8c9318ec925af7908490057ce6274c116f49af8", size = 28599, upload-time = "2026-05-28T04:13:46.306Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/65/74/f328894681d67b225107323a65ad115560c642ab7b28909b125f56a67516/ops_tracing-3.9.0.tar.gz", hash = "sha256:ca49fe32e5b86b55fd8ea600b2edd0cd02fbc5c88320d3befe9fde846546eac0", size = 33738, upload-time = "2026-10-08T05:36:20.792Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d5/3c/eed4b9c677050b211c60d64128226ba8e5f48a767f86eaf46486f883e727/ops_tracing-3.7.1-py3-none-any.whl", hash = "sha256:6b7a74e61477e0e47b42460aafc1669dfee98ec2e4a2f0360f0b86e8e6c49c3f", size = 31444, upload-time = "2026-05-28T04:13:42.546Z" },
+    { url = "https://files.pythonhosted.org/packages/43/09/66dbaed3e0ca6b83a8561e979fa6eeaf2d2bb20daee6e3497db0972c1bc2/ops_tracing-3.9.0-py3-none-any.whl", hash = "sha256:3046311e3cb5de95147c953c945d6186cb78a1af42ed4ebe775720024065b2f1", size = 33293, upload-time = "2026-10-08T05:36:16.963Z" },
 ]
 
 [[package]]
@@ -816,16 +847,12 @@ wheels = [
 [[package]]
 name = "pytest-interface-tester"
 version = "3.4.1"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/canonical/pytest-interface-tester?rev=ec9e76e#ec9e76ef74b423cd1309a8ca1c5615da13bacc97" }
 dependencies = [
     { name = "ops-scenario" },
     { name = "pydantic" },
     { name = "pytest" },
     { name = "typer" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/58/ca/55ec97b38985e63c5f46ed65da4a1dcf76b9a7e67450e7fb7bd7110bbea5/pytest_interface_tester-3.4.1.tar.gz", hash = "sha256:95af07733981adf3891aeb4d0178582dd790ec78ee8dc23e1cd9498e3dea4200", size = 21474, upload-time = "2026-02-11T08:14:10.688Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d6/d1/7f909a9b530c92afc109ffb81a3c0b18de1724a763dfc14fae49fc417ca7/pytest_interface_tester-3.4.1-py3-none-any.whl", hash = "sha256:1d1f346d04d78c4f5a18ee8d7ac8d7f288e1b5f5feafa72dd543bbc7af5cb031", size = 22192, upload-time = "2026-02-11T08:14:09.35Z" },
 ]
 
 [[package]]
@@ -963,7 +990,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "charmed-service-mesh-helpers", specifier = ">=0.2.0" },
-    { name = "coordinated-workers", specifier = ">=4.1.2" },
+    { name = "coordinated-workers", specifier = ">=5" },
     { name = "coverage", extras = ["toml"], marker = "extra == 'dev'" },
     { name = "cryptography" },
     { name = "jubilant", marker = "extra == 'dev'" },
@@ -974,7 +1001,7 @@ requires-dist = [
     { name = "pyright", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
-    { name = "pytest-interface-tester", marker = "extra == 'dev'" },
+    { name = "pytest-interface-tester", marker = "extra == 'dev'", git = "https://github.com/canonical/pytest-interface-tester?rev=ec9e76e" },
     { name = "pytest-jubilant", marker = "extra == 'dev'", specifier = ">=2,<3" },
     { name = "pytest-sugar", marker = "extra == 'dev'" },
     { name = "requests", specifier = ">=2.32.5" },
