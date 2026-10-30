@@ -68,7 +68,7 @@ wheels = [
 
 [[package]]
 name = "canonical-service-mesh"
-version = "0.3.1"
+version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
@@ -76,9 +76,9 @@ dependencies = [
     { name = "ops" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/11/90/f984c848e65397b5ed9460cc44e26d391994b1f6cd41d6f038e9fada266e/canonical_service_mesh-0.3.1.tar.gz", hash = "sha256:d41e09cfa7ab3be6aac8f6a72830414deb1c1430c940f9d01d1ea6ab363ce712", size = 81161, upload-time = "2026-10-01T15:58:30.715Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e7/7f/b4227b9e17bd486a8fd99171ae4a865a570ecca531906bfc86849849f765/canonical_service_mesh-0.4.0.tar.gz", hash = "sha256:7f96841a335610ea13c08af3e67d4433ac4cd44c0d07fbb6008e8a998795b0d5", size = 82278, upload-time = "2026-10-30T01:22:40.026Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/72/60/184d231560ffc22bf0a93a75907318523887bc161778df944d5153a0dcd3/canonical_service_mesh-0.3.1-py3-none-any.whl", hash = "sha256:6ae1bfaa54f157ba0880a33cd5711b9a0dd532b1245a453278caab04a51fd3e0", size = 43576, upload-time = "2026-10-01T15:58:29.503Z" },
+    { url = "https://files.pythonhosted.org/packages/7d/c4/edf54e295e6aa4da46f4296af9418a3430a43ba7909eb3a0846aabb8ccf7/canonical_service_mesh-0.4.0-py3-none-any.whl", hash = "sha256:4e46df9fe1a5f344164a035048b122a9c7779bbc484901f03162c5a4b414cff1", size = 43854, upload-time = "2026-10-30T01:22:38.513Z" },
 ]
 
 [[package]]
