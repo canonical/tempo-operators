@@ -8,13 +8,10 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 from interface_tester import InterfaceTester
-from ops import ActiveStatus
 from scenario import Container, Mount, State, Exec
 from coordinated_workers.worker import CONFIG_FILE
 
 from charm import TempoWorkerK8SOperatorCharm
-
-k8s_resource_patch_ready = MagicMock(return_value=True)
 
 
 @contextmanager
@@ -30,15 +27,6 @@ def _urlopen_patch(url: str, resp, tls: bool = False):
 @pytest.fixture(autouse=True, scope="module")
 def patch_all():
     with ExitStack() as stack:
-        stack.enter_context(
-            patch.multiple(
-                "coordinated_workers.worker.KubernetesComputeResourcesPatch",
-                _namespace="test-namespace",
-                _patch=lambda _: None,
-                get_status=lambda _: ActiveStatus(""),
-                is_ready=k8s_resource_patch_ready,
-            )
-        )
         stack.enter_context(
             patch("urllib.request.urlopen", new=partial(_urlopen_patch, resp="ready"))
         )

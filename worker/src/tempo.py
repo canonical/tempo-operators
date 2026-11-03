@@ -40,9 +40,6 @@ class TempoWorker(Worker):
             pebble_layer=self._layer,
             endpoints={"cluster": "tempo-cluster"},
             readiness_check_endpoint=self._readiness_check_endpoint,
-            resources_requests=lambda _: {"cpu": "50m", "memory": "200Mi"},
-            # container we want to resource-patch
-            container_name=self.container_name,
         )
 
     @staticmethod
