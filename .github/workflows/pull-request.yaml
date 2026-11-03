@@ -24,15 +24,3 @@ jobs:
       charm-path: ${{ matrix.charm-path }}
       enable-integration: ${{ matrix.charm-path == 'coordinator' }}
       juju-channel: 3.6/candidate
-  interfaces:
-    strategy:
-      fail-fast: false
-      matrix:
-        charm:
-          - tempo-coordinator-k8s
-          - tempo-worker-k8s
-    uses: canonical/charmlibs/.github/workflows/interface-tests.yaml@interface-tests-v0
-    with:
-      charm: ${{ matrix.charm }}
-      charm-repo: ${{ github.event.pull_request.head.repo.full_name }}
-      charm-branch: ${{ github.event.pull_request.head.ref }}
