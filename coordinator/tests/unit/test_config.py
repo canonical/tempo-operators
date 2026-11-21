@@ -65,7 +65,7 @@ def test_metrics_generator(
         config_raw = charm.tempo.config(charm.coordinator)
         config = yaml.safe_load(config_raw)
         assert "metrics_generator" not in config
-        assert "overrides" not in config
+        assert "metrics_generator" not in config["overrides"]["defaults"]
 
     # add remote-write relation
     state = State(

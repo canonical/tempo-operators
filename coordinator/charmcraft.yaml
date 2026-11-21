@@ -269,3 +269,29 @@ config:
         Ref: https://grafana.com/docs/tempo/latest/configuration/#usage-report
       type: boolean
       default: true
+    ingestion_rate_limit_bytes:
+      description: |
+        Maximum trace data, in bytes per second, that each Tempo distributor accepts.
+        Data above this rate is refused with a RATE_LIMITED error. Must be greater than 0.
+
+        Ref: https://grafana.com/docs/tempo/latest/configuration/#overrides
+      type: int
+      default: 15000000
+    ingestion_burst_size_bytes:
+      description: |
+        Extra data, in bytes, that each distributor accepts in a short burst above ingestion_rate_limit_bytes.
+        A push request bigger than this is always refused. Must be greater than 0.
+      type: int
+      default: 20000000
+    max_traces_per_user:
+      description: |
+        Maximum number of live traces (traces still receiving spans) that each ingester keeps in memory.
+        At the limit, every span it receives is dropped and the sender is not told. 0 disables the limit.
+      type: int
+      default: 10000
+    max_bytes_per_trace:
+      description: |
+        Maximum size of a single trace, in bytes. Spans that would make a trace bigger are dropped and the
+        sender is not told. Lowering it can also drop parts of traces already stored. 0 disables the limit.
+      type: int
+      default: 5000000

@@ -403,10 +403,32 @@ class MetricsGeneratorDefaults(BaseModel):
     )
 
 
+class IngestionOverrides(BaseModel):
+    """Ingestion limits in the overrides section.
+
+    Ref: https://grafana.com/docs/tempo/latest/configuration/#overrides
+    """
+
+    rate_limit_bytes: Optional[int] = None
+    burst_size_bytes: Optional[int] = None
+    max_traces_per_user: Optional[int] = None
+
+
+class GlobalOverrides(BaseModel):
+    """Global limits in the overrides section."""
+
+    max_bytes_per_trace: Optional[int] = None
+
+
 class Defaults(BaseModel):
     """Defaults schema."""
 
-    metrics_generator: MetricsGeneratorDefaults
+    ingestion: Optional[IngestionOverrides] = None
+    # "global" is a Python keyword: the field is "global_", written to YAML as "global".
+    global_: Optional[GlobalOverrides] = Field(
+        default=None, serialization_alias="global"
+    )
+    metrics_generator: Optional[MetricsGeneratorDefaults] = None
 
 
 class Overrides(BaseModel):

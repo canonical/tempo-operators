@@ -7,6 +7,7 @@
 import logging
 import re
 from collections import defaultdict
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 import yaml
@@ -16,6 +17,21 @@ from coordinated_workers.coordinator import Coordinator
 import tempo_config
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class IngestionLimits:
+    """Ingestion limits written to Tempo's overrides section.
+
+    The defaults are Tempo's own defaults. A field set to None is left out of the
+    config, so Tempo falls back to its built-in default for it.
+    Ref: https://grafana.com/docs/tempo/latest/configuration/#overrides
+    """
+
+    rate_limit_bytes: Optional[int] = 15_000_000
+    burst_size_bytes: Optional[int] = 20_000_000
+    max_traces_per_user: Optional[int] = 10_000
+    max_bytes_per_trace: Optional[int] = 5_000_000
 
 
 class Tempo:
@@ -70,10 +86,14 @@ class Tempo:
         retention_period_hours: int,
         remote_write_endpoints: Callable[[], List[Dict[str, Any]]],
         reporting_enabled: bool = True,
+        ingestion_limits: Optional[IngestionLimits] = None,
     ):
         self._retention_period_hours = retention_period_hours
         self._remote_write_endpoints_getter = remote_write_endpoints
         self._reporting_enabled = reporting_enabled
+        self._ingestion_limits = (
+            ingestion_limits if ingestion_limits is not None else IngestionLimits()
+        )
 
     def config(
         self,
@@ -104,8 +124,9 @@ class Tempo:
             ),
         )
 
-        if config.metrics_generator:
-            config.overrides = self._build_overrides_config()
+        config.overrides = self._build_overrides_config(
+            metrics_generator_enabled=config.metrics_generator is not None
+        )
 
         if coordinator.tls_available:
             tls_config = self._build_tls_config(coordinator.cluster.gather_addresses())
@@ -146,18 +167,47 @@ class Tempo:
             "tls_server_name": workers_addrs[0] if len(workers_addrs) > 0 else "",
         }
 
-    def _build_overrides_config(self):
-        # in order to tell tempo to enable the metrics generator, we need to set
-        # "processors": list of enabled processors in the overrides section
+    def _build_overrides_config(
+        self, metrics_generator_enabled: bool
+    ) -> Optional[tempo_config.Overrides]:
+        """Build the overrides section: ingestion limits and metrics-generator processors."""
+        limits = self._ingestion_limits
+
+        ingestion = None
+        ingestion_fields = {
+            "rate_limit_bytes": limits.rate_limit_bytes,
+            "burst_size_bytes": limits.burst_size_bytes,
+            "max_traces_per_user": limits.max_traces_per_user,
+        }
+        if any(value is not None for value in ingestion_fields.values()):
+            ingestion = tempo_config.IngestionOverrides(**ingestion_fields)
+
+        global_ = None
+        if limits.max_bytes_per_trace is not None:
+            global_ = tempo_config.GlobalOverrides(
+                max_bytes_per_trace=limits.max_bytes_per_trace
+            )
+
+        metrics_generator = None
+        if metrics_generator_enabled:
+            # in order to tell tempo to enable the metrics generator, we need to set
+            # "processors": list of enabled processors in the overrides section
+            metrics_generator = tempo_config.MetricsGeneratorDefaults(
+                processors=[
+                    tempo_config.MetricsGeneratorProcessorLabel.SPAN_METRICS,
+                    tempo_config.MetricsGeneratorProcessorLabel.SERVICE_GRAPHS,
+                    tempo_config.MetricsGeneratorProcessorLabel.LOCAL_BLOCKS,
+                ],
+            )
+
+        if ingestion is None and global_ is None and metrics_generator is None:
+            return None
+
         return tempo_config.Overrides(
             defaults=tempo_config.Defaults(
-                metrics_generator=tempo_config.MetricsGeneratorDefaults(
-                    processors=[
-                        tempo_config.MetricsGeneratorProcessorLabel.SPAN_METRICS,
-                        tempo_config.MetricsGeneratorProcessorLabel.SERVICE_GRAPHS,
-                        tempo_config.MetricsGeneratorProcessorLabel.LOCAL_BLOCKS,
-                    ],
-                )
+                ingestion=ingestion,
+                global_=global_,
+                metrics_generator=metrics_generator,
             )
         )
 
