@@ -71,8 +71,8 @@ def get_resources(root: Path | str = "./") -> dict[str, str] | None:
 
 
 CI_TRUE_VALUES = {"1", "true", "yes"}
-COORDINATOR_CHARM_FILENAME = "tempo-coordinator-k8s_ubuntu@24.04-amd64.charm"
-WORKER_CHARM_FILENAME = "tempo-worker-k8s_ubuntu@24.04-amd64.charm"
+COORDINATOR_CHARM_FILENAME = "tempo-coordinator-k8s_ubuntu@26.04-amd64.charm"
+WORKER_CHARM_FILENAME = "tempo-worker-k8s_ubuntu@26.04-amd64.charm"
 
 TRACEGEN_SCRIPT_PATH = REPO_ROOT / "coordinator" / "scripts" / "tracegen.py"
 INTEGRATION_TESTERS_CHANNEL = "2/edge"

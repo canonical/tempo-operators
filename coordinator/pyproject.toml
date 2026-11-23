@@ -6,7 +6,7 @@ version = "0.1"  # this is in fact irrelevant
 requires-python = "~=3.14.0"
 
 dependencies = [
-    "coordinated-workers>=4.1.2",
+    "coordinated-workers>=5",
     "pydantic<3",
     # ---PYDEPS---,
     # lib/charms/tls_certificates_interface/v4/tls_certificates.py
@@ -41,6 +41,11 @@ dev = [
 #   INTERFACE TESTS
     "pytest-interface-tester",
 ]
+
+# pytest-interface-tester<=3.4.1 breaks with ops-scenario 8.9.0 (ops 3.9.0): it reads the private
+# `_EventPath.suffix`. Fixed on its main branch but not yet released; use PyPI once >3.4.1 is out.
+[tool.uv.sources]
+pytest-interface-tester = { git = "https://github.com/canonical/pytest-interface-tester", rev = "ec9e76e" }
 
 [tool.pyright]
 extraPaths = ["lib"]
