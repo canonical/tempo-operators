@@ -1,7 +1,7 @@
 import pytest
 
 import tempo_config
-from tempo import Tempo
+from tempo import IngestionLimits, Tempo
 
 # Sample values for required S3 fields (only endpoint varies in tests).
 _S3_DEFAULTS = {
@@ -219,3 +219,53 @@ def test_tempo_ingester_config(addresses, expected_replication):
         .lifecycler.ring.replication_factor
         == expected_replication
     )
+
+
+# Tempo's own default ingestion limits, which IngestionLimits() also uses.
+DEFAULT_INGESTION = {"rate_limit_bytes": 15000000, "max_traces_per_user": 10000}
+
+
+@pytest.mark.parametrize(
+    "limits, metrics_generator_enabled, expected_defaults",
+    (
+        # by default, Tempo's own default limits are written
+        (IngestionLimits(), False, {"ingestion": DEFAULT_INGESTION}),
+        # a limit set to None is left out, so Tempo uses its built-in default for it
+        (
+            IngestionLimits(rate_limit_bytes=None),
+            False,
+            {"ingestion": {"max_traces_per_user": 10000}},
+        ),
+        # 0 disables the live traces limit, so it is written as it is
+        (
+            IngestionLimits(max_traces_per_user=0),
+            False,
+            {"ingestion": {**DEFAULT_INGESTION, "max_traces_per_user": 0}},
+        ),
+        # the metrics-generator processors are written next to the limits
+        (
+            IngestionLimits(),
+            True,
+            {
+                "ingestion": DEFAULT_INGESTION,
+                "metrics_generator": {
+                    "processors": ["span-metrics", "service-graphs", "local-blocks"]
+                },
+            },
+        ),
+    ),
+)
+def test_tempo_overrides_config(limits, metrics_generator_enabled, expected_defaults):
+    overrides = Tempo(720, lambda: [], ingestion_limits=limits)._build_overrides_config(
+        metrics_generator_enabled
+    )
+    defaults = overrides.defaults.model_dump(
+        mode="json", by_alias=True, exclude_none=True
+    )
+    assert defaults == expected_defaults
+
+
+def test_tempo_overrides_config_empty():
+    # no limits and no metrics-generator processors: no overrides section at all
+    tempo = Tempo(720, lambda: [], ingestion_limits=IngestionLimits(None, None))
+    assert tempo._build_overrides_config(metrics_generator_enabled=False) is None

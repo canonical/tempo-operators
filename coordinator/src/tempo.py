@@ -29,9 +29,14 @@ class IngestionLimits:
     """
 
     rate_limit_bytes: Optional[int] = 15_000_000
-    burst_size_bytes: Optional[int] = 20_000_000
     max_traces_per_user: Optional[int] = 10_000
-    max_bytes_per_trace: Optional[int] = 5_000_000
+
+
+# Charm config option name -> (IngestionLimits field, minimum valid value).
+INGESTION_LIMIT_OPTIONS: Dict[str, Tuple[str, int]] = {
+    "ingestion_rate_limit_bytes": ("rate_limit_bytes", 1),
+    "max_traces_per_user": ("max_traces_per_user", 0),
+}
 
 
 class Tempo:
@@ -176,17 +181,10 @@ class Tempo:
         ingestion = None
         ingestion_fields = {
             "rate_limit_bytes": limits.rate_limit_bytes,
-            "burst_size_bytes": limits.burst_size_bytes,
             "max_traces_per_user": limits.max_traces_per_user,
         }
         if any(value is not None for value in ingestion_fields.values()):
             ingestion = tempo_config.IngestionOverrides(**ingestion_fields)
-
-        global_ = None
-        if limits.max_bytes_per_trace is not None:
-            global_ = tempo_config.GlobalOverrides(
-                max_bytes_per_trace=limits.max_bytes_per_trace
-            )
 
         metrics_generator = None
         if metrics_generator_enabled:
@@ -200,13 +198,12 @@ class Tempo:
                 ],
             )
 
-        if ingestion is None and global_ is None and metrics_generator is None:
+        if ingestion is None and metrics_generator is None:
             return None
 
         return tempo_config.Overrides(
             defaults=tempo_config.Defaults(
                 ingestion=ingestion,
-                global_=global_,
                 metrics_generator=metrics_generator,
             )
         )

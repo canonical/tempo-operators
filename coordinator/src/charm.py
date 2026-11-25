@@ -67,7 +67,7 @@ from cosl.interfaces.utils import DatabagModel
 from ops import CollectStatusEvent
 from ops.charm import CharmBase
 
-from tempo import IngestionLimits, Tempo
+from tempo import INGESTION_LIMIT_OPTIONS, IngestionLimits, Tempo
 from tempo_config import TEMPO_ROLES_CONFIG, TempoRole
 from nginx_config import upstreams, server_ports_to_locations
 from cosl.reconciler import all_events, observe_events
@@ -81,14 +81,6 @@ _LOKI_DS_TYPE = "loki"
 _TRACES_TO_METRICS_CORRELATION_FEATURE = "traces-to-metrics"
 _TRACES_TO_LOGS_CORRELATION_FEATURE = "traces-to-logs"
 _SERVICE_GRAPH_CORRELATION_FEATURE = "service graph"
-
-# Ingestion limit config options: option name -> (IngestionLimits field, minimum valid value).
-INGESTION_LIMIT_OPTIONS: Dict[str, Tuple[str, int]] = {
-    "ingestion_rate_limit_bytes": ("rate_limit_bytes", 1),
-    "ingestion_burst_size_bytes": ("burst_size_bytes", 1),
-    "max_traces_per_user": ("max_traces_per_user", 0),
-    "max_bytes_per_trace": ("max_bytes_per_trace", 0),
-}
 
 
 class TempoCoordinator(Coordinator):
@@ -532,15 +524,6 @@ class TempoCoordinatorCharm(CharmBase):
                 )
             )
 
-        # block if an ingestion limit option is out of range
-        invalid_limits = self._invalid_ingestion_limit_options
-        if invalid_limits:
-            e.add_status(
-                ops.BlockedStatus(
-                    f"Invalid config: {', '.join(invalid_limits)} out of range; Tempo defaults used"
-                )
-            )
-
     ###################
     # UTILITY METHODS #
     ###################
@@ -643,22 +626,22 @@ class TempoCoordinatorCharm(CharmBase):
     def _ingestion_limits(self) -> IngestionLimits:
         """Ingestion limits from the charm config.
 
-        An out-of-range value is left out (None), so Tempo uses its own default for it.
+        An out-of-range value is logged and left out (None), so Tempo uses its own default for it.
         """
         fields: Dict[str, Optional[int]] = {}
         for option, (field, minimum) in INGESTION_LIMIT_OPTIONS.items():
             value = int(self.config[option])
-            fields[field] = value if value >= minimum else None
+            if value < minimum:
+                logger.warning(
+                    "ignoring %s=%d: it must be at least %d. Tempo uses its default.",
+                    option,
+                    value,
+                    minimum,
+                )
+                fields[field] = None
+            else:
+                fields[field] = value
         return IngestionLimits(**fields)
-
-    @property
-    def _invalid_ingestion_limit_options(self) -> List[str]:
-        """Names of the ingestion limit options whose value is out of range."""
-        return [
-            option
-            for option, (_, minimum) in INGESTION_LIMIT_OPTIONS.items()
-            if int(self.config[option]) < minimum
-        ]
 
     def server_ca_cert(self) -> Optional[str]:
         """For charm tracing."""
