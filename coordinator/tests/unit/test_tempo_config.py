@@ -219,3 +219,9 @@ def test_tempo_ingester_config(addresses, expected_replication):
         .lifecycler.ring.replication_factor
         == expected_replication
     )
+
+
+def test_tempo_ingester_config_block_cut_thresholds():
+    ingester = Tempo(720, lambda: [])._build_ingester_config({})
+    assert ingester.max_block_bytes == 500 * 1024 * 1024
+    assert ingester.max_block_duration == "30m"
