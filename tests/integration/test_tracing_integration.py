@@ -15,6 +15,7 @@ from tests.integration.helpers import (
     get_app_ip_address,
     get_tempo_application_endpoint,
     query_traces_patiently_from_client_localhost,
+    wait_for_tcp_port_open,
 )
 
 
@@ -46,6 +47,12 @@ def test_enable_otlp_grpc(juju: Juju):
         delay=5,
         successes=3,
     )
+    # juju.wait can return before the units have processed the config change (their status stays
+    # active while the config-changed hook is still queued). Wait until nginx on every coordinator
+    # unit has restarted and listens on the otlp_grpc port, so that the tests that emit traces
+    # don't hit a unit whose nginx is still being restarted.
+    for unit in juju.status().apps[TEMPO_APP].units.values():
+        wait_for_tcp_port_open(unit.address, Tempo.receiver_ports["otlp_grpc"])
 
 
 def test_verify_traces_http(juju: Juju, nonce):
