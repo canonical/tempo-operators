@@ -1,8 +1,10 @@
+import logging
 import shlex
 import subprocess
 
 import pytest
 from jubilant import Juju
+from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
 
 from tempo import Tempo
 from tests.integration.helpers import (
@@ -15,6 +17,8 @@ from tests.integration.helpers import (
     get_tempo_application_endpoint,
     query_traces_patiently_from_client_localhost,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.mark.juju_setup
@@ -38,10 +42,19 @@ def test_trace_ingestion(juju):
     )
 
 
+# A worker pod can still be restarting (e.g. after a config update) when `juju.wait` returns,
+# so poll until the endpoint serves metrics instead of scraping once.
+@retry(
+    stop=stop_after_attempt(60),
+    wait=wait_fixed(5),
+    before_sleep=before_sleep_log(logger, logging.INFO),
+    reraise=True,
+)
 def get_metrics(ip: str, port: int):
     proc = subprocess.run(
         shlex.split(f"curl {ip}:{port}/metrics"), text=True, capture_output=True
     )
+    assert proc.stdout, f"{ip}:{port} served no metrics"
     return proc.stdout
 
 
@@ -49,7 +62,7 @@ def test_metrics_endpoints(juju):
     # verify that all worker apps and the coordinator can be scraped for metrics on their application IP
     for app in (*ALL_WORKERS, TEMPO_APP):
         app_ip = get_app_ip_address(juju, app)
-        assert get_metrics(app_ip, port=Tempo.tempo_http_server_port)
+        get_metrics(app_ip, port=Tempo.tempo_http_server_port)
 
 
 @pytest.mark.juju_teardown
