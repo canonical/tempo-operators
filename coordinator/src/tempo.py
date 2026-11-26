@@ -347,12 +347,10 @@ class Tempo:
     def _build_ingester_config(self, roles_addresses: Dict[str, Set[str]]):
         """Build ingester config"""
         ingester_addresses = roles_addresses.get(tempo_config.TempoRole.ingester)
-        # the length of time after a trace has not received spans to consider it complete and flush it
-        # cut the head block when it hits this number of traces or ...
-        #   this much time passes
+        # max_block_bytes is Tempo's own default (500 MiB). 
         return tempo_config.Ingester(
             trace_idle_period="10s",
-            max_block_bytes=100,
+            max_block_bytes=500 * 1024 * 1024,
             max_block_duration="30m",
             # replication_factor=3 to ensure that the Tempo cluster can still be
             # functional if one of the ingesters is down.

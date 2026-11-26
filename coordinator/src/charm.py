@@ -112,11 +112,11 @@ class TempoCoordinator(Coordinator):
             if self.charm_tracing.is_ready()
             else None
         )
-        # else, we send to localhost
+        # else, we send to our own hostname
         tls_config = self.tls_config
         endpoint = (
             endpoint
-            or f"http{'s' if tls_config else ''}://localhost:{Tempo.otlp_http_receiver_port}"
+            or f"http{'s' if tls_config else ''}://{self.hostname}:{Tempo.otlp_http_receiver_port}"
         )
 
         url = endpoint + "/v1/traces"
