@@ -269,3 +269,32 @@ config:
         Ref: https://grafana.com/docs/tempo/latest/configuration/#usage-report
       type: boolean
       default: true
+    ingestion_rate_limit_bytes:
+      description: |
+        Maximum trace data, in bytes per second, that each Tempo distributor accepts.
+        With 3 distributors, the cluster accepts up to 3 times this value.
+        Data above this rate is refused, and the sender gets a RATE_LIMITED error back.
+        Refused spans are counted in the tempo_discarded_spans_total metric, with reason="rate_limited".
+        Ingester memory grows with the rate of accepted data, so a lower limit lowers memory use when senders
+        push more data than the limit.
+        If the value is 0 or less, the charm logs a warning in juju debug-log and Tempo uses its default
+        of 15000000.
+
+        Ref: https://grafana.com/docs/tempo/latest/configuration/#overrides
+      type: int
+      default: 15000000
+    max_traces_per_user:
+      description: |
+        Maximum number of live traces that each ingester keeps in memory, counted across all senders.
+        A trace is live until 10 to 20 seconds after its last span.
+        At the limit, every received span is dropped. 0 disables the limit.
+        The sender still gets a success reply, so it cannot tell that its spans were dropped.
+        Dropped spans are counted in the tempo_discarded_spans_total metric, with reason="live_traces_exceeded".
+        This limit protects ingester memory when many traces are live at the same time, for example many
+        small traces that stay under ingestion_rate_limit_bytes.
+        If the value is negative, the charm logs a warning in juju debug-log and Tempo uses its default
+        of 10000.
+
+        Ref: https://grafana.com/docs/tempo/latest/configuration/#overrides
+      type: int
+      default: 10000

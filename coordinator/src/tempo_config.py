@@ -403,10 +403,21 @@ class MetricsGeneratorDefaults(BaseModel):
     )
 
 
+class IngestionOverrides(BaseModel):
+    """Ingestion limits in the overrides section.
+
+    Ref: https://grafana.com/docs/tempo/latest/configuration/#overrides
+    """
+
+    rate_limit_bytes: Optional[int] = None
+    max_traces_per_user: Optional[int] = None
+
+
 class Defaults(BaseModel):
     """Defaults schema."""
 
-    metrics_generator: MetricsGeneratorDefaults
+    ingestion: Optional[IngestionOverrides] = None
+    metrics_generator: Optional[MetricsGeneratorDefaults] = None
 
 
 class Overrides(BaseModel):

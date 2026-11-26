@@ -67,7 +67,7 @@ from cosl.interfaces.utils import DatabagModel
 from ops import CollectStatusEvent
 from ops.charm import CharmBase
 
-from tempo import Tempo
+from tempo import INGESTION_LIMIT_OPTIONS, IngestionLimits, Tempo
 from tempo_config import TEMPO_ROLES_CONFIG, TempoRole
 from nginx_config import upstreams, server_ports_to_locations
 from cosl.reconciler import all_events, observe_events
@@ -161,6 +161,7 @@ class TempoCoordinatorCharm(CharmBase):
             retention_period_hours=self._trace_retention_period_hours,
             remote_write_endpoints=self._remote_write_endpoints,
             reporting_enabled=bool(self.config["reporting_enabled"]),
+            ingestion_limits=self._ingestion_limits,
         )
 
         # keep this above the coordinator definition
@@ -620,6 +621,27 @@ class TempoCoordinatorCharm(CharmBase):
         """Trace retention period for the compactor."""
         # if unset, defaults to 30 days
         return cast(int, self.config["retention-period"])
+
+    @property
+    def _ingestion_limits(self) -> IngestionLimits:
+        """Ingestion limits from the charm config.
+
+        An out-of-range value is logged and left out (None), so Tempo uses its own default for it.
+        """
+        fields: Dict[str, Optional[int]] = {}
+        for option, (field, minimum) in INGESTION_LIMIT_OPTIONS.items():
+            value = int(self.config[option])
+            if value < minimum:
+                logger.warning(
+                    "ignoring %s=%d: it must be at least %d. Tempo uses its default.",
+                    option,
+                    value,
+                    minimum,
+                )
+                fields[field] = None
+            else:
+                fields[field] = value
+        return IngestionLimits(**fields)
 
     def server_ca_cert(self) -> Optional[str]:
         """For charm tracing."""
