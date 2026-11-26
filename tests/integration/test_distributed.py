@@ -1,5 +1,4 @@
 import logging
-import shlex
 import subprocess
 
 import pytest
@@ -51,10 +50,14 @@ def test_trace_ingestion(juju):
     reraise=True,
 )
 def get_metrics(ip: str, port: int):
+    # --fail makes HTTP errors exit non-zero; check=True turns any curl failure (connection
+    # refused, HTTP error) into a CalledProcessError, which tenacity retries.
     proc = subprocess.run(
-        shlex.split(f"curl {ip}:{port}/metrics"), text=True, capture_output=True
+        ["curl", "--fail", "--silent", "--show-error", f"{ip}:{port}/metrics"],
+        text=True,
+        capture_output=True,
+        check=True,
     )
-    assert proc.stdout, f"{ip}:{port} served no metrics"
     return proc.stdout
 
 
@@ -62,7 +65,7 @@ def test_metrics_endpoints(juju):
     # verify that all worker apps and the coordinator can be scraped for metrics on their application IP
     for app in (*ALL_WORKERS, TEMPO_APP):
         app_ip = get_app_ip_address(juju, app)
-        get_metrics(app_ip, port=Tempo.tempo_http_server_port)
+        assert get_metrics(app_ip, port=Tempo.tempo_http_server_port)
 
 
 @pytest.mark.juju_teardown
