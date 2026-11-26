@@ -1,8 +1,9 @@
-import shlex
+import logging
 import subprocess
 
 import pytest
 from jubilant import Juju
+from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
 
 from tempo import Tempo
 from tests.integration.helpers import (
@@ -15,6 +16,8 @@ from tests.integration.helpers import (
     get_tempo_application_endpoint,
     query_traces_patiently_from_client_localhost,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.mark.juju_setup
@@ -38,9 +41,22 @@ def test_trace_ingestion(juju):
     )
 
 
+# A worker pod can still be restarting (e.g. after a config update) when `juju.wait` returns,
+# so poll until the endpoint serves metrics instead of scraping once.
+@retry(
+    stop=stop_after_attempt(60),
+    wait=wait_fixed(5),
+    before_sleep=before_sleep_log(logger, logging.INFO),
+    reraise=True,
+)
 def get_metrics(ip: str, port: int):
+    # --fail makes HTTP errors exit non-zero; check=True turns any curl failure (connection
+    # refused, HTTP error) into a CalledProcessError, which tenacity retries.
     proc = subprocess.run(
-        shlex.split(f"curl {ip}:{port}/metrics"), text=True, capture_output=True
+        ["curl", "--fail", "--silent", "--show-error", f"{ip}:{port}/metrics"],
+        text=True,
+        capture_output=True,
+        check=True,
     )
     return proc.stdout
 

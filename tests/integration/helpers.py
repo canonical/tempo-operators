@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import shlex
+import socket
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
@@ -13,7 +14,7 @@ import yaml
 from jubilant import Juju, all_active, all_agents_idle
 from lightkube import Client
 from lightkube.generic_resource import create_namespaced_resource
-from tenacity import retry, stop_after_attempt, wait_fixed
+from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +156,18 @@ def get_app_ip_address(juju: Juju, app_name: str):
 def get_unit_ip_address(juju: Juju, app_name: str, unit_no: int):
     """Return a juju unit's IP address."""
     return juju.status().apps[app_name].units[f"{app_name}/{unit_no}"].address
+
+
+@retry(
+    stop=stop_after_attempt(60),
+    wait=wait_fixed(5),
+    before_sleep=before_sleep_log(logger, logging.INFO),
+    reraise=True,
+)
+def wait_for_tcp_port_open(host: str, port: int):
+    """Block until a TCP connection to host:port succeeds."""
+    with socket.create_connection((host, port), timeout=3):
+        pass
 
 
 def charm_and_channel_and_resources(
